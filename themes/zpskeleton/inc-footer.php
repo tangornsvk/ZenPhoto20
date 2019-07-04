@@ -8,7 +8,7 @@
 
 					<?php
 					if (function_exists("printUserLogin_out")) {
-						if (npg_loggedin()) {
+						if (zp_loggedin()) {
 							?>
 							<li><?php printUserLogin_out("", ""); ?></li>
 						<?php } else { ?>
@@ -16,7 +16,7 @@
 						<?php } ?>
 					<?php } ?>
 
-					<?php if (!npg_loggedin() && function_exists('printRegistrationForm')) { ?>
+					<?php if (!zp_loggedin() && function_exists('printRegistrationForm')) { ?>
 						<li>|&nbsp;<a href="<?php echo getCustomPageURL('register'); ?>" title="<?php echo gettext('Register'); ?>"><?php echo gettext('Register'); ?></a></li>
 					<?php } ?>
 
@@ -25,7 +25,7 @@
 			<div class="footer-left">
 				&copy; <?php printGalleryTitle(); ?>
 
-				<?php print_SW_Link(); ?>
+				<?php printZenphotoLink(); ?>
 			</div>
 		</div>
 		<?php if (function_exists('printLanguageSelector')) { ?>
@@ -48,6 +48,6 @@
 		?>
 	</div>
 </div>
-<?php npgFilters::apply('theme_body_close'); ?>
+<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

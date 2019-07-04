@@ -15,7 +15,6 @@ if (!defined('OFFSET_PATH')) {
  * Executes the configuration change code
  */
 function reconfigureAction($mandatory) {
-	global $_conf_vars;
 	list($diff, $needs) = checkSignature($mandatory);
 	$diffkeys = array_keys($diff);
 	if ($mandatory) {
@@ -27,26 +26,9 @@ function reconfigureAction($mandatory) {
 			}
 			exit(); //	can't really run setup from an RSS feed.
 		}
-		switch ($mandatory) {
-			case 11:
-				$reason = gettext('no configuration file');
-				break;
-			case 12:
-				$reason = sprintf(gettext('no %1$s PHP support'), $_conf_vars['db_software']);
-				break;
-			case 13:
-				$reason = gettext('database connection failed');
-				break;
-			default:
-				$reason = FALSE; //	install signature option not set
-				break;
-		}
-		if ($reason) {
-			debugLog(sprintf(gettext('Setup required: %1$s'), $reason));
-		}
 		if (empty($needs)) {
 			$dir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
-			$p = strpos($dir, CORE_FOLDER);
+			$p = strpos($dir, ZENFOLDER);
 			if ($p !== false) {
 				$dir = substr($dir, 0, $p);
 			}
@@ -56,42 +38,28 @@ function reconfigureAction($mandatory) {
 				$where = 'gallery';
 			}
 			$dir = rtrim($dir, '/');
-			if (isset($_SERVER['https'])) {
-				$protocol = 'https';
-			} else {
-				$protocol = 'http';
-			}
-			$location = $protocol . '://' . $_SERVER['HTTP_HOST'] . $dir . "/" . CORE_FOLDER . "/setup/index.php?autorun=$where";
+			$location = "http://" . $_SERVER['HTTP_HOST'] . $dir . "/" . ZENFOLDER . "/setup/index.php?autorun=$where";
 			header("Location: $location");
-			exit();
+			exitZP();
 		} else {
 			// because we are loading the script from within a function!
-			global $subtabs, $_admin_menu, $_admin_tab, $_invisible_execute, $_gallery;
-			$_invisible_execute = 1;
-			require_once(dirname(__FILE__) . '/functions-basic.php');
-			require_once(CORE_SERVERPATH . 'initialize-basic.php');
-			require_once(dirname(__FILE__) . '/lib-filter.php');
-
-			if (!defined('FULLWEBPATH')) {
-				$protocol = (@$_SERVER['https']) ? 'HTTPS' : 'HTTP';
-				define('FULLHOSTPATH', $protocol . "://" . $_SERVER['HTTP_HOST']);
-				define('FULLWEBPATH', FULLHOSTPATH . WEBPATH);
-			}
-			require_once(CORE_SERVERPATH . 'admin-globals.php');
-			header('Last-Modified: ' . NPG_LAST_MODIFIED);
+			global $subtabs, $zenphoto_tabs, $_zp_admin_tab, $_zp_invisible_execute, $_zp_gallery;
+			$_zp_invisible_execute = 1;
+			require_once(SERVERPATH . '/' . ZENFOLDER . '/admin-globals.php');
+			header('Last-Modified: ' . ZP_LAST_MODIFIED);
 			header('Content-Type: text/html; charset=UTF-8');
 			?>
 			<!DOCTYPE html>
 			<html xmlns="http://www.w3.org/1999/xhtml" />
 			<head>
 				<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-				<link rel="stylesheet" href = "<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/admin.css" type="text/css" />
+				<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.css?ZenPhoto20_<?PHP ECHO ZENPHOTO_VERSION; ?>" type="text/css" />
 				<?php reconfigureCS(); ?>
 			</head>
 			<body>
-				<?php if ($_gallery) printLogoAndLinks(); ?>
+				<?php if ($_zp_gallery) printLogoAndLinks(); ?>
 				<div id="main">
-					<?php if ($_gallery) printTabs(); ?>
+					<?php if ($_zp_gallery) printTabs(); ?>
 					<div id="content">
 						<h1><?php echo gettext('Setup request'); ?></h1>
 						<div class="tabbox">
@@ -102,15 +70,13 @@ function reconfigureAction($mandatory) {
 			</body>
 			</html>
 			<?php
-			exit();
+			exitZP();
 		}
-	} else {
-		if (!empty($diff)) {
-			if (class_exists('npgFilters') && npg_loggedin(ADMIN_RIGHTS)) {
-				//	no point in telling someone who can't do anything about it
-				npgFilters::register('admin_note', 'signatureChange', 9999);
-				npgFilters::register('admin_head', 'reconfigureCS');
-			}
+	} else if (!empty($diff)) {
+		if (function_exists('zp_register_filter') && zp_loggedin(ADMIN_RIGHTS)) {
+			//	no point in telling someone who can't do anything about it
+			zp_register_filter('admin_note', 'signatureChange', 9999);
+			zp_register_filter('admin_head', 'reconfigureCS');
 		}
 	}
 }
@@ -120,12 +86,10 @@ function reconfigureAction($mandatory) {
  * Checks details of configuration change
  */
 function checkSignature($mandatory) {
-	global $_configMutex, $_DB_connection, $_reconfigureMutex;
+	global $_configMutex, $_zp_DB_connection, $_reconfigureMutex;
 	$old = NULL;
-	if (function_exists('query_full_array') && $_DB_connection) {
-		$old = @unserialize(getOption('netphotographics_install'));
-		unset($old['SERVER_SOFTWARE']);
-		unset($old['DATABASE']);
+	if (function_exists('query_full_array') && $_zp_DB_connection) {
+		$old = @unserialize(getOption('zenphoto_install'));
 		$new = installSignature();
 	}
 	if (!is_array($old)) {
@@ -158,14 +122,14 @@ function checkSignature($mandatory) {
 		}
 	}
 
-	$package = file_get_contents(dirname(__FILE__) . '/netPhotoGraphics.package');
-	preg_match_all('|' . CORE_FOLDER . '/setup/(.*)|', $package, $matches);
+	$package = file_get_contents(dirname(__FILE__) . '/zenphoto.package');
+	preg_match_all('|' . ZENFOLDER . '/setup/(.*)|', $package, $matches);
 	$needs = array();
 	$restore = $found = false;
 	foreach ($matches[1] as $need) {
 		$needs[] = rtrim(trim($need), ":*");
 	}
-	// serialize the following
+// serialize the following
 	$_configMutex->lock();
 	if (file_exists(dirname(__FILE__) . '/setup/')) {
 		chdir(dirname(__FILE__) . '/setup/');
@@ -180,7 +144,7 @@ function checkSignature($mandatory) {
 		}
 		$restore = safe_glob('*.xxx');
 
-		if (!empty($restore) && $mandatory > 1 && defined('ADMIN_RIGHTS') && npg_loggedin(ADMIN_RIGHTS)) {
+		if (!empty($restore) && $mandatory > 1 && defined('ADMIN_RIGHTS') && zp_loggedin(ADMIN_RIGHTS)) {
 			restoreSetupScrpts($mandatory);
 		}
 		$found = safe_glob('*.*');
@@ -220,10 +184,7 @@ function reconfigureCS() {
 			border-style: solid;
 			margin-bottom: 10px;
 			font-size: 100%;
-			box-sizing: content-box !important;
-			webkit-box-sizing: content-box !important;
 		}
-
 		.reconfigbox h1,.notebox strong {
 			color: #663300;
 			font-size: 120%;
@@ -233,15 +194,10 @@ function reconfigureCS() {
 		.reconfigbox a {
 			color: blue;
 		}
-		.reconfigbox p {
-			margin-top: 20px;
-		}
 		#errors ul {
-			margin-left: 1em;
 			list-style-type: square;
 		}
 		#files ul {
-			margin-left: 1em;
 			list-style-type: circle;
 		}
 	</style>
@@ -253,35 +209,41 @@ function reconfigureCS() {
  * HTML for the configuration change notification
  */
 function reconfigurePage($diff, $needs, $mandatory) {
+	if (function_exists('getXSRFToken')) {
+		$token = getXSRFToken('setup');
+		if (isset($_GET['dismiss']) && isset($_GET['xsrfToken']) && $_GET['xsrfToken'] == $token) {
+			setOption('zenphoto_install', serialize(installSignature()));
+			return;
+		}
+		$token = 'xsrfToken=' . $token;
+	} else {
+		$token = 'noToken';
+	}
 	if (OFFSET_PATH) {
 		$where = 'admin';
 	} else {
 		$where = 'gallery';
 	}
-	if (function_exists('getXSRFToken')) {
-		$token = getXSRFToken('setup');
-		if (isset($_GET['dismiss']) && isset($_GET['xsrfToken']) && $_GET['xsrfToken'] == $token) {
-			setOption('netphotographics_install', serialize(installSignature()));
-			return;
-		}
-		$where .= '&amp;xsrfToken=' . $token;
-	} else {
-		$where .= '&amp;notoken';
-	}
-	$l1 = '<a href="' . WEBPATH . '/' . CORE_FOLDER . '/setup.php' . '?autorun=' . $where . '">';
+	$l1 = '<a href="' . WEBPATH . '/' . ZENFOLDER . '/setup.php?autorun=' . $where . '&amp;' . $token . '">';
 	$l2 = '</a>';
 	?>
 	<div class="reconfigbox">
 		<h1>
-			<?php echo gettext('A change has been detected in your installation.'); ?>
+			<?php echo gettext('ZenPhoto20 has detected a change in your installation.'); ?>
 		</h1>
 		<div id="errors">
 			<ul>
 				<?php
 				foreach ($diff as $thing => $rslt) {
 					switch ($thing) {
-						case 'NETPHOTOGRAPHICS':
-							echo '<li>' . sprintf(gettext('Version %1$s has been copied over %2$s.'), $rslt['new'], $rslt['old']) . '</li>';
+						case 'SERVER_SOFTWARE':
+							echo '<li>' . sprintf(gettext('Your server software has changed from %1$s to %2$s.'), $rslt['old'], $rslt['new']) . '</li>';
+							break;
+						case 'DATABASE':
+							echo '<li>' . sprintf(gettext('Your database software has changed from %1$s to %2$s.'), $rslt['old'], $rslt['new']) . '</li>';
+							break;
+						case 'ZENPHOTO':
+							echo '<li>' . sprintf(gettext('ZenPhoto20 %1$s has been copied over %2$s.'), ZENPHOTO_VERSION, $rslt['old']) . '</li>';
 							break;
 						case 'FOLDER':
 							echo '<li>' . sprintf(gettext('Your installation has moved from %1$s to %2$s.'), $rslt['old'], $rslt['new']) . '</li>';
@@ -302,7 +264,7 @@ function reconfigurePage($diff, $needs, $mandatory) {
 							}
 							break;
 						default:
-							$sz = @filesize(CORE_SERVERPATH . $thing);
+							$sz = @filesize(SERVERPATH . '/' . ZENFOLDER . '/' . $thing);
 							echo '<li>' . sprintf(gettext('The script <code>%1$s</code> has changed.'), $thing) . '</li>';
 							break;
 					}
@@ -316,17 +278,17 @@ function reconfigurePage($diff, $needs, $mandatory) {
 				printf(gettext('The change detected is critical. You <strong>must</strong> run %1$ssetup%2$s for your site to function.'), $l1, $l2);
 			} else {
 				printf(gettext('The change detected may not be critical but you should run %1$ssetup%2$s at your earliest convenience.'), $l1, $l2);
-				$request = mb_parse_url(getRequestURI());
+				$request = parse_url(getRequestURI());
 				if (isset($request['query'])) {
 					$query = parse_query($request['query']);
 				} else {
 					$query = array();
 				}
-				$query['dismiss'] = 'config_warning';
-				$query['xsrfToken'] = $token;
+				$query[] = 'dismiss=config_warning';
+				$query[] = $token;
 				?>
 				<p class="buttons">
-					<a href="?<?php echo html_encode(http_build_query($query)); ?>" title="<?php echo gettext('Ignore this configuration change.'); ?>"><?php echo gettext('dismiss'); ?></a>
+					<a href="?<?php echo ltrim(implode('&amp;', $query), '&amp;'); ?>" title="<?php echo gettext('Ignore this configuration change.'); ?>"><?php echo gettext('dismiss'); ?></a>
 				</p>
 				<br class="clearall">
 					<?php
@@ -352,7 +314,7 @@ function reconfigurePage($diff, $needs, $mandatory) {
  */
 function restoreSetupScrpts($reason) {
 //log setup file restore no matter what!
-	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/security-logger.php');
+	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/security-logger.php');
 	switch ($reason) {
 		default:
 			$addl = sprintf(gettext('to run setup [%s]'), $reason);
@@ -364,7 +326,7 @@ function restoreSetupScrpts($reason) {
 			$addl = gettext('by cloning');
 			break;
 	}
-	$allowed = defined('ADMIN_RIGHTS') && npg_loggedin(ADMIN_RIGHTS) && npgFunctions::hasPrimaryScripts();
+	$allowed = defined('ADMIN_RIGHTS') && zp_loggedin(ADMIN_RIGHTS) && zpFunctions::hasPrimaryScripts();
 	security_logger::log_setup($allowed, 'restore', $addl);
 	if ($allowed) {
 		if (!defined('FILE_MOD')) {

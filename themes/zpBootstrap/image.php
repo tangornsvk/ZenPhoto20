@@ -1,91 +1,97 @@
 <?php include('inc_header.php'); ?>
 
-	<!-- .container -->
-		<!-- .page-header -->
-			<!-- .header -->
-				<h3><?php printGalleryTitle(); ?></h3>
-			</div><!-- .header -->
-		</div><!-- /.page-header -->
+<!-- wrap -->
+<!-- container -->
+<!-- header -->
+<h3><?php printGalleryTitle(); ?></h3>
+</div>
 
-		<div class="breadcrumb">
-			<h4>
-				<?php printGalleryIndexURL(' » ', getGalleryTitle(), false); ?><?php printParentBreadcrumb('', ' » ', ' » '); ?><?php printAlbumBreadcrumb('', ' » '); ?><?php printBareImageTitle(); ?>
-			</h4>
-		</div>
+<div class="breadcrumb">
+	<h4>
+		<?php if (getOption('zpB_homepage')) { ?>
+			<?php printCustomPageURL(getGalleryTitle(), 'gallery'); ?>
+		<?php } else { ?>
+			<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Albums Index'); ?>"><?php echo html_encode(getGalleryTitle()); ?></a>
+		<?php } ?>&raquo;
+		<?php printParentBreadcrumb('', ' » ', ' » '); ?>
+		<?php printAlbumBreadcrumb('', ' » ');
+		printImageTitle(true); ?>
+	</h4>
+</div>
 
-		<nav class="nav_photo">
-			<ul class="pager">
-			<?php if (hasPrevImage()) { ?>
-				<li><a href="<?php echo html_encode(getPrevImageURL()); ?>" title="<?php echo gettext('Previous Image'); ?>">&larr; <?php echo gettext('prev'); ?></a></li>
-			<?php } else { ?>
-				<li class="disabled"><a href="#">&larr; <?php echo gettext('prev'); ?></a></li>
-			<?php } ?>
+<div class="center">
+<?php if (extensionEnabled('slideshow')) { ?>
+		<ul class="pager hidden-phone pull-right"> <!--hidden-phone -->
+			<li>
+	<?php printSlideShowLink(gettext('Slideshow')); ?>
+			</li>
+		</ul>
+<?php } ?>
 
-			<?php if (hasNextImage()) { ?>
-				<li><a href="<?php echo html_encode(getNextImageURL()); ?>" title="<?php echo gettext('Next Image'); ?>"><?php echo gettext('next'); ?> &rarr;</a></li>
-			<?php } else { ?>
-				<li class="disabled"><a href="#"><?php echo gettext('next'); ?> &rarr;</a></li>
-			<?php } ?>
-			</ul>
-		</nav>
+	<ul class="pager">
+		<?php if (hasPrevImage()) { ?>
+			<li><a href="<?php echo html_encode(getPrevImageURL()); ?>" title="<?php echo gettext('Previous Image'); ?>">&larr; <?php echo gettext('prev'); ?></a></li>
+		<?php } else { ?>
+			<li class="disabled"><a href="#">&larr; <?php echo gettext('prev'); ?></a></li>
+		<?php } ?>
+		<?php if (hasNextImage()) { ?>
+			<li><a href="<?php echo html_encode(getNextImageURL()); ?>" title="<?php echo gettext('Next Image'); ?>"><?php echo gettext('next'); ?> &rarr;</a></li>
+		<?php } else { ?>
+			<li class="disabled"><a href="#"><?php echo gettext('next'); ?> &rarr;</a></li>
+<?php } ?>
+	</ul>
+</div>
 
-		<?php printDefaultSizedImage(getBareImageTitle(), 'remove-attributes img-responsive center-block'); ?>
+<div class="center">
+<?php printDefaultSizedImage(getImageTitle(), 'image ombre remove-attributes'); ?>
+</div>
 
-		<div class="photo-description row">
-			<div class="col-sm-offset-2 col-sm-8">
-				<h4>
-					<?php printBareImageTitle(); ?>
-					<?php if ((getOption('zpB_show_exif')) && (getImageMetaData())) { ?>
-						<a href="#" data-toggle="modal" data-target="#exif_data"><span class="glyphicon glyphicon-info-sign"></span></a>
-					<?php } ?>
-				</h4>
-			</div>
-			<div class="col-sm-offset-2 col-sm-8">
-				<?php printImageDesc(); ?>
-			</div>
-
+<div class="row photo-description">
+	<div class="span3 offset2">
+		<h4>
 			<?php if ((getOption('zpB_show_exif')) && (getImageMetaData())) { ?>
-			<div id="exif_data" class="modal" tabindex="-1" role="dialog">
-				<div class="modal-dialog">
-					<div class="modal-content">
-						<div class="modal-body">
-							<?php printImageMetadata(NULL, false); ?>
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo gettext('close'); ?></button>
-						</div>
-					</div>
-				</div>
-			</div>
+				<a href="#exif_data" data-toggle="modal"><i class="icon-info-sign"></i></a>
 			<?php } ?>
+		<?php printImageTitle(true); ?>
+		</h4>
+<?php if ((getOption('zpB_show_exif')) && (getImageMetaData())) { ?>
+			<div id="exif_data" class="modal hide"><?php printImageMetadata('', false); ?></div>
+			<script type="text/javascript">
+				jQuery(document).ready(function ($) {
+					$('#exif_data').modal({
+						show: false
+					});
+				});
+			</script>
+<?php } ?>
+	</div>
+	<div class="span5">
+<?php printImageDesc(true); ?>
+	</div>
+</div>
 
-			<?php if ((getOption('zpB_show_tags')) && (getTags())) { ?>
-			<div class="col-sm-offset-2 col-sm-8">
-				<?php printTags('links', NULL, 'nav nav-pills', NULL); ?>
+	<?php if (getOption('zpB_show_tags') || extensionEnabled('rating')) { ?>
+	<div class="row photo-description">
+	<?php if (getOption('zpB_show_tags')) { ?>
+			<div class="span8 offset2">
+				<div class="center"><?php printTags('links', NULL, 'nav nav-pills', NULL); ?></div>
 			</div>
-			<?php } ?>
-		</div>
-
-		<?php if ((npg_loggedin()) && (extensionEnabled('favoritesHandler'))) { ?>
-		<div class="row">
-			<div class="col-sm-offset-2 col-sm-8 photo-infos favorites">
-				<?php printAddToFavorites($_current_image); ?>
-			</div>
-		</div>
 		<?php } ?>
 
-		<?php if (extensionEnabled('rating')) { ?>
-		<div class="row">
-			<div class="col-sm-offset-2 col-sm-8 photo-infos rating">
-				<?php printRating(); ?>
+		<?php if ((zp_loggedin()) && (extensionEnabled('favoritesHandler'))) { ?>
+			<div class="span8 offset2 favorites"><?php printAddToFavorites($_zp_current_image); ?></div>
+		<?php } ?>
+
+	<?php if (extensionEnabled('rating')) { ?>
+			<div id="rating" class="span8 offset2">
+				<div><?php printRating(); ?></div>
 			</div>
-		</div>
-		<?php } ?>
+	<?php } ?>
+	</div>
+<?php } ?>
 
-		<?php if (extensionEnabled('comment_form')) { ?>
-			<?php include('inc_print_comment.php'); ?>
-		<?php } ?>
-
-	</div><!-- /.container main -->
+<?php if (extensionEnabled('comment_form')) { ?>
+	<?php include('inc_print_comment.php'); ?>
+<?php } ?>
 
 <?php include('inc_footer.php'); ?>

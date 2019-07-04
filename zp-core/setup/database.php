@@ -5,7 +5,7 @@
  * updates as needed
  *
  * @author Stephen Billard
- * @Copyright 2016 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * @Copyright 2016 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
  */
 $dbSoftware = db_software();
@@ -13,7 +13,7 @@ $indexComments = version_compare($dbSoftware['version'], '5.5.0') >= 0;
 $utf8mb4 = version_compare($dbSoftware['version'], '5.5.3', '>=');
 
 $database = $orphans = $datefields = array();
-$template = unserialize(file_get_contents(CORE_SERVERPATH . 'databaseTemplate'));
+$template = unserialize(file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/databaseTemplate'));
 
 if (isset($_SESSION['admin']['db_admin_fields'])) { //	we are in a clone install, be srue admin fields match
 	$adminTable = $template['administrators']['fields'];
@@ -23,33 +23,16 @@ if (isset($_SESSION['admin']['db_admin_fields'])) { //	we are in a clone install
 		}
 	}
 }
-$_DB_Structure_change = FALSE;
 
-//	handle column renaming as the template will assume a drop and add.
-$renames = array(
-		array('table' => 'pages', 'was' => 'author', 'is' => 'owner'),
-		array('table' => 'pages', 'was' => 'lastchangeauthor', 'is' => 'lastchangeuser'),
-		array('table' => 'news', 'was' => 'author', 'is' => 'owner'),
-		array('table' => 'news', 'was' => 'lastchangeauthor', 'is' => 'lastchangeuser'),
-		array('table' => 'comments', 'was' => 'custom_data', 'is' => 'address_data')
-);
-foreach ($renames as $change) {
-	$table = $change['table'];
-	$is = $change['is'];
-	$new = $template[$table]['fields'][$is];
-	$sql = 'ALTER TABLE ' . prefix($table) . ' CHANGE `' . $change['was'] . '` `' . $is . '` ' . strtoupper($new['Type']);
-	if (!empty($new['Comment'])) {
-		$sql .= " COMMENT '" . $new['Comment'] . "'";
-	}
-	if (setupQuery($sql, FALSE)) {
-		$_DB_Structure_change = TRUE;
-	}
-}
+/* rename Comment table custom_data since it is really address data */
+$sql = "ALTER TABLE " . prefix('comments') . " CHANGE `custom_data` `address_data` TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL COMMENT 'zp20';";
+setupQuery($sql, false);
 
 foreach (getDBTables() as $table) {
 	$tablecols = db_list_fields($table);
 	foreach ($tablecols as $key => $datum) {
 		//remove don't care fields
+		unset($datum['Collation']);
 		unset($datum['Key']);
 		unset($datum['Extra']);
 		unset($datum['Privileges']);
@@ -82,6 +65,7 @@ foreach (getDBTables() as $table) {
 		}
 		unset($index['Table']);
 		unset($index['Seq_in_index']);
+		unset($index['Collation']);
 		unset($index['Cardinality']);
 		unset($index['Comment']);
 		if (!$indexComments) {
@@ -114,8 +98,6 @@ foreach (getDBTables() as $table) {
 	}
 }
 
-$npgUpgrade = isset($database['administrators']) && $database['administrators']['fields']['valid']['Comment'] == 'zp20';
-
 //metadata display and disable options
 $validMetadataOptions = !is_null(getOption('metadata_displayed'));
 
@@ -125,7 +107,7 @@ $display = array();
 //clean up metadata item options.
 foreach (array('iptc', 'exif', 'xmp', 'video') as $cat) {
 	foreach (getOptionsLike($cat) as $option => $value) {
-		if (!in_array(strtolower($option), array('iptc_encoding', 'xmpmetadata_suffix', 'video_watermark'))) {
+		if (!in_array($option, array('iptc_encoding', 'xmpmetadata_suffix', 'video_watermark'))) {
 			$validMetadataOptions = true;
 			if ($value) { // no need to process if the option was not set
 				$matches = explode('-', $option);
@@ -150,9 +132,9 @@ $disable = getSerializedArray(getOption('metadata_disabled'));
 
 
 //Add in the enabled image metadata fields
-$metadataProviders = array('class-image' => 'image', 'class-video' => 'Video', 'xmpMetadata' => 'xmpMetadata');
+$metadataProviders = array('image', 'class-video' => 'Video', 'xmpMetadata' => 'xmpMetadata');
 foreach ($metadataProviders as $source => $handler) {
-	if ($source == 'class-image') {
+	if ($handler == 'image') {
 		$enabled = true;
 	} else {
 		$enabled = extensionEnabled($source);
@@ -178,36 +160,31 @@ foreach ($metadataProviders as $source => $handler) {
 			}
 		}
 
-		$size = $exifvar[EXIF_FIELD_SIZE];
+		$s = $exifvar[EXIF_FIELD_SIZE];
 		if ($exifvar[EXIF_FIELD_ENABLED] && $enabled) {
 			switch ($exifvar[EXIF_FIELD_TYPE]) {
-				default:
 				case 'string':
-					$type = "text";
-					if ($utf8mb4) {
-						$collation = 'utf8mb4_unicode_ci';
+					if ($s < 255) {
+						$s = "varchar($s)";
 					} else {
-						$collation = 'utf8_unicode_ci';
+						$s = 'text';
 					}
 					break;
 				case 'number':
-					$type = 'tinytext';
-					$collation = 'utf8_unicode_ci';
+					$s = 'varchar(52)';
 					break;
 				case 'time':
-					$type = 'datetime';
-					$collation = NULL;
+					$s = 'datetime';
 					break;
 			}
 			$field = array(
 					'Field' => $key,
-					'Type' => $type,
-					'Collation' => $collation,
+					'Type' => $s,
 					'Null' => 'YES',
 					'Default' => null,
 					'Comment' => 'optional_metadata'
 			);
-			if ($size > 0) {
+			if ($s != 'varchar(0)') {
 				$template['images']['fields'][$key] = $field;
 			}
 		} else {
@@ -223,7 +200,7 @@ foreach ($datefields as $fix) {
 	$table = $fix['table'];
 	$field = $fix['field'];
 	$sql = 'UPDATE ' . prefix($table) . ' SET `' . $field . '`=NULL WHERE `' . $field . '`="0000-00-00 00:00:00"';
-	setupQuery($sql, FALSE, FALSE);
+	setupQuery($sql, false, FALSE);
 }
 
 //setup database
@@ -234,54 +211,28 @@ if (is_array($result)) {
 } else {
 	$dbmigrate = true;
 }
-
-if ($utf8mb4) {
-	if ($dbmigrate) {
-		$sql = 'ALTER DATABASE `' . db_name() . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;';
-		if (setupQuery($sql)) {
-			$_DB_Structure_change = TRUE;
-		}
-	}
-} else {
-	// change the template to utf8_unicode_ci
-	foreach ($template as $tablename => $table) {
-		foreach ($table['fields'] as $key => $field) {
-			if ($field['Collation'] == 'utf8mb4_unicode_ci') {
-				$template[$tablename]['fields'][$key]['Collation'] = 'utf8_unicode_ci';
-			}
-		}
-	}
+if ($utf8mb4 && $dbmigrate) {
+	$sql = 'ALTER DATABASE ' . db_name() . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;';
+	setupQuery($sql);
 }
-
-$uniquekeys = $tablePresent = array();
+$tablePresent = array();
 foreach ($template as $tablename => $table) {
 	$tablePresent[$tablename] = $exists = array_key_exists($tablename, $database);
-	if ($exists) {
-		$dborder = array_keys($database[$tablename]['fields']);
-	} else {
+	if (!$exists) {
 		$create = array();
 		$create[] = "CREATE TABLE IF NOT EXISTS " . prefix($tablename) . " (";
 		$create[] = "  `id` int(11) UNSIGNED NOT NULL auto_increment,";
-		$dborder = array();
 	}
 	$after = ' FIRST';
-	$templateorder = array_keys($table['fields']);
-
 	foreach ($table['fields'] as $key => $field) {
 		if ($key != 'id') {
 			$dbType = strtoupper($field['Type']);
 			$string = "ALTER TABLE " . prefix($tablename) . " %s `" . $field['Field'] . "` " . $dbType;
-			switch ($field['Collation']) {
-				case 'utf8mb4_unicode_ci':
-					$string .= ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
-					break;
-				case 'utf8_unicode_ci':
-					$string .= ' CHARACTER SET utf8 COLLATE utf8_unicode_ci';
-					break;
+			if ($utf8mb4 && ($dbType == 'TEXT' || $dbType == 'LONGTEXT')) {
+				$string .= ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
 			}
-			if ($field['Null'] === 'NO') {
+			if ($field['Null'] === 'NO')
 				$string .= " NOT NULL";
-			}
 			if (!empty($field['Default']) || $field['Default'] === '0' || $field['Null'] !== 'NO') {
 				if (is_null($field['Default'])) {
 					if ($field['Null'] !== 'NO') {
@@ -297,18 +248,14 @@ foreach ($template as $tablename => $table) {
 				$comment = " COMMENT '" . $field['Comment'] . "'";
 			}
 			$addString = sprintf($string, 'ADD COLUMN') . $comment . $after . ';';
-			$changeString = sprintf($string, "CHANGE `" . $field['Field'] . "`") . $comment . $after . ';';
+			$changeString = sprintf($string, "CHANGE `" . $field['Field'] . "`") . $comment . ';';
 			if ($exists) {
 				if (array_key_exists($key, $database[$tablename]['fields'])) {
-					if ($field != $database[$tablename]['fields'][$key] || array_search($key, $templateorder) != array_search($key, $dborder)) {
-						if (setupQuery($changeString)) {
-							$_DB_Structure_change = TRUE;
-						}
+					if ($field != $database[$tablename]['fields'][$key]) {
+						setupQuery($changeString);
 					}
 				} else {
-					if (setupQuery($addString)) {
-						$_DB_Structure_change = TRUE;
-					}
+					setupQuery($addString);
 				}
 			} else {
 				$x = preg_split('/%s /', $string);
@@ -325,36 +272,33 @@ foreach ($template as $tablename => $table) {
 			// drop fields no longer used
 			if ($field['Comment'] === 'zp20' || $field['Comment'] === 'optional_metadata') {
 				$dropString = "ALTER TABLE " . prefix($tablename) . " DROP `" . $field['Field'] . "`;";
-				if (setupQuery($dropString)) {
-					$_DB_Structure_change = TRUE;
-				}
+				setupQuery($dropString);
 			} else {
 				if (strpos($field['Comment'], 'optional_') === false) {
-					$orphans[] = sprintf(gettext('Setup found the field "%1$s" in the "%2$s" table. This field is not in use by netPhotoGraphics.'), $key, $tablename);
+					$orphans[] = sprintf(gettext('Setup found the field "%1$s" in the "%2$s" table. This field is not in use by ZenPhoto20.'), $key, $tablename);
 				}
 			}
 		}
 	}
+
 	if (isset($table['keys'])) {
 		foreach ($table['keys'] as $key => $index) {
 			$string = "ALTER TABLE " . prefix($tablename) . ' ADD ';
-			$i = $k = $index['Column_name'];
-			if (!empty($index['Sub_part'])) {
-				$k .= " (" . $index['Sub_part'] . ")";
-			}
-
 			if ($index['Non_unique']) {
 				$string .= "INDEX ";
 				$u = "KEY";
 			} else {
-				$string .= "UNIQUE ";
+				$string .="UNIQUE ";
 				$u = "UNIQUE `$key`";
-				$uniquekeys[$tablename][$key] = explode(',', $i);
 			}
 
+			$k = $index['Column_name'];
+			if (!empty($index['Sub_part'])) {
+				$k .=" (" . $index['Sub_part'] . ")";
+			}
 			$alterString = "$string`$key` ($k)";
 			if ($indexComments) {
-				$alterString .= " COMMENT 'zp20';";
+				$alterString.=" COMMENT 'zp20';";
 			} else {
 				unset($index['Index_comment']);
 			}
@@ -362,17 +306,11 @@ foreach ($template as $tablename => $table) {
 				if (isset($database[$tablename]['keys'][$key])) {
 					if ($index != $database[$tablename]['keys'][$key]) {
 						$dropString = "ALTER TABLE " . prefix($tablename) . " DROP INDEX `" . $index['Key_name'] . "`;";
-						if (setupQuery($dropString)) {
-							$_DB_Structure_change = TRUE;
-						}
-						if (setupQuery($alterString)) {
-							$_DB_Structure_change = TRUE;
-						}
+						setupQuery($dropString);
+						setupQuery($alterString);
 					}
 				} else {
-					if (setupQuery($alterString)) {
-						$_DB_Structure_change = TRUE;
-					}
+					setupQuery($alterString);
 				}
 			} else {
 				$tableString = "  $u ($k)";
@@ -388,9 +326,7 @@ foreach ($template as $tablename => $table) {
 		$create[] = "  PRIMARY KEY (`id`)";
 		$create[] = ")  CHARACTER SET utf8 COLLATE utf8_unicode_ci;";
 		$create = implode("\n", $create);
-		if (setupQuery($create)) {
-			$_DB_Structure_change = TRUE;
-		}
+		setupQuery($create);
 	} else {
 		//handle surplus fields
 		if (array_key_exists('keys', $database[$tablename]) && !empty($database[$tablename]['keys'])) {
@@ -398,39 +334,25 @@ foreach ($template as $tablename => $table) {
 				$key = $index['Key_name'];
 				if (isset($index['Index_comment']) && $index['Index_comment'] === 'zp20') {
 					$dropString = "ALTER TABLE " . prefix($tablename) . " DROP INDEX `" . $key . "`;";
-					if (setupQuery($dropString)) {
-						$_DB_Structure_change = TRUE;
-					}
+					setupQuery($dropString);
 				} else {
-					$orphans[] = sprintf(gettext('Setup found the key "%1$s" in the "%2$s" table. This index is not in use by netPhotoGraphics.'), $key, $tablename);
+					$orpahns = sprintf(gettext('Setup found the key "%1$s" in the "%2$s" table. This index is not in use by ZenPhoto20.'), $key, $tablename);
 				}
 			}
 		}
 	}
 }
-
-foreach ($uniquekeys as $table => $keys) {
-	foreach ($keys as $unique => $components) {
-		$updateErrors = $updateErrors || checkUnique(prefix($table), array_flip(array_map(function($item) {
-															return trim($item, '`');
-														}, $components)));
-	}
-}
 //if this is a new database, update the config file for the utf8 encoding
 if ($utf8mb4 && !array_search(true, $tablePresent)) {
-	$_config_contents = @file_get_contents(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
-	$_config_contents = configFile::update('UTF-8', 'utf8mb4', $_config_contents);
-	configFile::store($_config_contents);
+	$zp_cfg = @file_get_contents(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
+	$zp_cfg = updateConfigItem('UTF-8', 'utf8mb4', $zp_cfg);
+	storeConfig($zp_cfg);
 }
 // now the database is setup we can store the options
 setOptionDefault('metadata_disabled', serialize($disable));
 setOptionDefault('metadata_displayed', serialize($display));
 
-//	Don't report these unless npg has previously been installed because the
-//	plugins which might "claim" them will not yet have run
-if ($npgUpgrade) {
-	foreach ($orphans as $message) {
-		setupLog($message, true);
-	}
+foreach ($orphans as $message) {
+	setupLog($message, true);
 }
 ?>

@@ -1,28 +1,24 @@
-<?php
-if (extensionEnabled('register_user')) {
-	include ('inc_header.php');
-?>
+<?php include('inc_header.php'); ?>
 
-	<!-- .container -->
-		<!-- .page-header -->
-			<!-- .header -->
+	<!-- wrap -->
+		<!-- container -->
+			<!-- header -->
 				<h3><?php echo gettext('User Registration') ?></h3>
-			</div><!-- .header -->
-		</div><!-- /.page-header -->
+			</div> <!-- /header -->
 
-		<div class="row">
-			<div class="col-sm-offset-1 col-sm-10">
-				<div class="post">
-					<?php printRegistrationForm(); ?>
+			<div class="row">
+				<div class="span10 offset1">
+					<div class="post">
+						<?php printRegistrationForm(); ?>
+						<script type="text/javascript">
+							jQuery(document).ready(function($) {
+								$('#zpB_passwordform').modal({
+									show: true
+								});
+							});
+						</script>
+					</div>
 				</div>
 			</div>
-		</div>
 
-	</div><!-- /.container main -->
-
-<?php
-	include('inc_footer.php');
-} else {
-	include(SERVERPATH . '/' . CORE_FOLDER . '/404.php');
-}
-?>
+<?php include('inc_footer.php'); ?>

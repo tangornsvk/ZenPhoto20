@@ -1,17 +1,7 @@
 /* !important
 	Zenpage Default theme
-*/
-
-/* Basics
-
-/* start with a clean slate */
-
-* {
-  margin: 0;
-  padding: 0;
-}
-
-/*------------------------------ */
+*/ /* Basics
+------------------------------ */
 html { /* Moz */
 	margin: 0;
 	padding: 0;
@@ -67,7 +57,8 @@ body {
 
 #breadcrumb {
 	width: 904px;
-	height: 2.5em;
+	height: 1.5em;
+	/* background-color: gray; */
 	margin-left: 5px;
 	font-size: 1.3em;
 	padding-top: 7px;
@@ -77,7 +68,6 @@ body {
 	border-bottom: 1px solid darkgray;
 	border-top: 1px solid darkgray;
 	color: white;
-	overflow: hidden;
 	background-image:url(images/breadcrumb-back.jpg);
 }
 
@@ -87,7 +77,7 @@ body {
 	font-size: 1em;
 	font-weight: normal;
 	float: left;
-	width: 867px;
+	width: 590px;
 	font-family: "Helvetica Neue", "Lucida Grande", Arial, Helvetica, sans-serif;
 }
 
@@ -561,7 +551,7 @@ ul.pagelist li.next {
 	width: 32px;
 	height: 32px;
 	cursor: pointer;
-	background: transparent url(jCarousel_thumb_nav/jcarousel_prev.png) no-repeat 0 0;
+	background: transparent url(images/jcarousel_prev.png) no-repeat 0 0;
 	position: relative;
 	top: -40px;
 	left: 100px;
@@ -590,7 +580,7 @@ ul.pagelist li.next {
 	width: 32px;
 	height: 32px;
 	cursor: pointer;
-	background: transparent url(jCarousel_thumb_nav/jcarousel_next.png) no-repeat 0 0;
+	background: transparent url(images/jcarousel_next.png) no-repeat 0 0;
 	position: relative;
 	top: -40px;
 	right: 100px;
@@ -836,11 +826,11 @@ label:hover {
 
 /* Admin Toolbox
 ------------------------------ */
-#admin_tb_data{
+#admin_data{
 	background-color: lightgray;
 }
 
-#admin_tb h3 {
+#admin h3 {
 	font-weight: normal;
 	color: #999;
 	margin: 0;
@@ -849,7 +839,7 @@ label:hover {
 	font-size: 15px;
 }
 
-#admin_tb h3:hover {
+#admin h3:hover {
 	color: #036;
 }
 
@@ -1092,6 +1082,10 @@ input#code {
 	margin-left: 10px;
 	width: 10em !important;
 }
+#recaptcha_widget_div {
+	float: left;
+}
+
 
 /* Pretty Buttons
 ------------------------------------- */
@@ -1221,6 +1215,25 @@ button.positive,.buttons a.positive {
 	padding:8px;
 }
 
+/* tinyZenpage title addition */
+.zenpage_wrapper_left,
+.zenpage_wrapper_right {
+	border: 1px solid #EEEEEE;
+	background: #FBFBF8;
+	padding: 10px;
+}
+
+.zenpage_wrapper_left {
+	margin-right: 10px;
+}
+
+.zenpage_wrapper_right {
+	margin-left: 10px;
+}
+.zenpage_title {
+	font-style: italic;
+}
+
 /*CSS3 rounded edges */
 .album,
 .button,
@@ -1228,7 +1241,9 @@ button.positive,.buttons a.positive {
 textarea,
 #exif_link a,
 #search_input,
-#search_submit {
+#search_submit,
+.zenpage_wrapper_left,
+.zenpage_wrapper_right {
 	-moz-border-radius: 5px 5px 5px 5px;
 	-khtml-border-radius: 5px 5px 5px 5px;
 	-webkit-border-radius: 5px 5px 5px 5px;
@@ -1347,7 +1362,7 @@ form label strong {
 #registration_form input[type="password"],
 #mailform input[type="text"],
 #commentform input[type="text"]{
-	width: 250px;
+	width: 65%;
 }
 
 input.button {
@@ -1386,14 +1401,4 @@ input.button {
 }
 #loginform .show_checkbox {
 	background-color: white;
-}
-
-.g-recaptcha > div{
-	margin: 10px auto !important;
-	text-align: center;
-	width: auto !important;
-	height: auto !important;
-}
-.bx-wrapper{
-	margin: 0 auto;
 }

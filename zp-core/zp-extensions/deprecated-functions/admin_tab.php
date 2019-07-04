@@ -2,10 +2,11 @@
 /**
  * This is the "files" upload tab
  *
- * @package plugins/deprecated-functions
+ * @package plugins
+ * @subpackage admin
  */
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/deprecated-functions.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/deprecated-functions.php');
 
 admin_securityChecks(DEBUG_RIGHTS, $return = currentRelativeURL());
 $subtab = getCurrentTab();
@@ -21,7 +22,7 @@ echo "\n</head>";
 		<?php printTabs(); ?>
 		<div id="content">
 			<div id="container">
-				<?php npgFilters::apply('admin_note', 'development', ''); ?>
+				<?php zp_apply_filter('admin_note', 'development', ''); ?>
 				<h1>
 					<?php
 					echo gettext('Deprecated Functions');
@@ -59,8 +60,7 @@ echo "\n</head>";
 										break;
 								}
 								$list[$details['since']][$details['plugin']][] = $details['function'] . $class;
-								uksort($list, 'version_compare');
-								$list = array_reverse($list);
+								krsort($list, SORT_NATURAL | SORT_FLAG_CASE);
 							}
 							?>
 						<ul style="list-style-type: none;">
@@ -74,8 +74,8 @@ echo "\n</head>";
 										ksort($plugins, SORT_NATURAL | SORT_FLAG_CASE);
 										foreach ($plugins as $plugin => $functions) {
 											natcasesort($functions);
-											if (empty($plugin) || $plugin == 'core')
-												$plugin = "<em>core</em>";
+											if (empty($plugin))
+												$plugin = "<em>zp-core</em>";
 											?>
 											<li>
 												<h2><?php echo $plugin; ?></h2>
@@ -90,13 +90,11 @@ echo "\n</head>";
 													}
 													?>
 												</ul>
-												<br />
 											</li>
 											<?php
 										}
 										?>
 									</ul>
-									<br />
 								</li>
 								<?php
 							}
@@ -108,7 +106,8 @@ echo "\n</head>";
 				</div>
 			</div>
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
+	<?php printAdminFooter(); ?>
+
 </body>
 </html>

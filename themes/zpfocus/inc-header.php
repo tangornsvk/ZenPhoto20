@@ -4,12 +4,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 	<head>
 		<?php
-		npgFilters::apply('theme_head');
+		zp_apply_filter('theme_head');
 		// Set some things depending on what page we are on...
-		switch ($_gallery_page) {
+		switch ($_zp_gallery_page) {
 			case 'index.php':
-				if ($_current_page > 1) {
-					$metatitle = getBareGalleryTitle() . " ($_current_page)";
+				if ($_zp_page > 1) {
+					$metatitle = getBareGalleryTitle() . " ($_zp_page)";
 				} else {
 					$metatitle = getBareGalleryTitle();
 				}
@@ -19,8 +19,8 @@
 				break;
 			case 'favorites.php':
 			case 'album.php':
-				if ($_current_page > 1) {
-					$metatitle = getBareAlbumTitle() . " ($_current_page)";
+				if ($_zp_page > 1) {
+					$metatitle = getBareAlbumTitle() . " ($_zp_page)";
 				} else {
 					$metatitle = getBareAlbumTitle();
 				}
@@ -37,7 +37,7 @@
 				}
 				break;
 			case 'image.php':
-				if (!$_current_album->isDynamic()) {
+				if (!$_zp_current_album->isDynamic()) {
 					$titlebreadcrumb = getTitleBreadcrumb();
 				} else {
 					$titlebreadcrumb = '';
@@ -53,10 +53,6 @@
 				$zpfocus_metatitle = gettext("Archive View") . ' | ' . getBareGalleryTitle();
 				$zpfocus_metadesc = truncate_string(getBareGalleryDesc(), 150, '...');
 				break;
-			case 'summary.php':
-				$zpfocus_metatitle = gettext("Daily summary") . ' | ' . getBareGalleryTitle();
-				$zpfocus_metadesc = truncate_string(getBareGalleryDesc(), 150, '...');
-				break;
 			case 'search.php':
 				$zpfocus_metatitle = gettext('Search') . ' | ' . html_encode(getSearchWords()) . ' | ' . getBareGalleryTitle();
 				$zpfocus_metadesc = truncate_string(getBareGalleryDesc(), 150, '...');
@@ -64,20 +60,20 @@
 				break;
 			case 'pages.php':
 				$zpfocus_metatitle = getBarePageTitle() . ' | ' . getBareGalleryTitle();
-				$zpfocus_metadesc = truncate_string(getBare(getPageContent()), 150, '...');
+				$zpfocus_metadesc = truncate_string(getBare(getPageContent(), 150, '...'));
 				break;
 			case 'news.php':
 				if (is_NewsArticle()) {
-					$zpfocus_metatitle = NEWS_LABEL . ' | ' . getBareNewsTitle() . ' | ' . getBareGalleryTitle();
-					$zpfocus_metadesc = truncate_string(getBare(getNewsContent()), 150, '...');
-				} else if ($_CMS_current_category) {
-					$zpfocus_metatitle = NEWS_LABEL . ' | ' . $_CMS_current_category->getTitle() . ' | ' . getBareGalleryTitle();
-					$zpfocus_metadesc = truncate_string(getBare(getNewsCategoryDesc()), 150, '...');
+					$zpfocus_metatitle = gettext('News') . ' | ' . getBareNewsTitle() . ' | ' . getBareGalleryTitle();
+					$zpfocus_metadesc = truncate_string(getBare(getNewsContent(), 150, '...'));
+				} else if ($_zp_current_category) {
+					$zpfocus_metatitle = gettext('News') . ' | ' . $_zp_current_category->getTitle() . ' | ' . getBareGalleryTitle();
+					$zpfocus_metadesc = truncate_string(getBare(getNewsCategoryDesc(), 150, '...'));
 				} else if (getCurrentNewsArchive()) {
-					$zpfocus_metatitle = NEWS_LABEL . ' | ' . getCurrentNewsArchive() . ' | ' . getBareGalleryTitle();
+					$zpfocus_metatitle = gettext('News') . ' | ' . getCurrentNewsArchive() . ' | ' . getBareGalleryTitle();
 					$zpfocus_metadesc = truncate_string(getBareGalleryDesc(), 150, '...');
 				} else {
-					$zpfocus_metatitle = NEWS_LABEL . ' | ' . getBareGalleryTitle();
+					$zpfocus_metatitle = gettext('News') . ' | ' . getBareGalleryTitle();
 					$zpfocus_metadesc = truncate_string(getBareGalleryDesc(), 150, '...');
 				}
 				break;
@@ -109,17 +105,17 @@
 		// Finish out header RSS links for inc-header.php
 		if (extensionEnabled('rss')) {
 			if (getOption('RSS_items')) {
-				printRSSHeaderLink('Gallery', gettext('Images')) . "\n";
+				printRSSHeaderLink('Gallery', gettext('Latest Images')) . "\n";
 			}
 			if (getOption('RSS_items_albums')) {
-				printRSSHeaderLink('AlbumsRSS', gettext('Albums')) . "\n";
+				printRSSHeaderLink('AlbumsRSS', gettext('Latest Albums')) . "\n";
 			}
 			if ($zenpage) {
 				if (getOption('RSS_zenpage_items')) {
-					printRSSHeaderLink('News', '', NEWS_LABEL) . "\n";
+					printRSSHeaderLink('News', '', gettext('Latest News')) . "\n";
 				}
 				if (function_exists('printCommentForm')) {
-					printRSSHeaderLink('Comments', '', gettext('Comments')) . "\n";
+					printRSSHeaderLink('Comments', '', gettext('Latest Comments')) . "\n";
 				}
 			}
 		}
@@ -127,41 +123,33 @@
 
 		<meta name="description" content="<?php echo html_encode($zpfocus_metadesc); ?>" />
 
-		<?php
-		require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/print_album_menu.php');
-		scriptLoader($_themeroot . '/css/main.css');
-		if (getOption('zpfocus_center_site')) {
-			scriptLoader($_themeroot . '/css/center.css');
-		}
+		<?php require_once(SERVERPATH . '/' . ZENFOLDER . "/zp-extensions/print_album_menu.php"); ?>
 
-		scriptLoader($_themeroot . '/css/print.css');
-		?>
+		<link rel="stylesheet" type="text/css" href="<?php echo $_zp_themeroot; ?>/css/main.css" />
+		<?php if (getOption('zpfocus_center_site')) { ?>
+			<link rel="stylesheet" type="text/css" href="<?php echo $_zp_themeroot; ?>/css/center.css" />
+		<?php } ?>
+		<link rel="stylesheet" type="text/css" href="<?php echo $_zp_themeroot; ?>/css/print.css" media="print" />
 		<!--[if lte IE 6]>
-		<?php
-		scriptLoader($_themeroot . '/css/ie6.css');
-		?>
+		<link rel="stylesheet" type="text/css" href="<?php echo $_zp_themeroot; ?>/css/ie6.css" />
 		<![endif]-->
-		<link rel="shortcut icon" href="<?php echo $_themeroot; ?>/images/favicon.ico" />
-		<?php
-		scriptLoader($_themeroot . '/js/superfish.js');
-		?>
+		<link rel="shortcut icon" href="<?php echo $_zp_themeroot; ?>/images/favicon.ico" />
+		<script type="text/javascript" src="<?php echo $_zp_themeroot; ?>/js/superfish.js"></script>
 		<script type="text/javascript">
 			jQuery(function () {
 				jQuery('ul.sf-menu').superfish();
 			});
-<?php if (extensionEnabled('reCaptcha')) { ?>
+<?php if (getOption('zp_plugin_reCaptcha')) { ?>
 				var RecaptchaOptions = {
 					theme: 'white'
 				};
 <?php } ?>
 		</script>
-		<?php
-		if (($zpfocus_showrandom) == 'rotator') {
-			scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/slideshow/jquery.cycle.all.js');
-		}
-		scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/colorbox_js/jquery.colorbox-min.js');
-		scriptloader(CORE_SERVERPATH . PLUGIN_FOLDER . '/colorbox_js/themes/' . $zpfocus_cbstyle . '/colorbox.css');
-		?>
+		<?php if (($zpfocus_showrandom) == 'rotator') { ?>
+			<script src="<?php echo FULLWEBPATH . "/" . ZENFOLDER ?>/zp-extensions/slideshow/jquery.cycle.all.js" type="text/javascript"></script>
+		<?php } ?>
+		<script src="<?php echo FULLWEBPATH . "/" . ZENFOLDER ?>/zp-extensions/colorbox_js/jquery.colorbox-min.js" type="text/javascript"></script>
+		<link rel="stylesheet" href="<?php echo FULLWEBPATH . "/" . ZENFOLDER ?>/zp-extensions/colorbox_js/themes/<?php echo $zpfocus_cbstyle; ?>/colorbox.css" type="text/css" media="screen"/>
 		<script type="text/javascript">
 			window.addEventListener('load', function () {
 				$("a[rel='zoom']").colorbox({
@@ -203,7 +191,7 @@
 			}, false);
 		</script>
 		<?php
-		if ($_gallery_page == 'search.php') {
+		if ($_zp_gallery_page == 'search.php') {
 			printZDSearchToggleJS();
 		}
 		?>
@@ -214,7 +202,7 @@
 		<?php } ?>
 	</head>
 	<body>
-		<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 		<div id="nav">
 			<div id="nav-wrap">
 				<ul class="sf-menu">
@@ -233,7 +221,7 @@
 								<?php printNestedMenu('list', 'pages', false, null, 'active', null, 'active', null, true, true, 30); ?>
 							</li>
 							<?php if ($zpfocus_news) { ?>
-								<li><a href="<?php echo getNewsIndexURL(); ?>"><?php echo NEWS_LABEL; ?></a>
+								<li><a href="<?php echo getNewsIndexURL(); ?>"><?php echo gettext('News'); ?></a>
 									<?php printNestedMenu('list', 'categories', false, null, 'active', null, 'active', null, true, true, 30); ?>
 								</li>
 							<?php } ?>
@@ -248,7 +236,7 @@
 							</ul>
 							<?php if ($zpfocus_allow_search) { ?>
 								<div>
-									<?php printSearchForm('', 'searchform', '', gettext('SEARCH'), "$_themeroot/images/search-drop.jpg", null, null, null); ?>
+									<?php printSearchForm('', 'searchform', '', gettext('SEARCH'), "$_zp_themeroot/images/search-drop.jpg", null, null, null); ?>
 								</div>
 							<?php } ?>
 							<?php if (($zpfocus_menutype) == 'jump') { ?>

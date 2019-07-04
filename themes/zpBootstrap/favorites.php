@@ -1,44 +1,40 @@
-<?php 
-if (extensionEnabled('favoritesHandler')) {
-	include ('inc_header.php');
-?>
+<?php include ('inc_header.php'); ?>
 
-	<!-- .container main -->
-		<!-- .page-header -->
-			<!-- .header -->
+	<!-- wrap -->
+		<!-- container -->
+			<!-- page-header -->
 				<h3><?php printGalleryTitle(); ?></h3>
-			</div><!-- .header -->
-		</div><!-- /.page-header -->
+			</div> <!-- /page-header -->
 
-		<div class="breadcrumb">
-			<h4>
-				<?php printCustomPageURL(getGalleryTitle(), 'gallery', '', '', ' » '); ?><?php printAlbumTitle(); ?>
-			</h4>
-		</div>
+			<div class="breadcrumb">
+				<h4>
+					<?php if (getOption('zpB_homepage')) { ?>
+						<?php printCustomPageURL(getGalleryTitle(), 'gallery'); ?>
+					<?php } else { ?>
+						<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Albums Index'); ?>"><?php echo html_encode(getGalleryTitle()); ?></a>
+					<?php } ?>&raquo;
+					<?php printAlbumTitle(); ?>
+				</h4>
+			</div>
 
-		<div class="page-header bottom-margin-reset">
-			<p><?php printAlbumDesc(); ?></p>
-		</div>
+			<?php if (extensionEnabled('slideshow')) { ?>
+			<ul class="pager hidden-phone pull-right"> <!--hidden-phone -->
+				<li>
+					<?php printSlideShowLink(gettext('Slideshow')); ?>
+				</li>
+			</ul>
+			<?php } ?>
 
-		<?php
-		printPageListWithNav('«', '»', false, true, 'pagination pagination-sm', NULL, true, 7);
+			<?php printPageListWithNav('«', '»', false, true, 'pagination', NULL, true, 7); ?>
 
-		if (isAlbumPage()) {
-			include('inc_print_album_thumb.php');
-		}
+			<div class="page-header bottom-margin-reset">
+				<p><?php printAlbumDesc(true); ?></p>
+			</div>
 
-		if (isImagePage()) {
-			include('inc_print_image_thumb.php');
-		}
+			<?php include('inc_print_album_thumb.php'); ?>
 
-		printPageListWithNav('«', '»', false, true, 'pagination pagination-sm', NULL, true, 7);
-		?>
+			<?php include('inc_print_image_thumb.php'); ?>
 
-	</div><!-- /.container main -->
+			<?php printPageListWithNav('«', '»', false, true, 'pagination', NULL, true, 7); ?>
 
-<?php
-	include('inc_footer.php');
-} else {
-	include(CORE_SERVERPATH . '404.php');
-}
-?>
+<?php include ('inc_footer.php'); ?>

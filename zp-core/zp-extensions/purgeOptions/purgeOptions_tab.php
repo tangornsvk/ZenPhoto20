@@ -4,19 +4,19 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/purgeOptions
+ * @package plugins
+ * @subpackage admin
  */
 // force UTF-8 Ø
 
 define('OFFSET_PATH', 1);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions.php');
 
 admin_securityChecks(ADMIN_RIGHTS, $return = currentRelativeURL());
 
-$xlate = array(USER_PLUGIN_FOLDER => gettext('User plugins'), CORE_FOLDER . '/' . PLUGIN_FOLDER => gettext('Extensions'), THEMEFOLDER => gettext('Themes'));
+$xlate = array('plugins' => gettext('User plugins'), 'zp-core/zp-extensions' => gettext('Extensions'), 'themes' => gettext('Themes'));
 
 if (isset($_POST['purge'])) {
 	XSRFdefender('purgeOptions');
@@ -24,7 +24,7 @@ if (isset($_POST['purge'])) {
 
 	if (isset($_POST['del'])) {
 		foreach ($_POST['del'] as $owner) {
-			$sql = 'DELETE FROM ' . prefix('options') . ' WHERE `creator` LIKE ' . db_quote('%' . $owner . '%');
+			$sql = 'DELETE FROM ' . prefix('options') . ' WHERE `creator` LIKE ' . db_quote($owner . '%');
 			query($sql);
 			$sql = 'DELETE FROM ' . prefix('plugin_storage') . ' WHERE `type`=' . db_quote(basename($owner));
 			query($sql);
@@ -36,15 +36,8 @@ if (isset($_POST['purge'])) {
 			} else {
 				$plugin = basename($owner);
 				if (!(isset($_POST['missingplugin']) && in_array($plugin, $_POST['missingplugin']))) {
-					if (extensionEnabled($plugin)) {
-						$purgedActive[$plugin] = true;
-					}
-					purgeOption('_plugin_' . $plugin);
-					//invoke the enable method if it exists
-					$f = str_replace('-', '_', $plugin) . '_enable';
-					if (function_exists($f)) {
-						$f(false);
-					}
+					$purgedActive[basename($owner)] = true;
+					purgeOption('zp_plugin_' . stripSuffix(basename($owner)));
 				}
 			}
 		}
@@ -70,16 +63,16 @@ if (isset($_POST['purge'])) {
 	}
 
 	if (!empty($purgedActive)) {
-		requestSetup('purgeOptions', gettext('Active plugins have been disabled.'));
+		requestSetup('purgeOptions');
 	}
-	header("Location: " . getAdminLink(PLUGIN_FOLDER . '/purgeOptions/purgeOptions_tab.php') . '?tab=purge');
-	exit();
+	header("Location: " . FULLWEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/purgeOptions/purgeOptions_tab.php?tab=purge');
+	exitZP();
 }
 
 printAdminHeader('options', '');
 $orphaned = array();
-scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css');
 ?>
+<link rel="stylesheet" href="<?php echo FULLWEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/purgeOptions/purgeOptions.css" type="text/css">
 </head>
 <body>
 	<?php printLogoAndLinks(); ?>
@@ -87,60 +80,61 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 		<?php printTabs(); ?>
 		<div id="content">
 			<div id="container">
-				<?php npgFilters::apply('admin_note', 'clone', ''); ?>
+				<?php zp_apply_filter('admin_note', 'clone', ''); ?>
 				<h1><?php echo gettext('purge options'); ?></h1>
 				<div class="tabbox">
 					<?php
-					$owners = array(THEMEFOLDER => array(), CORE_FOLDER . '/' . PLUGIN_FOLDER => array(), USER_PLUGIN_FOLDER => array());
-					$sql = 'SELECT `name` FROM ' . prefix('options') . ' WHERE `name` LIKE "\_plugin\_%"';
+					$owners = array(ZENFOLDER . '/' . PLUGIN_FOLDER => array(), USER_PLUGIN_FOLDER => array(), THEMEFOLDER => array());
+					$sql = 'SELECT `name` FROM ' . prefix('options') . ' WHERE `name` LIKE "zp\_plugin\_%"';
 					$result = query_full_array($sql);
 					foreach ($result as $row) {
-						$plugin = str_replace('_plugin_', '', $row['name']);
-						$file = str_replace(SERVERPATH, '', $f = getPlugin($plugin . '.php', false));
+						$plugin = str_replace('zp_plugin_', '', $row['name']);
+						$file = str_replace(SERVERPATH, '', getPlugin($plugin . '.php', false));
 						if ($file) {
-							if (strpos($file, USER_PLUGIN_FOLDER) !== false) {
+							if (strpos($file, PLUGIN_FOLDER) === false) {
 								$owners[USER_PLUGIN_FOLDER][strtolower($plugin)] = $plugin;
-							} else if (strpos($file, PLUGIN_FOLDER) === false) {
-								$file = FALSE;
 							}
-						}
-						if (!$file) {
+						} else {
 							purgeOption($row['name']);
 						}
 					}
-
 					$sql = 'SELECT DISTINCT `type` FROM ' . prefix('plugin_storage');
 					$result = query_full_array($sql);
 					foreach ($result as $row) {
 						$plugin = $row['type'];
 						$file = str_replace(SERVERPATH, '', getPlugin($plugin . '.php', false));
-						if ($file) {
-							if (strpos($file, PLUGIN_FOLDER) !== false) {
-								$owners[CORE_FOLDER . '/' . PLUGIN_FOLDER][strtolower($plugin)] = $plugin;
-							} else if (strpos($file, USER_PLUGIN_FOLDER) !== false) {
-								$owners[USER_PLUGIN_FOLDER][strtolower($plugin)] = $plugin;
-							}
+						if ($file && strpos($file, PLUGIN_FOLDER) !== false) {
+							$owners[ZENFOLDER . '/' . PLUGIN_FOLDER][strtolower($plugin)] = $plugin;
+						} else {
+							$owners[USER_PLUGIN_FOLDER][strtolower($plugin)] = $plugin;
 						}
 					}
 
-					$sql = 'SELECT DISTINCT `creator` FROM ' . prefix('options') . ' ORDER BY `creator`';
+					$sql = 'SELECT `creator` FROM ' . prefix('options') . ' ORDER BY `creator`';
 					$result = query_full_array($sql);
 					foreach ($result as $owner) {
-						$highlight = '';
-						if (preg_match('~' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/([^\[]*)~', $owner['creator'], $matches)) {
-							$creator = stripSuffix($matches[1]);
-							$owners[CORE_FOLDER . '/' . PLUGIN_FOLDER][strtolower($creator)] = $creator;
-						} else
-						if (preg_match('~' . THEMEFOLDER . '/([^/|^\[]*)~', $owner['creator'], $matches)) {
-							$creator = $matches[1];
-							$owners[THEMEFOLDER][strtolower($creator)] = $creator;
-						} else
-						if (preg_match('~' . USER_PLUGIN_FOLDER . '/([^/|^\[]*)~', $owner['creator'], $matches)) {
-							$creator = stripSuffix($matches[1]);
-							$owners[USER_PLUGIN_FOLDER][strtolower($creator)] = $creator;
+						$structure = explode('/', preg_replace('~\[.*\]$~', '', $owner['creator']));
+						switch ($structure[0]) {
+							case NULL:
+								break;
+							case THEMEFOLDER:
+								$owners[THEMEFOLDER][strtolower($structure[1])] = $structure[1];
+								break;
+							case USER_PLUGIN_FOLDER:
+								unset($structure[0]);
+								$creator = stripSuffix(implode('/', $structure));
+								$owners[USER_PLUGIN_FOLDER][strtolower($creator)] = $creator;
+								break;
+							case ZENFOLDER:
+								if ($structure[1] == PLUGIN_FOLDER) {
+									unset($structure[0], $structure[1]);
+									$creator = stripSuffix(implode('/', $structure));
+									$owners[ZENFOLDER . '/' . PLUGIN_FOLDER][strtolower($creator)] = $creator;
+								}
+								break;
 						}
 					}
-					ksort($owners[CORE_FOLDER . '/' . PLUGIN_FOLDER]);
+					ksort($owners[ZENFOLDER . '/' . PLUGIN_FOLDER]);
 					ksort($owners[USER_PLUGIN_FOLDER]);
 					ksort($owners[THEMEFOLDER]);
 
@@ -148,7 +142,7 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 					$sql = 'SELECT * FROM ' . prefix('options') . ' WHERE `creator` is NULL || `creator` LIKE "%purgeOptions%" ORDER BY `name`';
 					$result = query_full_array($sql);
 					foreach ($result as $opt) {
-						if (strpos($opt['name'], '_plugin_') === false) {
+						if (strpos($opt['name'], 'zp_plugin_') === false) {
 							if (empty($opt['value'])) {
 								$empty = true;
 								if (empty($opt['creator'])) {
@@ -167,6 +161,8 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 							}
 						}
 					}
+
+
 
 					if (empty($owners) && empty($orpahaned)) {
 						echo gettext('No option owners have been located.');
@@ -192,13 +188,14 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 								echo gettext('Check an item to purge options associated with it.');
 								?>
 								<span class="highlighted">
-									<?php echo gettext('Items that are <span class="missing_owner">highlighted</span> appear to no longer to exist.') ?>
+									<?php echo gettext('Items that are <span class = "missing_owner">highlighted</span> appear to no longer to exist.') ?>
 								</span>
 							</p>
 							<div class="highlighted purgeOptions_list">
-								<span class="missing_owner purgeOptionsClass">
+
+								<span class = "missing_owner purgeOptionsClass">
 									<?php echo gettext('highlighted'); ?>
-									<input type="checkbox" id="missing" checked="checked" onclick="$('.missing').prop('checked', $('#missing').prop('checked'));">
+									<input type = "checkbox" id = "missing" checked = "checked" onclick = "$('.missing').prop('checked', $('#missing').prop('checked'));">
 								</span>
 
 							</div>
@@ -213,9 +210,9 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 								<br class="clearall">
 								<div class="purgeOptions_list">
 									<span class="purgeOptionsClass"><?php echo gettext('Orphaned options'); ?></span>
-									<label title="<?php echo gettext('all: no action'); ?>">
+									<label title="<?php echo gettext('all: no acation'); ?>">
 										<?php echo BULLSEYE_BLUE; ?>
-										<input type="radio" name="orphaned" id="orphanedIgnore" onclick="$('.orphanedDelete').prop('checked', false);$('.orphaned').prop('checked', false);$('#emptyOptionCheck').prop('checked', false);">
+										<input type="radio" name="orphaned" id="orphanedIgnore" onclick="$('.orphanedDelete').removeAttr('checked');$('.orphaned').removeAttr('checked');$('#emptyOptionCheck').removeAttr('checked');">
 									</label>
 									<label title="<?php echo gettext('all: delete'); ?>">
 										<?php echo WASTEBASKET; ?>
@@ -223,7 +220,7 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 									</label>
 									<label title="<?php echo gettext('all: hide'); ?>">
 										<?php echo HIDE_ICON; ?>
-										<input type="radio" name="orphaned" id="orphaned" onclick="$('.orphaned').prop('checked', $('#orphaned').prop('checked'));$('#emptyOptionCheck').prop('checked', false);">
+										<input type="radio" name="orphaned" id="orphaned" onclick="$('.orphaned').prop('checked', $('#orphaned').prop('checked'));$('#emptyOptionCheck').removeAttr('checked');">
 									</label>
 									<?php
 									if ($empty) {
@@ -327,7 +324,6 @@ scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/purgeOptions/purgeOptions.css')
 				</div>
 			</div>
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
 
 	<script type="text/javascript">
@@ -340,5 +336,6 @@ if (!isset($highlighted)) {
 }
 ?>
 	</script>
+	<?php printAdminFooter(); ?>
 </body>
 </html>

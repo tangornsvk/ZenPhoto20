@@ -6,13 +6,15 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/singleAlbum
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
  */
-$plugin_is_filter = 5 | FEATURE_PLUGIN;
+$plugin_is_filter = 5 | CLASS_PLUGIN;
 $plugin_description = gettext('Forces a defined album as the index page.');
+$plugin_author = "Stephen Billard (sbillard)";
 
-npgFilters::register('load_request', 'forceAlbum');
+zp_register_filter('load_request', 'forceAlbum');
 
 function forceAlbum($success) {
 	// we presume that the site only serves the one album.

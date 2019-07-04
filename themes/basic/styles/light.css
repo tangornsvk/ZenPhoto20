@@ -65,7 +65,7 @@ body {
 
 /* Link Styles
 ------------------------------ */
-a, a:link, a:active, a:visited { text-decoration: underline; color: #17A; }
+a:link, a:active, a:visited { text-decoration: underline; color: #17A; }
 a:hover, a:focus { text-decoration: underline; color: #6BD; }
 
 /* Text Styles
@@ -187,10 +187,13 @@ ul.pagelist li.next {
 #imageDescEditable, #albumTagsEditable {
 	margin-top: 24px;
 }
-#imageDesc {
+#imageDesc, #exif_link {
 	margin-bottom: 4px;
 }
 
+#exif_link {
+	float: right;
+}
 
 /* Tags
 ------------------------------ */
@@ -351,11 +354,6 @@ span.tags_title {
 	width: 440px;
 }
 
-/* Clear floats
------------------------------- */
-.clearfloat {
-	clear: both;
-}
 
 /* Comments
 ------------------------------ */
@@ -412,6 +410,9 @@ input#code {
 	margin-left: 10px;
 	width: 10em !important;
 }
+#recaptcha_widget_div {
+	float: left;
+}
 
 /* Forms
 ------------------------------ */
@@ -445,14 +446,14 @@ label:hover {
 /* Admin Toolbox
 ------------------------------ */
 
-#admin_tb h3 {
+#admin h3 {
 	font-weight: normal;
 	color: #999;
 	margin:0;
 	padding:0;
 	text-align: left;
 }
-#admin_tb h3:hover { color: #036; }
+#admin h3:hover { color: #036; }
 
 /* Search Box
 ------------------------------ */
@@ -632,9 +633,6 @@ label:hover {
 	color: #000;
 }
 
-.floatright {
-	float: right !important;
-}
 #registration_form p,
 #commentform p,
 #mailform p {
@@ -653,12 +651,10 @@ label:hover {
 }
 
 #registration_form input[type="text"],
-#registration_form .password_input input[type="password"],
-#registration_form label[for="pass"],
+#registration_form input[type="password"],
 #mailform input[type="text"],
 #commentform input[type="text"] {
-	width: 250px;
-
+	width: 65%;
 }
 
 input.button {
@@ -675,11 +671,22 @@ input.button {
 
 form input[type="submit"],
 form input[type="reset"],
-form input[type="button"] {
+form input[type="button"],
+a.slideshowlink {
 	background-color: #EEF5F9;
 	border: 0;
 	font-size: 12px;
 }
+
+a.slideshowlink {
+	padding: 5px 6px 3px 6px;
+	margin-top: 10px !important;
+	text-decoration: none;
+	clear: both;
+	margin-top: 10px;
+	display: inline-block;
+}
+
 
 .clearall {
 	clear: both !important;
@@ -693,8 +700,4 @@ form input[type="button"] {
 
 .zen-logo img {
 	vertical-align: sub;
-}
-
-.zp_link a {
-	background-color: #EEF5F9 !important;
 }

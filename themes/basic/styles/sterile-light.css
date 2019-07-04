@@ -372,12 +372,6 @@ span.tags_title {
 	width: 440px;
 }
 
-/* Clear floats
------------------------------- */
-.clearfloat {
-	clear: both;
-}
-
 /* Comments
 ------------------------------ */
 #comments {
@@ -428,6 +422,9 @@ input#code {
 	margin-left: 10px;
 	width: 10em !important;
 }
+#recaptcha_widget_div {
+	float: left;
+}
 
 /* Forms
 ------------------------------ */
@@ -474,7 +471,7 @@ label {
 /* Admin Toolbox
 ------------------------------ */
 
-#admin_tb h3 {
+#admin h3 {
 	font: 100% Arial, "Helvetica Neue", Helvetica, sans-serif;
 	font-weight: bold;
 	color: #666;
@@ -685,7 +682,7 @@ label:hover {
 #registration_form input[type="password"],
 #mailform input[type="text"],
 #commentform input[type="text"] {
-	width: 250px;
+	width: 65%;
 }
 
 input.button {
@@ -702,11 +699,23 @@ input.button {
 
 form input[type="submit"],
 form input[type="reset"],
-form input[type="button"] {
+form input[type="button"],
+a.slideshowlink {
 	background-color: white;
 	border: 1px solid lightgray;
 	font-size: 12px;
 }
+
+a.slideshowlink {
+	padding: 5px 6px 3px 6px;
+	margin-top: 10px !important;
+	text-decoration: none;
+	clear: both;
+	margin-top: 10px;
+	display: inline-block;
+	color: gray;
+}
+
 
 .clearall {
 	clear: both !important;
@@ -720,8 +729,4 @@ form input[type="button"] {
 
 .zen-logo img {
 	vertical-align: sub;
-}
-
-.zp_link a {
-	background-color: #EEF5F9 !important;
 }

@@ -4,10 +4,12 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/text_watermark
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
  */
 $plugin_description = gettext("Creates text based watermarks.");
+$plugin_author = "Stephen Billard (sbillard)";
 $plugin_URL = FULLWEBPATH . '//plugins/text_watermark/text_watermark.htm';
 $option_interface = 'text_watermark';
 
@@ -19,7 +21,7 @@ class text_watermark {
 
 	function __construct() {
 		if (OFFSET_PATH == 2) {
-			$fonts = gl_getFonts();
+			$fonts = zp_getFonts();
 			$fon = array_shift($fonts);
 			setOptionDefault('text_watermark_color', '#000000');
 			setOptionDefault('text_watermark_font', $fon);
@@ -36,7 +38,7 @@ class text_watermark {
 						'desc' => gettext("Text color.")),
 				gettext('Font') => array('key' => 'text_watermark_font', 'type' => OPTION_TYPE_SELECTOR,
 						'order' => 1,
-						'selections' => gl_getFonts(),
+						'selections' => zp_getFonts(),
 						'desc' => gettext('Watermark font.')),
 				'' => array('key' => 'text_watermark_save', 'type' => OPTION_TYPE_CUSTOM,
 						'order' => 3,

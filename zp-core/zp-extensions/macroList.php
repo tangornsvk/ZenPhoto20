@@ -50,7 +50,7 @@
  * 			[PAGE] (Prints the current page number)
  * 		</li>
  * 		<li>
- * 			[NETPHOTOGRAPHICS_VERSION] (Prints the version of the installation)
+ * 			[ZENPHOTO_VERSION] (Prints the version of the Zenphoto installation)
  * 		</li>
  * 		<li>
  * 			[PAGELINK mylinktext customscriptpage] (Provides text for a link to a "custom" script page)
@@ -61,35 +61,36 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/macroList
- * @pluginCategory development
+ * @package plugins
+ * @subpackage development
  */
-$plugin_is_filter = 15 | ADMIN_PLUGIN;
+$plugin_is_filter = 5 | ADMIN_PLUGIN;
 $plugin_description = gettext('View available <code>content macros</code>.');
+$plugin_author = "Stephen Billard (sbillard)";
 
-npgFilters::register('admin_tabs', 'macro_admin_tabs', 200);
-
-if (OFFSET_PATH != 2 && npg_loggedin(ZENPAGE_PAGES_RIGHTS | ZENPAGE_NEWS_RIGHTS | ALBUM_RIGHTS)) {
+if (OFFSET_PATH != 2 && zp_loggedin(ZENPAGE_PAGES_RIGHTS | ZENPAGE_NEWS_RIGHTS | ALBUM_RIGHTS)) {
 	foreach (getEnabledPlugins() as $ext => $pn) {
 		$loadtype = $pn['priority'];
-		if ($loadtype & THEME_PLUGIN) {
+		if ($loadtype & (FEATURE_PLUGIN | THEME_PLUGIN)) {
 			require_once($pn['path']);
 		}
+	}
+	unset($ext);
+	unset($pn);
+	$macros = getMacros();
+	if (!empty($macros)) {
+		zp_register_filter('admin_tabs', 'macro_admin_tabs');
 	}
 }
 
 function macro_admin_tabs($tabs) {
-	if (npg_loggedin(ZENPAGE_PAGES_RIGHTS | ZENPAGE_NEWS_RIGHTS | ALBUM_RIGHTS)) {
-		$macros = getMacros();
-		if (!empty($macros)) {
-			if (!isset($tabs['development'])) {
-				$tabs['development'] = array('text' => gettext("development"),
-						'link' => getAdminLink(PLUGIN_FOLDER . '/macroList/macroList_tab.php') . '?page=development&tab=macros',
-						'default' => "macros",
-						'subtabs' => NULL);
-			}
-			$tabs['development']['subtabs'][gettext("macros")] = PLUGIN_FOLDER . '/macroList/macroList_tab.php?page=development&tab=macros';
+	if (zp_loggedin(ADMIN_RIGHTS)) {
+		if (!isset($tabs['development'])) {
+			$tabs['development'] = array('text' => gettext("development"),
+					'link' => WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/macroList/macroList_tab.php?page=development&tab=macros',
+					'subtabs' => NULL);
 		}
+		$tabs['development']['subtabs'][gettext("macros")] = PLUGIN_FOLDER . '/macroList/macroList_tab.php?page=development&tab=macros';
 	}
 	return $tabs;
 }

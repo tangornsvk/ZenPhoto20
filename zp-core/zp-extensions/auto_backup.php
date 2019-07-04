@@ -1,26 +1,26 @@
 <?php
 
 /**
- * This plugin provides a facility to periodically run the <code>Backups utility</code>.
- * Use it to insure that database backups are done on a regular basis.
+ * This plugin provides a facility to periodically run the backup utility. Use it to
+ * insure that database backups are done on a regular basis.
  *
  * <b>NOTE:</b> The website must be visited and live pages must be served for this
  * plugin to be able to check if it is time to run.
  *
- * Inactive or heavily cached sites may not get backed up as frequently as the
+ * Inacative or heavily cached sites may not get backed up as frequently as the
  * interval specifies. Of course, if there is no dynamic activity on the site,
  * there probably is little need to do the backup in the first place.
  *
- * The plugin causes the <code>Backups utility</code> to be run under the master
- * administrator authority. See the utility for details of site backups.
+ * Backups are run under the master administrator authority.
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/auto_backup
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  */
 $plugin_is_filter = defaultExtension(2 | ADMIN_PLUGIN | THEME_PLUGIN);
 $plugin_description = gettext("Periodically backup the database.");
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'auto_backup';
 if (OFFSET_PATH == 2) {
@@ -28,9 +28,9 @@ if (OFFSET_PATH == 2) {
 } else {
 	if ((getOption('last_backup_run') + getOption('backup_interval') * 86400) < time()) { // register if it is time for a backup
 		require_once(dirname(dirname(__FILE__)) . '/admin-functions.php');
-		npgFilters::register('admin_head', 'auto_backup::timer_handler');
-		npgFilters::register('theme_head', 'auto_backup::timer_handler');
-		$_backupMutex = new npgMutex('bK');
+		zp_register_filter('admin_head', 'auto_backup::timer_handler');
+		zp_register_filter('theme_head', 'auto_backup::timer_handler');
+		$_backupMutex = new zpMutex('bK');
 	}
 }
 
@@ -80,14 +80,15 @@ class auto_backup {
 
 	/**
 	 * Handles the periodic start of the backup/restore utility to backup the database
+	 * @param string $discard
 	 */
-	static function timer_handler() {
+	static function timer_handler($discard) {
 		global $_backupMutex;
 		$_backupMutex->lock();
 		if ((getOption('last_backup_run') + getOption('backup_interval') * 86400) < time()) {
 			//	maybe a race condition? Only need one execution
 			$curdir = getcwd();
-			$folder = SERVERPATH . "/" . BACKUPFOLDER;
+			$folder = SERVERPATH . "/" . DATA_FOLDER . "/" . BACKUPFOLDER;
 			if (!is_dir($folder)) {
 				mkdir($folder, FOLDER_MOD);
 			}
@@ -103,13 +104,14 @@ class auto_backup {
 			$keep = getOption('backups_to_keep');
 			while (!empty($list) && count($list) >= $keep) {
 				$file = array_shift($list);
-				@chmod(SERVERPATH . "/" . BACKUPFOLDER . '/' . $file, 0777);
-				unlink(SERVERPATH . "/" . BACKUPFOLDER . '/' . $file);
+				@chmod(SERVERPATH . "/" . DATA_FOLDER . "/" . BACKUPFOLDER . '/' . $file, 0777);
+				unlink(SERVERPATH . "/" . DATA_FOLDER . "/" . BACKUPFOLDER . '/' . $file);
 			}
-			cron_starter(CORE_SERVERPATH .  UTILITIES_FOLDER . '/backup_restore.php', array('action' => 'backup', 'autobackup' => 1, 'compress' => sprintf('%u', getOption('backup_compression')), 'XSRFTag' => 'backup'), 3);
+			cron_starter(SERVERPATH . '/' . ZENFOLDER . '/' . UTILITIES_FOLDER . '/backup_restore.php', array('backup' => 1, 'autobackup' => 1, 'compress' => sprintf('%u', getOption('backup_compression')), 'XSRFTag' => 'backup'), 3);
 			setOption('last_backup_run', time());
 		}
 		$_backupMutex->unlock();
+		return $discard;
 	}
 
 }

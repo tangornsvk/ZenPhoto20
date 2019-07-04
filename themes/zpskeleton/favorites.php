@@ -67,7 +67,7 @@ if (class_exists('favorites')) {
 					</div>
 					<p class="albumdesc"><?php echo shortenContent(getAlbumDesc(), 80, '...'); ?></p>
 					<hr />
-					<?php printAddToFavorites($_current_album, '', gettext('Remove')); ?>
+					<?php printAddToFavorites($_zp_current_album, '', gettext('Remove')); ?>
 				</div>
 				<?php
 				$c++;
@@ -101,7 +101,7 @@ if (class_exists('favorites')) {
 						}
 						?>
 					</a>
-					<?php printAddToFavorites($_current_image, '', gettext('Remove')); ?>
+					<?php printAddToFavorites($_zp_current_image, '', gettext('Remove')); ?>
 				</div>
 				<?php
 				$c++;
@@ -117,9 +117,9 @@ if (class_exists('favorites')) {
 				<?php if ((hasNextPage()) || (hasPrevPage())) printPageListWithNav("«", "»", false, true, 'pagination', null, true, 5); ?>
 				<?php printPPSlideShowLink(gettext('Slideshow')); ?>
 				<?php if ($zpskel_social) include ('inc-social.php'); ?>
-				<?php if (simpleMap::mapPlugin()) { ?>
+				<?php if ((function_exists('printGoogleMap'))) { ?>
 					<div id="map">
-						<?php simpleMap::printMap(); ?>
+						<?php printGoogleMap(); ?>
 					</div>
 				<?php } ?>
 			</div>
@@ -159,6 +159,6 @@ if (class_exists('favorites')) {
 	<?php include ("inc-footer.php"); ?>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

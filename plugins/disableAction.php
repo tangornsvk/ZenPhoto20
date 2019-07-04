@@ -7,16 +7,18 @@
  * To disable other actions you will need to examine the page HTML and change/insert code as needed.
  *
  * @author Stephen Billard (sbillard)
- *
- * @package plugins/disableAction
- * @pluginCategory example
+ * 
+ * @package plugins
+ * @subpackage example
+ * @category package
  */
 $plugin_is_filter = 5 | ADMIN_PLUGIN;
 $plugin_description = gettext("Disable publish/unpublish if user does not have <em>ADMIN_RIGHTS</em>.");
+$plugin_author = "Stephen Billard (sbillard)";
 
-npgFilters::register('admin_note', 'disableRight::disable'); // a convenient point since it is established what page and tab are selected
-npgFilters::register('admin_managed_albums_access', 'disableRight::save'); // this point allows us to alter the $_GET and $_POST arrays before they are used
-npgFilters::register('plugin_tabs', 'disableRight::tab');
+zp_register_filter('admin_note', 'disableRight::disable'); // a convenient point since it is established what page and tab are selected
+zp_register_filter('admin_managed_albums_access', 'disableRight::save'); // this point allows us to alter the $_GET and $_POST arrays before they are used
+zp_register_filter('plugin_tabs', 'disableRight::tab');
 
 class disableRight {
 
@@ -26,17 +28,17 @@ class disableRight {
 	 * @param string $subtab
 	 */
 	static function disable($tab, $subtab) {
-		global $_admin_tab;
-		if (!npg_loggedin(ADMIN_RIGHTS)) {
-			switch ($_admin_tab) {
+		global $_zp_admin_tab;
+		if (!zp_loggedin(ADMIN_RIGHTS)) {
+			switch ($_zp_admin_tab) {
 				case 'upload':
 					//	the upload tab.
 					?>
 					<script type="text/javascript">
 						// <!-- <![CDATA[
-						$(window).on("load", function () {
+						$(window).load(function() {
 							//	disable the checkbox for publishing the album so it stays at its initial state
-							$('#publishalbum').prop('disabled', true);
+							$('#publishalbum').attr('disabled', 'disabled');
 						});
 						// ]]> -->
 					</script>
@@ -51,12 +53,12 @@ class disableRight {
 							?>
 							<script type="text/javascript">
 								// <!-- <![CDATA[
-								$(window).on("load", function () {
+								$(window).load(function() {
 									//	remove the bulk action publish options
 									$('option[value=showall]').remove();
 									$('option[value=hideall]').remove();
 									//	disable the publish checkboxes
-									$('input[name$=Visible]').prop('disabled', true);
+									$('input[name$=Visible]').attr('disabled', 'disabled');
 								});
 								// ]]> -->
 							</script>
@@ -67,9 +69,9 @@ class disableRight {
 							?>
 							<script type="text/javascript">
 								// <!-- <![CDATA[
-								$(window).on("load", function () {
+								$(window).load(function() {
 									//	disable the publish checkbox
-									$('input[name=Published]').prop('disabled', true);
+									$('input[name=Published]').attr('disabled', 'disabled');
 								});
 								// ]]> -->
 							</script>
@@ -84,9 +86,9 @@ class disableRight {
 								?>
 								<script type="text/javascript">
 									// <!-- <![CDATA[
-									$(window).on("load", function () {
+									$(window).load(function() {
 										//	disable the "mass-edit" publish checkboxes
-										$('input[name$=Published]').prop('disabled', true);
+										$('input[name$=Published]').attr('disabled', 'disabled');
 									});
 									// ]]> -->
 								</script>
@@ -95,7 +97,7 @@ class disableRight {
 								?>
 								<script type="text/javascript">
 									// <!-- <![CDATA[
-									$(window).on("load", function () {
+									$(window).load(function() {
 										//	remove the bulk action publish options
 										$('option[value=showall]').remove();
 										$('option[value=hideall]').remove();
@@ -138,7 +140,7 @@ class disableRight {
 	 * @return unknown
 	 */
 	static function save($allow) {
-		if (!npg_loggedin(ADMIN_RIGHTS)) {
+		if (!zp_loggedin(ADMIN_RIGHTS)) {
 			if (isset($_GET['action'])) {
 				switch ($_GET['action']) {
 					case 'publish':

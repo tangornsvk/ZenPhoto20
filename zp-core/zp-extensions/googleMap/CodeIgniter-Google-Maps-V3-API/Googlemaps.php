@@ -150,7 +150,7 @@ class Googlemaps {
 			$this->initialize($config);
 		}
 
-		GoogleMap::log_message('debug', "Google Maps Class Initialized");
+		log_message('debug', "Google Maps Class Initialized");
 	}
 
 	function initialize($config = array()) {
@@ -1837,7 +1837,7 @@ class Googlemaps {
 			// zenphoto hack
 			// Google abandoned their CDN
 			$this->output_js_contents .= ',
-				imagePath: "' . WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/googleMap/markerClustererPlus/images/m"';
+				imagePath: "' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/googleMap/markerClustererPlus/images/m"';
 			// end zenphotohack
 			$this->output_js_contents .= ',
 				minimumClusterSize: ' . $this->clusterMinimumClusterSize . '
@@ -2115,7 +2115,7 @@ class Googlemaps {
 		}
 		//
 
-		$this->output_html .= '<div id="' . $this->map_div_id . '"></div>';
+		$this->output_html .= '<div id="'.$this->map_div_id.'"></div>';
 
 		return array('js' => $this->output_js, 'html' => $this->output_html, 'markers' => $this->markersInfo);
 	}
@@ -2196,5 +2196,4 @@ class Googlemaps {
 	}
 
 }
-
 ?>

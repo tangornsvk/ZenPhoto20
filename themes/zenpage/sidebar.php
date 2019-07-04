@@ -8,12 +8,12 @@ if (function_exists('printCustomMenu') && getOption('zenpage_custommenu')) {
 	</div>
 	<?php
 } else {
-	if (extensionEnabled('zenpage') && ($news = hasNews())) {
+	if (extensionEnabled('zenpage') && ($news = getNumNews(true))) {
 		?>
 		<div class="menu">
-			<h3><?php echo NEWS_LABEL; ?></h3>
+			<h3><?php echo gettext("News articles"); ?></h3>
 			<?php
-			printAllNewsCategories(gettext("All"), TRUE, "", "menu-active", true, "submenu", "menu-active");
+			printAllNewsCategories(gettext("All news"), TRUE, "", "menu-active", true, "submenu", "menu-active");
 			?>
 		</div>
 	<?php } ?>
@@ -22,7 +22,7 @@ if (function_exists('printCustomMenu') && getOption('zenpage_custommenu')) {
 		<div class="menu">
 			<?php
 			if (extensionEnabled('zenpage')) {
-				if ($_gallery_page == 'index.php' || $_gallery_page != 'gallery.php') {
+				if ($_zp_gallery_page == 'index.php' || $_zp_gallery_page != 'gallery.php') {
 					?>
 					<h3>
 						<a href="<?php echo html_encode(getCustomPageURL('gallery')); ?>" title="<?php echo gettext('Album index'); ?>"><?php echo gettext("Gallery"); ?></a>
@@ -43,7 +43,7 @@ if (function_exists('printCustomMenu') && getOption('zenpage_custommenu')) {
 		</div>
 	<?php } ?>
 
-	<?php if (extensionEnabled('zenpage') && (hasPages())) { ?>
+	<?php if (extensionEnabled('zenpage') && (getNumPages(true))) { ?>
 		<div class="menu">
 			<h3><?php echo gettext("Pages"); ?></h3>
 			<?php printPageMenu("list", "", "menu-active", "submenu", "menu-active"); ?>
@@ -54,21 +54,25 @@ if (function_exists('printCustomMenu') && getOption('zenpage_custommenu')) {
 ?>
 
 <div class="menu">
-	<h3><?php printCustomPageURL(gettext('Archive'), "archive"); ?></h3>
+	<h3><?php echo gettext("Archive"); ?></h3>
+	<ul>
+		<?php
+		if (extensionEnabled('Zenpage') && ($news = getNumNews('true'))) {
+			$archivelinktext = gettext("Gallery And News");
+		} else {
+			$archivelinktext = gettext("Gallery");
+		}
+		if ($_zp_gallery_page == "archive.php") {
+			echo "<li class='menu-active'>" . $archivelinktext . "</li>";
+		} else {
+			echo "<li>";
+			printCustomPageURL($archivelinktext, "archive");
+			echo "</li>";
+		}
+		?>
+	</ul>
 </div>
-<?php
-if (extensionEnabled('daily-summary')) {
-	?>
-	<div class="menu">
-		<h3>
-			<?php
-			printDailySummaryLink(gettext('Daily summary'), '', '', '');
-			?>
-		</h3>
-	</div>
-	<?php
-}
-?>
+
 <?php
 if (class_exists('RSS') && (getOption('RSS_album_image') || getOption('RSS_articles'))) {
 	?>
@@ -76,8 +80,8 @@ if (class_exists('RSS') && (getOption('RSS_album_image') || getOption('RSS_artic
 		<h3><?php echo gettext("RSS"); ?></h3>
 		<ul>
 			<?php
-			if (!is_null($_current_album)) {
-				printRSSLink('Album', '<li>', gettext('Album'), '</li>');
+			if (!is_null($_zp_current_album)) {
+				printRSSLink('Album', '<li>', gettext('Album RSS'), '</li>');
 				?>
 				<?php
 			}
@@ -87,7 +91,7 @@ if (class_exists('RSS') && (getOption('RSS_album_image') || getOption('RSS_artic
 			?>
 			<?php
 			if ($news) {
-				printRSSLink("News", "<li>", NEWS_LABEL, '</li>');
+				printRSSLink("News", "<li>", gettext("News"), '</li>');
 			}
 			?>
 		</ul>
@@ -103,7 +107,7 @@ if (getOption("zenpage_contactpage") && extensionEnabled('contact_form')) {
 		<ul>
 			<li>
 				<?php
-				if ($_gallery_page != 'contact.php') {
+				if ($_zp_gallery_page != 'contact.php') {
 					printCustomPageURL(gettext('Contact us'), 'contact', '', '');
 				} else {
 					echo gettext("Contact us");
@@ -113,16 +117,16 @@ if (getOption("zenpage_contactpage") && extensionEnabled('contact_form')) {
 	</div>
 	<?php
 }
-if ((function_exists("printUserLogin_out") ) || !npg_loggedin() && function_exists('printRegistrationForm') || class_exists('mobileTheme')) {
+if ((function_exists("printUserLogin_out") ) || !zp_loggedin() && function_exists('printRegistrationForm') || class_exists('mobileTheme')) {
 	?>
 	<div class="menu">
 		<ul>
 			<?php
-			if (!npg_loggedin() && function_exists('printRegisterURL')) {
+			if (!zp_loggedin() && function_exists('printRegisterURL')) {
 				?>
 				<li>
 					<?php
-					if ($_gallery_page != 'register.php') {
+					if ($_zp_gallery_page != 'register.php') {
 						printRegisterURL(gettext('Register for this site'));
 					} else {
 						echo gettext("Register for this site");

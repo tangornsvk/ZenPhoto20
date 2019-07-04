@@ -14,12 +14,12 @@ if (function_exists('printRegistrationForm')) {
 	<html>
 		<head>
 
-			<?php npgFilters::apply('theme_head'); ?>
+			<?php zp_apply_filter('theme_head'); ?>
 
 		</head>
 
 		<body onload="blurAnchors()">
-			<?php npgFilters::apply('theme_body_open'); ?>
+			<?php zp_apply_filter('theme_body_open'); ?>
 
 			<!-- Wrap Header -->
 			<div id="header">
@@ -69,19 +69,19 @@ if (function_exists('printRegistrationForm')) {
 			<div class="footlinks">
 
 				<?php printThemeInfo(); ?>
-				<?php print_SW_Link(); ?>
+				<?php printZenphotoLink(); ?>
 
 			</div> <!-- footerlinks -->
 
 
 			<?php
-			npgFilters::apply('theme_body_close');
+			zp_apply_filter('theme_body_close');
 			?>
 
 		</body>
 	</html>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

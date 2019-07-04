@@ -8,9 +8,8 @@
  * @package core
  */
 
-npgFilters::register('theme_head', 'printThemeHeadItems', 9999);
-npgFilters::register('theme_body_close', 'printThemeCloseItems');
-npgFilters::register('theme_body_close', 'adminToolbox');
+zp_register_filter('theme_head', 'printThemeHeadItems', 9999);
+zp_register_filter('theme_body_close', 'adminToolbox');
 if (TEST_RELEASE)
-	npgFilters::register('software_information', 'exposeSoftwareInformation');
+	zp_register_filter('zenphoto_information', 'exposeZenPhotoInformations');
 ?>

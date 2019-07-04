@@ -21,10 +21,11 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/viewer_size_image
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
  */
 $plugin_description = gettext("Provides a means allowing users to select the image size to view.");
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'viewer_size_image_options';
 
@@ -41,25 +42,25 @@ class viewer_size_image_options {
 			setOptionDefault('viewer_size_image_default', '$s=' . $default);
 			setOptionDefault('viewer_size_image_radio', 2);
 			if (class_exists('cacheManager')) {
-				cacheManager::deleteCacheSizes('viewer_size_image');
-				cacheManager::addCacheSize('viewer_size_image', $default - 200, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-				cacheManager::addCacheSize('viewer_size_image', $default - 100, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-				cacheManager::addCacheSize('viewer_size_image', $default, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-				cacheManager::addCacheSize('viewer_size_image', $default + 100, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-				cacheManager::addCacheSize('viewer_size_image', $default + 200, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				cacheManager::deleteThemeCacheSizes('viewer_size_image');
+				cacheManager::addThemeCacheSize('viewer_size_image', $default - 200, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				cacheManager::addThemeCacheSize('viewer_size_image', $default - 100, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				cacheManager::addThemeCacheSize('viewer_size_image', $default, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				cacheManager::addThemeCacheSize('viewer_size_image', $default + 100, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				cacheManager::addThemeCacheSize('viewer_size_image', $default + 200, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 			}
 		}
 	}
 
 	function getOptionsSupported() {
-		return array(gettext('Image sizes allowed') => array('key' => 'viewer_size_image_sizes', 'type' => OPTION_TYPE_TEXTAREA,
-						'multilingual' => false,
-						'desc' => gettext('List of sizes from which the viewer may select.<br />The form is "$s=&lt;size&gt;" or "$h=&lt;height&gt;,$w=&lt;width&gt;"....<br />See printCustomSizedImage() for details')),
-				gettext('Selector') => array('key' => 'viewer_size_image_radio', 'type' => OPTION_TYPE_RADIO,
-						'buttons' => array(gettext('Radio buttons') => 2, gettext('Drop-down') => 1),
-						'desc' => gettext('Choose the kind of selector to be presented the viewer.')),
-				gettext('Default size') => array('key' => 'viewer_size_image_default', 'type' => OPTION_TYPE_TEXTBOX,
-						'desc' => gettext('The initial size for the image. Format is a single instance of the sizes list.'))
+		return array(gettext('Image sizes allowed') => array('key'					 => 'viewer_size_image_sizes', 'type'				 => OPTION_TYPE_TEXTAREA,
+										'multilingual' => false,
+										'desc'				 => gettext('List of sizes from which the viewer may select.<br />The form is "$s=&lt;size&gt;" or "$h=&lt;height&gt;,$w=&lt;width&gt;"....<br />See printCustomSizedImage() for details')),
+						gettext('Selector')						 => array('key'			 => 'viewer_size_image_radio', 'type'		 => OPTION_TYPE_RADIO,
+										'buttons'	 => array(gettext('Radio buttons') => 2, gettext('Drop-down') => 1),
+										'desc'		 => gettext('Choose the kind of selector to be presented the viewer.')),
+						gettext('Default size')				 => array('key'	 => 'viewer_size_image_default', 'type' => OPTION_TYPE_TEXTBOX,
+										'desc' => gettext('The initial size for the image. Format is a single instance of the sizes list.'))
 		);
 	}
 
@@ -70,7 +71,7 @@ class viewer_size_image_options {
 }
 
 if (!OFFSET_PATH) {
-	$saved = @$_COOKIE['viewer_size_image_saved']; //	This cookie set by JavaScript, so not bound to the IP. cannot use getNPGCookie()
+	$saved = @$_COOKIE['viewer_size_image_saved']; //	This cookie set by JavaScript, so not bound to the IP. cannot use zp_getCookie()
 	if (empty($saved)) {
 		$postdefault = trim(getOption('viewer_size_image_default'));
 	} else {
@@ -105,7 +106,7 @@ function printUserSizeSelector($text = '', $default = NULL, $usersizes = NULL) {
 					$size = str_replace(',', ';', $size) . ';';
 					$s = $w = $h = NULL;
 					if (false === eval($size)) {
-						trigger_error(gettext('There is a format error in your <em>viewer_size_image_sizes</em> option string.'), E_USER_NOTICE);
+						zp_error(gettext('There is a format error in your <em>viewer_size_image_sizes</em> option string.'), E_USER_NOTICE);
 					}
 					if (!empty($s)) {
 						$key = $s;
@@ -122,7 +123,7 @@ function printUserSizeSelector($text = '', $default = NULL, $usersizes = NULL) {
 				$size = str_replace(',', ';', $size) . ';';
 				$s = $w = $h = NULL;
 				if (false === eval($size)) {
-					trigger_error(gettext('There is a format error in your $usersizes string.'), E_USER_NOTICE);
+					zp_error(gettext('There is a format error in your $usersizes string.'), E_USER_NOTICE);
 				}
 				if (!empty($s)) {
 					$key = $s;
@@ -148,7 +149,7 @@ function printUserSizeSelector($text = '', $default = NULL, $usersizes = NULL) {
 				$('#image img').attr('width', items[1]);
 				$('#image img').attr('height', items[2]);
 				$('#image img').attr('src', items[3]);
-				document.cookie = 'viewer_size_image_saved=' + items[0] + '; expires=<?php echo date('Y-m-d H:i:s', time() + COOKIE_PERSISTENCE); ?>; path=<?php echo $cookiepath ?>';
+				document.cookie = 'viewer_size_image_saved=' + items[0] + '; expires=<?php echo date('Y-m-d H:i:s', time() + COOKIE_PESISTENCE); ?>; path=<?php echo $cookiepath ?>';
 			}
 		<?php
 	} else { //	radio buttons
@@ -160,7 +161,7 @@ function printUserSizeSelector($text = '', $default = NULL, $usersizes = NULL) {
 				$('#image img').attr('width', w);
 				$('#image img').attr('height', h);
 				$('#image img').attr('src', url);
-				document.cookie = 'viewer_size_image_saved=' + $(obj).attr('value') + '; expires=<?php echo date('Y-m-d H:i:s', time() + COOKIE_PERSISTENCE); ?>; path=<?php echo $cookiepath ?>';
+				document.cookie = 'viewer_size_image_saved=' + $(obj).attr('value') + '; expires=<?php echo date('Y-m-d H:i:s', time() + COOKIE_PESISTENCE); ?>; path=<?php echo $cookiepath ?>';
 			}
 		<?php
 	}
@@ -268,7 +269,7 @@ function getViewerImageSize($default, &$size, &$width, &$height) {
 		}
 	}
 	if (empty($size) && empty($width) && empty($height)) {
-		trigger_error($msg, E_USER_NOTICE);
+		zp_error($msg, E_USER_NOTICE);
 	}
 }
 

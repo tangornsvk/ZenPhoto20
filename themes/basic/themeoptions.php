@@ -29,11 +29,14 @@ class ThemeOptions {
 		setThemeOptionDefault('thumb_crop', 1);
 		setThemeOptionDefault('thumb_transition', 1);
 
+		if (class_exists('colorbox')) {
+			colorbox::registerScripts(array('album', 'favorites', 'image', 'search'));
+		}
 		if (class_exists('cacheManager')) {
 			$me = basename(dirname(__FILE__));
-			cacheManager::deleteCacheSizes($me);
-			cacheManager::addCacheSize($me, getThemeOption('image_size'), NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL);
-			cacheManager::addCacheSize($me, getThemeOption('thumb_size'), NULL, NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL);
+			cacheManager::deleteThemeCacheSizes($me);
+			cacheManager::addThemeCacheSize($me, getThemeOption('image_size'), NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL);
+			cacheManager::addThemeCacheSize($me, getThemeOption('thumb_size'), NULL, NULL, getThemeOption('thumb_crop_width'), getThemeOption('thumb_crop_height'), NULL, NULL, true, NULL, NULL, NULL);
 		}
 	}
 

@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Debugging aids
+ * Debugging aids for ZenPhoto20
  *
  * <b><i>Mark release</i> button:</b>
  *
@@ -23,156 +23,105 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/debug
- * @pluginCategory development
+ * @package plugins
+ * @subpackage development
  */
 
 $plugin_is_filter = 10 | ADMIN_PLUGIN;
 $plugin_description = gettext("Debugging aids.");
-
+$plugin_author = "Stephen Billard (sbillard)";
 $option_interface = 'debug';
 
-npgFilters::register('admin_tabs', 'debug::tabs', 100);
-npgFilters::register('admin_utilities_buttons', 'debug::button');
+zp_register_filter('admin_tabs', 'debug::tabs');
+zp_register_filter('admin_utilities_buttons', 'debug::button');
 
-if (isset($_REQUEST['markRelease'])) {
+if (OFFSET_PATH == 2) {
+	if (strpos(getOption('markRelease_state'), '-DEBUG') !== false) {
+		$version = debug::version(false);
+		debug::updateVersion($version);
+	}
+} else if (isset($_REQUEST['markRelease'])) {
 	XSRFdefender('markRelease');
 	$version = debug::version($_REQUEST['markRelease'] == 'released');
 	setOption('markRelease_state', $version);
 	debug::updateVersion($version);
-	header('location:' . getAdminLink('admin.php'));
-	exit();
-} else {
-	if (!TEST_RELEASE && strpos(getOption('markRelease_state'), '-DEBUG') !== false) {
-		$version = debug::version(false);
-		debug::updateVersion($version);
-	}
+	header('location:' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php');
+	exitZP();
 }
 
 class debug {
 
 	function __construct() {
 		if (OFFSET_PATH == 2) {
-			if (TEST_RELEASE) {
-				//	then the options must match the version tags
-				$options = explode('-', NETPHOTOGRAPHICS_VERSION . '-');
-				$options = explode('_', $options[1]);
-				array_shift($options);
-				setOption('debug_marks', serialize($options));
-			} else {
-				$options = getOptionsLike('debug_mark_');
-				if ($options) {
-					foreach ($options as $option => $value) {
-						if ($value) {
-							$object = strtoupper(str_replace('debug_mark_', '', $option));
-							$list[$object] = $object;
-						}
-						purgeOption($option);
-					}
-					$options = $list;
-					$update = true;
+			$list = array('404' => '404');
+			$options = getOptionsLike('debug_mark_');
+			foreach ($options as $option => $value) {
+				if ($value) {
+					$object = strtoupper(str_replace('debug_mark_', '', $option));
+					$list[$object] = $object;
 				}
+				purgeOption($option);
 			}
-			$update = false;
-			if (empty($options)) {
-				$options = getSerializedArray(getOption('debug_marks'));
-			}
-			$key = array_search('DISPLAY', $options);
-			if ($key !== false) {
-				$key2 = array_search('ERRORS', $options);
-				if ($key2 == $key + 1) {
-					unset($options[$key2]);
-					$options[$key] = 'DISPLAY‑ERRORS';
-					$update = true;
-				}
-			} else {
-				$key = array_search('DISPLAY_ERRORS', $options);
-				if ($key !== false) {
-					$options[$key] = 'DISPLAY‑ERRORS';
-					$update = true;
-				}
-			}
-			if ($update) {
-				setOption('debug_marks', serialize($options));
-				self::handleOptionSave(NULL, NULL);
-			}
+			setOptionDefault('debug_marks', serialize($list));
 
 			$version = debug::version(true);
-			setOptionDefault('jQuery_Migrate_theme', 0);
-			setOptionDefault('jQuery_Migrate_admin', 0);
-			setOptionDefault('jQuery_v1', 0);
 			setOptionDefault('markRelease_state', $version);
 		}
 	}
 
 	function getOptionsSupported() {
 		$list = array(
-				gettext('Display PHP errors') => 'DISPLAY‑ERRORS',
-				gettext('<em>testing mode</em>') => 'TESTING',
-				gettext('Log 404 error processing debug information') => '404',
-				gettext('Log start/finish of exif processing') => 'EXIF',
-				gettext('Log the <em>EXPLAIN</em> output from SQL SELECT queries') => 'EXPLAIN',
-				gettext('Log filter application sequence') => 'FILTERS',
-				gettext('Log image processing debug information') => 'IMAGE',
-				gettext('Log language selection processing') => 'LOCALE',
-				gettext('Log admin saves and login attempts') => 'LOGIN',
-				gettext('Log plugin load sequence') => 'PLUGINS',
-				gettext('Log Feed issues') => 'FEED',
-				gettext('Log Managaed Objects changes') => 'OBJECTS'
+				gettext('Log 404 error processing debug information.') => '404',
+				gettext('Log start/finish of exif processing.') => 'EXIF',
+				gettext('Log the <em>EXPLAIN</em> output from SQL SELECT queries.') => 'EXPLAIN_SELECTS',
+				gettext('Log filter application sequence.') => 'FILTERS',
+				gettext('Log image processing debug information.') => 'IMAGE',
+				gettext('Log language selection processing.') => 'LOCALE,',
+				gettext('Log admin saves and login attempts.') => 'LOGIN',
+				gettext('Log plugin load sequence.') => 'PLUGINS'
 		);
 		$options = array(
 				NULL => array('key' => 'debug_marks', 'type' => OPTION_TYPE_CHECKBOX_ARRAYLIST,
 						'checkboxes' => $list,
 						'order' => 1,
-						'desc' => gettext('<em>Testing mode</em> adds unique ids to the urls of javaScript and CSS files to bypass the cache expires settings.')),
-				1 => array('key' => '', 'type' => OPTION_TYPE_NOTE, 'desc' => gettext('Note: These options are enabled only when the release is marked in <em>debug</em> mode.')),
-				gettext('jQuery migration (admin)') => array('key' => 'jQuery_Migrate_admin', 'type' => OPTION_TYPE_RADIO,
-						'buttons' => array(// The definition of the radio buttons to choose from and their values.
-								gettext('Disabled') => 0,
-								gettext('Production') => 1,
-								gettext('Debug') => 2
-						),
-						'order' => 2,
-						'desc' => gettext('Adds the <a href="https://jquery.com/upgrade-guide/3.0/">jQuery 3.3 migration</a> tool to the administrative pages.')),
-				gettext('jQuery migration (theme)') => array('key' => 'jQuery_Migrate_theme', 'type' => OPTION_TYPE_RADIO,
-						'buttons' => array(// The definition of the radio buttons to choose from and their values.
-								gettext('Disabled') => 0,
-								gettext('Production') => 1,
-								gettext('Debug') => 2,
-								gettext('No migration') => 3
-						),
-						'order' => 3,
-						'desc' => gettext('Adds the <a href="https://jquery.com/upgrade-guide/">jQuery migration</a> tool to theme pages. (If <em>No migration</em> is selected jQuery v1.12 and jQuery migration v1.4.1 will be loaded instead of jQuery v3.'))
+						'desc' => ''),
+				1 => array('key' => '', 'type' => OPTION_TYPE_NOTE, 'desc' => gettext('Note: These options are enabled only when the release is marked in <em>debug</em> mode.'))
 		);
 		return $options;
 	}
 
 	function handleOptionSave($themename, $themealbum) {
 		$version = self::version(false);
-		if (TEST_RELEASE && NETPHOTOGRAPHICS_VERSION != $version) {
+		if (TEST_RELEASE && ZENPHOTO_VERSION != $version) {
 			self::updateVersion($version);
 		}
 	}
 
 	static function updateVersion($version) {
-		$v = file_get_contents(CORE_SERVERPATH . 'version.php');
-		$version = "define('NETPHOTOGRAPHICS_VERSION', '$version');\n";
-		$v = preg_replace("~define\('NETPHOTOGRAPHICS_VERSION.*\n~", $version, $v);
-		file_put_contents(CORE_SERVERPATH . 'version.php', $v);
+		$v = file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/version.php');
+		$version = "define('ZENPHOTO_VERSION', '$version');\n";
+		$v = preg_replace("~define\('ZENPHOTO_VERSION.*\n~", $version, $v);
+		file_put_contents(SERVERPATH . '/' . ZENFOLDER . '/version.php', $v);
 	}
 
 	static function version($released) {
-		$o = explode('-', NETPHOTOGRAPHICS_VERSION . '-');
+		$o = explode('-', ZENPHOTO_VERSION . '-');
+		for ($i = count($o) - 1; $i > 0; $i--) {
+			if (strpos($o[$i], 'RC') === false) {
+				unset($o[$i]);
+			}
+		}
+		$originalVersion = implode('-', $o);
 		if ($released) {
-			return $o[0];
+			return $originalVersion;
 		} else {
 			$options = '';
 			$list = getSerializedArray(getOption('debug_marks'));
 			sort($list);
 			$options = rtrim('-DEBUG_' . implode('_', $list), '_');
-			return $o[0] . $options;
+			return $originalVersion . $options;
 		}
 	}
 
@@ -203,23 +152,24 @@ class debug {
 	}
 
 	static function tabs($tabs) {
-		if (npg_loggedin(DEBUG_RIGHTS)) {
+		if (zp_loggedin(DEBUG_RIGHTS)) {
 			if (!isset($tabs['development'])) {
 				$tabs['development'] = array('text' => gettext("development"),
-						'link' => getAdminLink(PLUGIN_FOLDER . '/debug/admin_tab.php'),
-						'default' => (npg_loggedin(ADMIN_RIGHTS)) ? 'phpinfo' : 'http',
+						'link' => WEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/debug/admin_tab.php',
 						'rights' => DEBUG_RIGHTS);
 			}
-			if (npg_loggedin(ADMIN_RIGHTS)) {
+			if (zp_loggedin(ADMIN_RIGHTS)) {
+				$tabs['development']['default'] = 'phpinfo';
 				$tabs['development']['subtabs'][gettext("phpinfo")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=phpinfo';
 				$tabs['development']['subtabs'][gettext("Locales")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=locale';
 				$tabs['development']['subtabs'][gettext("Session")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=session';
 				$tabs['development']['subtabs'][gettext("SERVER")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=server';
 				$tabs['development']['subtabs'][gettext("ENV")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=env';
+			} else {
+				$tabs['development']['default'] = 'cookie';
 			}
 			$tabs['development']['subtabs'][gettext("HTTP accept")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=http';
 			$tabs['development']['subtabs'][gettext("Cookies")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=develpment&tab=cookie';
-			$tabs['development']['subtabs'][gettext("filters")] = PLUGIN_FOLDER . '/debug/admin_tab.php?page=development&tab=filters';
 		}
 		return $tabs;
 	}

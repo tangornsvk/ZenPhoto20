@@ -1,8 +1,5 @@
 <?php
 
-/**
- * @package plugins/galleryArticles
- */
 class Combi extends CMS {
 
 	/**
@@ -35,10 +32,10 @@ class Combi extends CMS {
 	 * @deprecated since version 1.4.6
 	 */
 	function getOldCombiNews($articles_per_page = '', $mode = '', $published = NULL, $sortorder = NULL, $sticky = true, $sortdirection = 'desc') {
-		global $_combiNews_cache, $_gallery;
+		global $_zp_combiNews_cache, $_zp_gallery;
 
 		if (is_null($published)) {
-			if (npg_loggedin(ZENPAGE_NEWS_RIGHTS | ALL_NEWS_RIGHTS)) {
+			if (zp_loggedin(ZENPAGE_NEWS_RIGHTS | ALL_NEWS_RIGHTS)) {
 				$published = "all";
 			} else {
 				$published = "published";
@@ -49,18 +46,18 @@ class Combi extends CMS {
 			$mode = getOption('zenpage_combinews_mode');
 		}
 
-		if (isset($_combiNews_cache[$published . $mode . $sticky . $sortorder . $sortdirection])) {
-			return $_combiNews_cache[$published . $mode . $sticky . $sortorder . $sortdirection];
+		if (isset($_zp_combiNews_cache[$published . $mode . $sticky . $sortorder . $sortdirection])) {
+			return $_zp_combiNews_cache[$published . $mode . $sticky . $sortorder . $sortdirection];
 		}
 
 		if ($published == "published") {
-			$show = " WHERE `show`=1 AND date <= '" . date('Y-m-d H:i:s') . "'";
+			$show = " WHERE `show` = 1 AND date <= '" . date('Y-m-d H:i:s') . "'";
 			$imagesshow = " AND images.show = 1 ";
 		} else {
 			$show = "";
 			$imagesshow = "";
 		}
-		self::getAllAccessibleAlbums($_gallery, $albumlist);
+		self::getAllAccessibleAlbums($_zp_gallery, $albumlist);
 		if (empty($albumlist)) {
 			$albumWhere = 'albums.`id` is NULL';
 		} else {
@@ -197,10 +194,10 @@ class Combi extends CMS {
 					if ($article->checkAccess()) {
 						$counter++;
 						$latestnews[$counter] = array(
-								"albumname" => $article->getTitle(),
-								"titlelink" => $article->getTitlelink(),
-								"date" => $article->getDateTime(),
-								"type" => "news",
+										"albumname"	 => $article->getTitle(),
+										"titlelink"	 => $article->getTitlelink(),
+										"date"			 => $article->getDateTime(),
+										"type"			 => "news",
 						);
 					}
 				}
@@ -217,10 +214,10 @@ class Combi extends CMS {
 						$albumdate = strftime('%Y-%m-%d %H:%M:%S', $timestamp);
 					}
 					$latestalbums[$counter] = array(
-							"albumname" => $tempalbum->getFileName(),
-							"titlelink" => $tempalbum->getTitle(),
-							"date" => $albumdate,
-							"type" => 'albums',
+									"albumname"	 => $tempalbum->getFileName(),
+									"titlelink"	 => $tempalbum->getTitle(),
+									"date"			 => $albumdate,
+									"type"			 => 'albums',
 					);
 				}
 				//$latestalbums = array_merge($latestalbums, $item);
@@ -231,7 +228,7 @@ class Combi extends CMS {
 				}
 				break;
 		}
-		$_combiNews_cache[$published . $mode . $sticky . $sortorder . $sortdirection] = $result;
+		$_zp_combiNews_cache[$published . $mode . $sticky . $sortorder . $sortdirection] = $result;
 		return $result;
 	}
 
@@ -255,45 +252,42 @@ class Combi extends CMS {
 }
 
 global $plugin_is_filter;
+enableExtension('galleryArticles', $plugin_is_filter);
 
-if (class_exists('galleryArticles')) {
-	enableExtension('galleryArticles', $plugin_is_filter);
+$obj = new Combi();
+$combi = $obj->getOldCombiNews();
+$cat = newCategory('combinews', true);
+$cat->setTitle(gettext('combiNews'));
+$cat->setDesc(gettext('Auto category for ported combi-news articles.'));
+$cat->save();
 
-	$obj = new Combi();
-	$combi = $obj->getOldCombiNews();
-	$cat = newCategory('combinews', true);
-	$cat->setTitle(gettext('combiNews'));
-	$cat->setDesc(gettext('Auto category for ported combi-news articles.'));
-	$cat->save();
-
-	foreach ($combi as $article) {
-		switch ($article['type']) {
-			case 'images':
-				$obj = newImage(array('folder' => $article['albumname'], 'filename' => $article['titlelink']), false);
-				break;
-			case 'albums':
-				$obj = newAlbum($article['albumname'], false);
-				break;
-			default:
-				$obj = NULL;
-				break;
-		}
-		if ($obj && $obj->exists) {
-			$obj->setPublishDate($article['date']);
-			galleryArticles::publishArticle($obj, 'combinews');
-		}
+foreach ($combi as $article) {
+	switch ($article['type']) {
+		case 'images':
+			$obj = newImage(array('folder' => $article['albumname'], 'filename' => $article['titlelink']), false);
+			break;
+		case 'albums':
+			$obj = newAlbum($article['albumname'], false);
+			break;
+		default:
+			$obj = NULL;
+			break;
 	}
-	purgeOption('zenpage_combinews');
-	purgeOption('combinews-customtitle');
-	purgeOption('combinews-customtitle-imagetitles');
-	purgeOption("zenpage_combinews_sortorder");
-	purgeOption('zenpage_combinews_imagesize');
-	purgeOption('combinews-thumbnail-width');
-	purgeOption('combinews-thumbnail-height');
-	purgeOption('combinews-thumbnail-cropwidth');
-	purgeOption('combinews-thumbnail-cropheight');
-	purgeOption('combinews-thumbnail-cropx');
-	purgeOption('combinews-thumbnail-cropy');
-	purgeOption('zenpage_combinews_mode');
+	if ($obj && $obj->exists) {
+		$obj->setPublishDate($article['date']);
+		galleryArticles::publishArticle($obj, 'combinews');
+	}
 }
+purgeOption('zenpage_combinews');
+purgeOption('combinews-customtitle');
+purgeOption('combinews-customtitle-imagetitles');
+purgeOption("zenpage_combinews_sortorder");
+purgeOption('zenpage_combinews_imagesize');
+purgeOption('combinews-thumbnail-width');
+purgeOption('combinews-thumbnail-height');
+purgeOption('combinews-thumbnail-cropwidth');
+purgeOption('combinews-thumbnail-cropheight');
+purgeOption('combinews-thumbnail-cropx');
+purgeOption('combinews-thumbnail-cropy');
+purgeOption('zenpage_combinews_mode');
 ?>

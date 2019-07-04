@@ -34,17 +34,17 @@
  * </ul>
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard), Don Peterson (dpeterson)
- *
- * @package plugins/slideshow
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
  */
 $plugin_is_filter = 9 | THEME_PLUGIN | ADMIN_PLUGIN;
 $plugin_description = gettext("Adds a theme function to call a slideshow either based on jQuery (default) or Colorbox.");
+$plugin_author = "Malte Müller (acrylian), Stephen Billard (sbillard), Don Peterson (dpeterson)";
 $plugin_disable = (extensionEnabled('slideshow2')) ? sprintf(gettext('Only one slideshow plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), 'slideshow2') : '';
 
 $option_interface = 'slideshow';
 
-global $_gallery, $_gallery_page;
+global $_zp_gallery, $_zp_gallery_page;
 if ($plugin_disable) {
 	enableExtension('slideshow', 0);
 }
@@ -56,7 +56,7 @@ if ($plugin_disable) {
 class slideshow {
 
 	function __construct() {
-		global $_gallery;
+		global $_zp_gallery;
 		if (OFFSET_PATH == 2) {
 			$found = array();
 			$result = getOptionsLike('slideshow_');
@@ -72,7 +72,6 @@ class slideshow {
 			foreach ($found as $theme => $scripts) {
 				setOptionDefault('slideshow_' . $theme . '_scripts', serialize($scripts));
 			}
-
 			//setOptionDefault('slideshow_size', '595');
 			setOptionDefault('slideshow_width', '595');
 			setOptionDefault('slideshow_height', '595');
@@ -86,8 +85,8 @@ class slideshow {
 			setOptionDefault('slideshow_colorbox_imagetype', 'sizedimage');
 			setOptionDefault('slideshow_colorbox_imagetitle', 1);
 			if (class_exists('cacheManager')) {
-				cacheManager::deleteCacheSizes('slideshow');
-				cacheManager::addCacheSize('slideshow', NULL, getOption('slideshow_width'), getOption('slideshow_height'), NULL, NULL, NULL, NULL, NULL, NULL, NULL, true);
+				cacheManager::deleteThemeCacheSizes('slideshow');
+				cacheManager::addThemeCacheSize('slideshow', NULL, getOption('slideshow_width'), getOption('slideshow_height'), NULL, NULL, NULL, NULL, NULL, NULL, NULL, true);
 			}
 		}
 	}
@@ -101,6 +100,23 @@ class slideshow {
 						'order' => 1,
 						'desc' => gettext("Speed of the transition in milliseconds."))
 		);
+		$c = 30;
+		$opts['note'] = array('key' => 'slideshow_note', 'type' => OPTION_TYPE_NOTE,
+				'order' => $c,
+				'desc' => gettext('<strong>NOTE:</strong> the plugin will automatically set the following options based on actual script page use. They may also be set by the themes themselves. It is unnecessary to set them here, but the first time used the JavaScript and CSS files may be loaded and the slideshow not shown. Refreshing the page will then show the slideshow.')
+		);
+		foreach (getThemeFiles(array('404.php', 'themeoptions.php', 'theme_description.php', 'slideshow.php', 'functions.php', 'password.php', 'sidebar.php', 'register.php', 'contact.php')) as $theme => $scripts) {
+			$list = array();
+			foreach ($scripts as $script) {
+				$list[$script] = stripSuffix($script);
+			}
+			$opts[$theme] = array('key' => 'slideshow_' . $theme . '_scripts', 'type' => OPTION_TYPE_CHECKBOX_ARRAYLIST,
+					'order' => $c++,
+					'checkboxes' => $list,
+					'desc' => gettext('The scripts for which the slideshow is enabled.')
+			);
+		}
+		$options = array_merge($options, $opts);
 
 		switch (getOption('slideshow_mode')) {
 			case 'jQuery':
@@ -155,11 +171,33 @@ class slideshow {
 	 *
 	 * @param string $theme
 	 * @param array $scripts list of the scripts
-	 * @deprecated
 	 */
 	static function registerScripts($scripts, $theme = NULL) {
-		require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/deprecated-functions.php');
-		deprecated_functions::notify('registerScripts() is no longer used. You may delete the calls.');
+		if (is_null($theme)) {
+			list($theme, $creaator) = getOptionOwner();
+		}
+		setOptionDefault('slideshow_' . $theme . '_scripts', serialize($scripts));
+	}
+
+	/**
+	 * Checks if the theme script is registered for colorbox. If not it will register the script
+	 * so next time things will workl
+	 *
+	 * @global type $_zp_gallery
+	 * @global type $_zp_gallery_page
+	 * @param string $theme
+	 * @param string $script
+	 * @return boolean true registered
+	 */
+	static function scriptEnabled($theme, $script) {
+		global $_zp_gallery, $_zp_gallery_page;
+		$scripts = getSerializedArray(getOption('slideshow_' . $_zp_gallery->getCurrentTheme() . '_scripts'));
+		if (!in_array(stripSuffix($_zp_gallery_page), $scripts)) {
+			array_push($scripts, $script);
+			setOption('slideshow_' . $theme . '_scripts', serialize($scripts));
+			return false;
+		}
+		return true;
 	}
 
 	static function getPlayer($album, $controls = false, $width = NULL, $height = NULL) {
@@ -176,7 +214,7 @@ class slideshow {
 	}
 
 	static function getShow($heading, $speedctl, $albumobj, $imageobj, $width, $height, $crop, $shuffle, $linkslides, $controls, $returnpath, $imagenumber) {
-		global $_gallery, $_gallery_page;
+		global $_zp_gallery, $_zp_gallery_page;
 		if (!$albumobj->isMyItem(LIST_RIGHTS) && !checkAlbumPassword($albumobj)) {
 			return '<div class="errorbox" id="message"><h2>' . gettext('This album is password protected!') . '</h2></div>';
 		}
@@ -202,7 +240,7 @@ class slideshow {
 
 		$showdesc = getOption("slideshow_showdesc");
 		// slideshow display section
-		$validtypes = array('jpg', 'jpeg', 'gif', 'png');
+		$validtypes = array('jpg', 'jpeg', 'gif', 'png', 'mov', '3gp');
 		$slideshow .= '
 				<script type="text/javascript">
 				// <!-- <![CDATA[
@@ -281,7 +319,7 @@ class slideshow {
 		';
 		if ($linkslides) {
 			if (MOD_REWRITE) {
-				$slideshow .= 'htmlblock += "<a href=\"' . pathurlencode($albumobj->name) . '/"+ImageNameList[currentImageNum]+"' . RW_SUFFIX . '\">";';
+				$slideshow .= 'htmlblock += "<a href=\"' . pathurlencode($albumobj->name) . '/"+ImageNameList[currentImageNum]+"' . getOption('mod_rewrite_image_suffix') . '\">";';
 			} else {
 				$slideshow .= 'htmlblock += "<a href=\"index.php?album=' . pathurlencode($albumobj->name) . '&image="+ImageNameList[currentImageNum]+"\">";';
 			}
@@ -302,13 +340,13 @@ class slideshow {
 			$slideshow .= '
 					//Only register at hit count the first time the image is viewed.
 					if ($(next).attr("viewed") != 1) {
-					$.get("' . getAdminLink(PLUGIN_FOLDER . '/slideshow/slideshow-counter.php') . '?album=' . pathurlencode($albumobj->name) . '&img="+ImageNameList[opts.currSlide]);
+					$.get("' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/slideshow/slideshow-counter.php?album=' . pathurlencode($albumobj->name) . '&img="+ImageNameList[opts.currSlide]);
 					$(next).attr("viewed", 1 );
 				}
 				';
 		}
-		$slideshow .= '}';
-		$slideshow .= '
+		$slideshow .='}';
+		$slideshow .='
 				$("#slides").cycle({
 				fx:     "' . getOption("slideshow_effect") . '",
 				speed:   "' . getOption("slideshow_speed") . '",
@@ -397,7 +435,7 @@ class slideshow {
 			$ext = slideshow::is_valid($filename, $validtypes);
 			if ($ext) {
 				$imgnr++;
-				$slideshow .= '<span class="slideimage"><h4><strong>' . $albumobj->getTitle() . ":" . '</strong> ' . $image->getTitle() . ' (' . ($idx + 1) . '/' . $numberofimages . ')</h4>';
+				$slideshow .= '<span class="slideimage"><h4><strong>' . $albumobj->getTitle() . gettext(":") . '</strong> ' . $image->getTitle() . ' (' . ($idx + 1) . '/' . $numberofimages . ')</h4>';
 
 				if ($ext == "3gp") {
 					$slideshow .= '</a>
@@ -432,7 +470,7 @@ class slideshow {
 						getMaxSpaceContainer($maxwidth, $maxheight, $image);
 						$img = $image->getCustomImage(NULL, $maxwidth, $maxheight, NULL, NULL, NULL, NULL, NULL, NULL);
 					}
-					$slideshow .= '<img src="' . html_encode($img) . '" alt="" />';
+					$slideshow .= '<img src="' . html_encode(pathurlencode($img)) . '" alt="" />';
 					if ($linkslides)
 						$slideshow .= '</a>';
 				}
@@ -463,11 +501,18 @@ class slideshow {
 		return $macros;
 	}
 
-	static function js() {
-		global $__slideshow_scripts;
-		$__slideshow_scripts = getPlugin('slideshow/slideshow.css', getCurrentTheme(), true);
-		scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/slideshow/jquery.cycle.all.js');
-		scriptLoader(getPlugin('slideshow/slideshow.css', getCurrentTheme()));
+	static function header_js() {
+		$theme = getCurrentTheme();
+		$css = SERVERPATH . '/' . THEMEFOLDER . '/' . internalToFilesystem($theme) . '/slideshow.css';
+		if (file_exists($css)) {
+			$css = WEBPATH . '/' . THEMEFOLDER . '/' . $theme . '/slideshow.css';
+		} else {
+			$css = WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/slideshow/slideshow.css';
+		}
+		?>
+		<script type="text/javascript"	src="<?php echo FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER ?>/slideshow/jquery.cycle.all.js"></script>
+		<link type="text/css" rel="stylesheet" href="<?php echo $css; ?>" />
+		<?php
 	}
 
 	/**
@@ -489,8 +534,11 @@ class slideshow {
 
 }
 
-if (extensionEnabled('slideshow') && !OFFSET_PATH) {
-	npgFilters::register('content_macro', 'slideshow::macro');
+if (extensionEnabled('slideshow')) {
+	if ($_zp_gallery_page == 'slideshow.php' || in_array(stripSuffix($_zp_gallery_page), getSerializedArray(getOption('slideshow_' . $_zp_gallery->getCurrentTheme() . 'scripts')))) {
+		zp_register_filter('theme_head', 'slideshow::header_js');
+	}
+	zp_register_filter('content_macro', 'slideshow::macro');
 
 	$slideshow_instance = 0;
 
@@ -504,10 +552,9 @@ if (extensionEnabled('slideshow') && !OFFSET_PATH) {
 	 *
 	 * @param string $linktext Text for the link
 	 * @param string $linkstyle Style of Text for the link
-	 * @param string $after text to be placed after the link
 	 */
-	function printSlideShowLink($linktext = NULL, $linkstyle = Null, $after = NULL) {
-		global $_gallery, $_current_image, $_current_album, $_current_search, $slideshow_instance, $_gallery_page, $_myFavorites;
+	function printSlideShowLink($linktext = NULL, $linkstyle = Null) {
+		global $_zp_gallery, $_zp_current_image, $_zp_current_album, $_zp_current_search, $slideshow_instance, $_zp_gallery_page, $_myFavorites;
 		if (is_null($linktext)) {
 			$linktext = gettext('View Slideshow');
 		}
@@ -519,24 +566,24 @@ if (extensionEnabled('slideshow') && !OFFSET_PATH) {
 		$slideshowhidden = '';
 		$slideshowlink = rewrite_path(_PAGE_ . '/slideshow', "index.php?p=slideshow");
 		$numberofimages = 0;
-		if (in_context(NPG_SEARCH)) {
+		if (in_context(ZP_SEARCH)) {
 			$imagenumber = '';
 			$imagefile = '';
 			$albumnr = 0;
-			$slideshowhidden = '<input type="hidden" name="preserve_search_params" value="' . html_encode($_current_search->getSearchParams()) . '" />';
+			$slideshowhidden = '<input type="hidden" name="preserve_search_params" value="' . html_encode($_zp_current_search->getSearchParams()) . '" />';
 		} else {
-			if (in_context(NPG_IMAGE)) {
+			if (in_context(ZP_IMAGE)) {
 				$imagenumber = imageNumber();
-				$imagefile = $_current_image->filename;
+				$imagefile = $_zp_current_image->filename;
 			} else {
 				$imagenumber = '';
 				$imagefile = '';
 			}
-			if (in_context(SEARCH_LINKED)) {
-				$albumnr = -$_current_album->getID();
-				$slideshowhidden = '<input type="hidden" name="preserve_search_params" value="' . html_encode($_current_search->getSearchParams()) . '" />';
+			if (in_context(ZP_SEARCH_LINKED)) {
+				$albumnr = -$_zp_current_album->getID();
+				$slideshowhidden = '<input type="hidden" name="preserve_search_params" value="' . html_encode($_zp_current_search->getSearchParams()) . '" />';
 			} else {
-				$albumnr = $_current_album->getID();
+				$albumnr = $_zp_current_album->getID();
 			}
 			if (!$albumnr) {
 				$slideshowhidden = '<input type="hidden" name="favorites_page" value="1" />' . "\n" . '<input type="hidden" name="title" value="' . $_myFavorites->instance . '" />';
@@ -548,30 +595,36 @@ if (extensionEnabled('slideshow') && !OFFSET_PATH) {
 			case 'jQuery':
 				if ($numberofimages > 1) {
 					?>
-					<form name="slideshow_<?php echo $slideshow_instance; ?>" method="post"	action="<?php echo npgFilters::apply('getLink', $slideshowlink, 'slideshow.php', NULL); ?>">
+					<form name="slideshow_<?php echo $slideshow_instance; ?>" method="post"	action="<?php echo zp_apply_filter('getLink', $slideshowlink, 'slideshow.php', NULL); ?>">
 						<?php echo $slideshowhidden; ?>
 						<input type="hidden" name="pagenr" value="<?php echo html_encode($pagenr); ?>" />
 						<input type="hidden" name="albumid" value="<?php echo $albumnr; ?>" />
 						<input type="hidden" name="numberofimages" value="<?php echo $numberofimages; ?>" />
 						<input type="hidden" name="imagenumber" value="<?php echo $imagenumber; ?>" />
 						<input type="hidden" name="imagefile" value="<?php echo html_encode($imagefile); ?>" />
-
+						<?php if (!empty($linkstyle)) echo '<p style="' . $linkstyle . '">'; ?>
+						<a class="slideshowlink" id="slideshowlink_<?php echo $slideshow_instance; ?>" 	href="javascript:document.slideshow_<?php echo $slideshow_instance; ?>.submit()"><?php echo $linktext; ?></a>
+						<?php if (!empty($linkstyle)) echo '</p>'; ?>
 					</form>
-					<?php if (!empty($linkstyle)) echo '<p style="' . $linkstyle . '">'; ?>
-					<a class="slideshowlink" id="slideshowlink_<?php echo $slideshow_instance; ?>" 	href="javascript:document.slideshow_<?php echo $slideshow_instance; ?>.submit()"><?php echo $linktext; ?></a><?php echo html_encodeTagged($after); ?>
 					<?php
-					if (!empty($linkstyle)) {
-						echo '</p>';
-					}
 				}
 				$slideshow_instance++;
 				break;
 			case 'colorbox':
+				$theme = $_zp_gallery->getCurrentTheme();
+				$script = stripSuffix($_zp_gallery_page);
+				if (!(class_exists('colorbox') && colorbox::scriptEnabled($theme, $script))) {
+					$themes = $_zp_gallery->getThemes();
+					?>
+					<div class="errorbox"><?php printf(gettext('Slideshow not available because colorbox is not enabled on %1$s <em>%2$s</em> pages.'), $themes[$theme]['name'], $script); ?></div>
+					<?php
+					break;
+				}
 				if ($numberofimages > 1) {
-					if ((in_context(SEARCH_LINKED) && !in_context(ALBUM_LINKED)) || in_context(NPG_SEARCH) && is_null($_current_album)) {
-						$images = $_current_search->getImages(0);
+					if ((in_context(ZP_SEARCH_LINKED) && !in_context(ZP_ALBUM_LINKED)) || in_context(ZP_SEARCH) && is_null($_zp_current_album)) {
+						$images = $_zp_current_search->getImages(0);
 					} else {
-						$images = $_current_album->getImages(0);
+						$images = $_zp_current_album->getImages(0);
 					}
 					$count = '';
 					?>
@@ -608,16 +661,16 @@ if (extensionEnabled('slideshow') && !OFFSET_PATH) {
 								$albobj = newAlbum($image['folder']);
 								$imgobj = newImage($albobj, $image['filename']);
 							} else {
-								$imgobj = newImage($_current_album, $image);
+								$imgobj = newImage($_zp_current_album, $image);
 							}
-							if (in_context(SEARCH_LINKED) || $_gallery_page != 'image.php') {
+							if (in_context(ZP_SEARCH_LINKED) || $_zp_gallery_page != 'image.php') {
 								if ($count == 1) {
 									$style = '';
 								} else {
 									$style = ' style="display:none"';
 								}
 							} else {
-								if ($_current_image->filename == $image) {
+								if ($_zp_current_image->filename == $image) {
 									$style = '';
 								} else {
 									$style = ' style="display:none"';
@@ -636,7 +689,7 @@ if (extensionEnabled('slideshow') && !OFFSET_PATH) {
 								$imagetitle = html_encode(getBare($imgobj->getTitle()));
 							}
 							?>
-							<a href="<?php echo html_encode($imagelink); ?>" rel="slideshow"<?php echo $style; ?> title="<?php echo $imagetitle; ?>"><?php echo $linktext; ?></a><?php echo html_encodeTagged($after); ?>
+							<a href="<?php echo html_encode(pathurlencode($imagelink)); ?>" rel="slideshow"<?php echo $style; ?> title="<?php echo $imagetitle; ?>"><?php echo $linktext; ?></a>
 							<?php
 						}
 					}
@@ -692,19 +745,15 @@ if (extensionEnabled('slideshow') && !OFFSET_PATH) {
 	 *
 	 */
 	function printSlideShow($heading = true, $speedctl = false, $albumobj = NULL, $imageobj = NULL, $width = NULL, $height = NULL, $crop = false, $shuffle = false, $linkslides = false, $controls = true) {
-		global $_myFavorites, $_conf_vars, $_gallery, $_gallery_page, $__slideshow_scripts;
+		global $_myFavorites, $_zp_conf_vars, $_zp_gallery, $_zp_gallery_page;
 
 		if (!isset($_POST['albumid']) AND ! is_object($albumobj)) {
-			echo '<div class="errorbox" id="message"><h2>' . gettext('Invalid linking to the slideshow page.') . '</h2></div>';
-			return;
+			return '<div class="errorbox" id="message"><h2>' . gettext('Invalid linking to the slideshow page.') . '</h2></div>';
 		}
-		if (is_null($__slideshow_scripts)) {
-			slideshow::js();
-		}
-
+		slideshow::scriptEnabled($_zp_gallery->getCurrentTheme(), stripSuffix($_zp_gallery_page));
 		//getting the image to start with
 		if (!empty($_POST['imagenumber']) AND ! is_object($imageobj)) {
-			$imagenumber = sanitize_numeric($_POST['imagenumber']) - 1; // slideshows starts with 0, but $_POST['imagenumber'] with 1.
+			$imagenumber = sanitize_numeric($_POST['imagenumber']) - 1; // slideshows starts with 0, but zp with 1.
 		} elseif (is_object($imageobj)) {
 			$imagenumber = $imageobj->getIndex();
 		} else {

@@ -2,11 +2,6 @@
 	color: red;
 }
 
-.active {
-	color: darkgreen;
-	font-weight: bold;
-}
-
 .empty_name {
 	color:red;
 	text-decoration:line-through;

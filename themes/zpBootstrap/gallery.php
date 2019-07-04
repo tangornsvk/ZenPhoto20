@@ -1,40 +1,31 @@
 <?php include('inc_header.php'); ?>
 
-	<!-- .container -->
-		<!-- .page-header -->
-			<!-- .header -->
+	<!-- wrap -->
+		<!-- container -->
+			<!-- header -->
 				<h3><?php printGalleryTitle(); ?></h3>
-			</div><!-- .header -->
-		</div><!-- /.page-header -->
+			</div> <!-- /header -->
 
-		<div class="breadcrumb">
-			<h4>
-				<?php printGalleryIndexURL(' » ', getGalleryTitle(), false); ?>
-			</h4>
-		</div>
+			<div class="breadcrumb">
+				<h4>
+					<?php if (getOption('zpB_homepage')) { ?>
+						<?php printCustomPageURL(getGalleryTitle(), 'gallery'); ?>
+					<?php } else { ?>
+						<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Albums Index'); ?>"><?php echo html_encode(getGalleryTitle()); ?></a>
+					<?php } ?>
+				</h4>
+			</div>
 
-		<?php if (!getOption('zpB_homepage')) { ?>
-		<div class="page-header top-margin-reset bottom-margin-reset">
-			<p><?php printGalleryDesc(); ?></p>
-		</div>
-		<?php } ?>
+			<?php printPageListWithNav('«', '»', false, true, 'pagination', NULL, true, 7); ?>
 
-		<?php
-		if (!getOption('zpB_use_infinitescroll_gallery')) {
-			printPageListWithNav('«', '»', false, true, 'pagination pagination-sm', NULL, true, 7);
-		}
+			<?php if (!getOption('zpB_homepage')) { ?>
+			<div class="page-header bottom-margin-reset">
+				<p><?php printGalleryDesc(); ?></p>
+			</div>
+			<?php } ?>
 
-		if (isAlbumPage()) {
-			include('inc_print_album_thumb.php');
-		}
+			<?php include('inc_print_album_thumb.php'); ?>
 
-		if (!getOption('zpB_use_infinitescroll_gallery')) {
-			printPageListWithNav('«', '»', false, true, 'pagination pagination-sm top-margin-reset', NULL, true, 7);
-		} else {
-			include('inc_print_infinitescroll.php');
-		}
-		?>
-
-	</div><!-- /.container main -->
+			<?php printPageListWithNav('«', '»', false, true, 'pagination', NULL, true, 7); ?>
 
 <?php include('inc_footer.php'); ?>

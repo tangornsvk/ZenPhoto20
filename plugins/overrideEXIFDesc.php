@@ -2,7 +2,7 @@
 
 /**
  * Causes the EXIF "desc" field to be moved to the IPTC image caption field (so
- * long as this field is empty) to allow use as the image description.
+ * long as this field is empty) to allow use as the zenphoto description.
  *
  * The EXIF standard defines the "description" field as the image title so in
  * compliance with this standard this field may be used to populate the "desc" field
@@ -17,17 +17,19 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/overrideEXIFDesc
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
+ * @category package
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
 $plugin_is_filter = 1000 | CLASS_PLUGIN;
-$plugin_description = gettext('Use the EXIF "desc" field for image titles');
+$plugin_description = gettext('Use the EXIF "desc" field for zenphoto titles');
+$plugin_author = "Stephen Billard (sbillard)";
 
-npgFilters::register('image_metadata', 'exifDescIsNPGdesc');
+zp_register_filter('image_metadata', 'exifDescIsZPdesc');
 
-function exifDescIsNPGdesc($image) {
+function exifDescIsZPdesc($image) {
 	$desc = $image->get('EXIFDescription');
 	if ($desc) {
 		$image->set('EXIFDescription', '');

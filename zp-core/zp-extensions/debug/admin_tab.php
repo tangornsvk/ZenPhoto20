@@ -4,23 +4,24 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/debug
+ * @package plugins
+ * @subpackage development
  */
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 admin_securityChecks(DEBUG_RIGHTS, $return = currentRelativeURL());
 
 if (isset($_POST['delete_cookie'])) {
 	foreach ($_POST['delete_cookie']as $cookie => $v) {
-		clearNPGCookie(postIndexDecode($cookie));
+		zp_clearCookie(postIndexDecode($cookie));
 	}
 	header('location: ?page=develpment&tab=cookie');
-	exit();
+	exitZP();
 }
 
-printAdminHeader('development', @$_GET['tab']);
 $subtab = getCurrentTab();
+printAdminHeader('development', $subtab);
 
 echo "\n</head>";
 ?>
@@ -33,7 +34,8 @@ echo "\n</head>";
 		<div id="content">
 			<div id="container">
 				<?php
-				npgFilters::apply('admin_note', 'development', $subtab);
+				$subtab = getCurrentTab();
+				zp_apply_filter('admin_note', 'development', $subtab);
 
 				switch ($subtab) {
 					case 'phpinfo':
@@ -58,6 +60,7 @@ echo "\n</head>";
 								<?php echo gettext('Environmental variables will not be provide unless your PHP.ini directive <code>variables_order</code> includes "E". e.g. <code>variables_order = "EGPCS"</code>'); ?>
 							</div>
 						</span>
+
 						<?php
 						break;
 					case 'server':
@@ -87,12 +90,11 @@ echo "\n</head>";
 						</h1>
 						<?php
 						break;
-					default:
 					case 'locale':
 						?>
 						<h1>
 							<?php
-							echo gettext('Server supported locales:');
+							echo gettext('Supported locales:');
 							?>
 						</h1>
 						<?php
@@ -106,19 +108,11 @@ echo "\n</head>";
 						</h1>
 						<?php
 						break;
-					case 'filters':
-						?>
-						<h1>
-							<?php
-							echo gettext('Defined filters.');
-							?>
-						</h1>
-						<?php
-						break;
 				}
 				?>
 				<div class="tabbox">
 					<?php
+					$subtab = getCurrentTab();
 					switch ($subtab) {
 						case 'phpinfo':
 							//	need to cleanup the phpinfo() output because it thinks it is a page unto itself
@@ -157,31 +151,11 @@ echo "\n</head>";
 							echo $phpinfo;
 							break;
 						case 'env':
-							?>
-							<style type="text/css">
-								.var {
-									vertical-align: top;
-								}
-								.val{
-									word-wrap: break-word;
-								}
-							</style>
-							<?php
-							$env = getenv();
-							if (empty($env)) {
+							if (empty($_ENV)) {
 								echo gettext('There are no environmental variables passed.');
 							} else {
-								?>
-								<dl class="list">
-									<?php
-									foreach ($env as $var => $val) {
-										?>
-										<dt class="var"><?php echo $var; ?></dt><dd class="val"><?php echo $val; ?></dd>
-										<?php
-									}
-									?>
-								</dl>
-								<?php
+								$env = preg_replace('/^Array\n/', '<pre>', print_r($_ENV, true)) . '</pre>';
+								echo $env;
 							}
 							break;
 						case 'server':
@@ -192,11 +166,11 @@ echo "\n</head>";
 							$session = preg_replace('/^Array\n/', '<pre>', print_r($_SESSION, true)) . '</pre>';
 							echo $session;
 							break;
-						default:
 						case 'http':
-							$httpaccept = i18n::parseHttpAcceptLanguage();
+							$httpaccept = parseHttpAcceptLanguage();
 							if (count($httpaccept) > 0) {
-								$accept = reset($httpaccept);
+								$accept = $httpaccept;
+								$accept = array_shift($accept);
 								?>
 								<table>
 									<tr>
@@ -231,52 +205,88 @@ echo "\n</head>";
 							}
 							break;
 						case 'locale':
-							?>
-							<h2><?php echo gettext('The following locals are reported by your server.'); ?></h2>
-							<div>
-								<?php echo gettext('Languages in boldface have translations.'); ?>
-							</div>
-							<?php
-							if (!extension_loaded('intl')) {
-								?>
-								<div class="warningbox">
-									<?php echo gettext('Note: the PHP Internationalization Functions module is not enabled.'); ?>
-								</div>
-								<?php
-							}
-							?>
-							<br />
-							<?php
-							$list = ResourceBundle::getLocales('');
-							$support = array();
-							foreach ($list as $locale) {
-								$parts = explode('_', $locale);
-								if (count($parts) > 1) { // only pay attention to the connical xx_YY locales
-									$support[$parts[0]]['locales'][] = $locale;
-									if (!isset($support[$parts[0]]['text'])) {
-										$language = locale::getDisplayName($parts[0]);
-										if ($language) {
-											$support[$parts[0]]['text'] = $language;
-										}
+							if (strtoupper(substr(PHP_OS, 0, 3)) == 'WIN') {
+								// source of the list:
+								// http://msdn.microsoft.com/en-us/library/39cwe7zf(v=vs.90).aspx
+								$langs = array(
+										// language, sublanguage, codes
+										array('Chinese', 'Chinese', array('chinese')),
+										array('Chinese', 'Chinese (simplified)', array('chinese-simplified', 'chs')),
+										array('Chinese', 'Chinese (traditional)', array('chinese-traditional', 'cht')),
+										array('Czech', 'Czech', array('csy', 'czech')),
+										array('Danish', 'Danish', array('dan', 'danish')),
+										array('Dutch', 'Dutch (default)', array('dutch', 'nld')),
+										array('Dutch', 'Dutch (Belgium)', array('belgian', 'dutch-belgian', 'nlb')),
+										array('English', 'English (default)', array('english')),
+										array('English', 'English (Australia)', array('australian', 'ena', 'english-aus')),
+										array('English', 'English (Canada)', array('canadian', 'enc', 'english-can')),
+										array('English', 'English (New Zealand)', array('english-nz', 'enz')),
+										array('English', 'English (United Kingdom)', array('eng', 'english-uk', 'uk')),
+										array('English', 'English (United States)', array('american', 'american english', 'american-english', 'english-american', 'english-us', 'english-usa', 'enu', 'us', 'usa')),
+										array('Finnish', 'Finnish', array('fin', 'finnish')),
+										array('French', 'French (default)', array('fra', 'french')),
+										array('French', 'French (Belgium)', array('frb', 'french-belgian')),
+										array('French', 'French (Canada)', array('frc', 'french-canadian')),
+										array('French', 'French (Switzerland)', array('french-swiss', 'frs')),
+										array('German', 'German (default)', array('deu', 'german')),
+										array('German', 'German (Austria)', array('dea', 'german-austrian')),
+										array('German', 'German (Switzerland)', array('des', 'german-swiss', 'swiss')),
+										array('Greek', 'Greek', array('ell', 'greek')),
+										array('Hungarian', 'Hungarian', array('hun', 'hungarian')),
+										array('Icelandic', 'Icelandic', array('icelandic', 'isl')),
+										array('Italian', 'Italian (default)', array('ita', 'italian')),
+										array('Italian', 'Italian (Switzerland)', array('italian-swiss', 'its')),
+										array('Japanese', 'Japanese', array('japanese', 'jpn')),
+										array('Korean', 'Korean', array('kor', 'korean')),
+										array('Norwegian', 'Norwegian (default)', array('norwegian')),
+										array('Norwegian', 'Norwegian (Bokmal)', array('nor', 'norwegian-bokmal')),
+										array('Norwegian', 'Norwegian (Nynorsk)', array('non', 'norwegian-nynorsk')),
+										array('Polish', 'Polish', array('plk', 'polish')),
+										array('Portuguese', 'Portuguese (default)', array('portuguese', 'ptg')),
+										array('Portuguese', 'Portuguese (Brazil)', array('portuguese-brazilian', 'ptb')),
+										array('Russian', 'Russian (default)', array('rus', 'russian')),
+										array('Slovak', 'Slovak', array('sky', 'slovak')),
+										array('Spanish', 'Spanish (default)', array('esp', 'spanish')),
+										array('Spanish', 'Spanish (Mexico)', array('esm', 'spanish-mexican')),
+										array('Spanish', 'Spanish (Modern)', array('esn', 'spanish-modern')),
+										array('Swedish', 'Swedish', array('sve', 'swedish')),
+										array('Turkish', 'Turkish', array('trk', 'turkish'))
+								);
+								echo '<table class="bordered">' . "\n";
+								echo '<tr>' . "\n";
+								echo '  <th>' . gettext('Language') . '</th>' . "\n";
+								echo '  <th>' . gettext('Sub-Language') . '</th>' . "\n";
+								echo '  <th>' . gettext('Language String') . '</th>' . "\n";
+								echo '</tr>' . "\n";
+								foreach ($langs as $lang) {
+									echo '<tr>' . "\n";
+									echo '  <td>' . $lang[0] . '</td>' . "\n";
+									echo '  <td>' . $lang[1] . '</td>' . "\n";
+									$a = array();
+									foreach ($lang[2] as $lang_code) {
+										$loc = setlocale(LC_ALL, $lang_code);
+										$a[] = $lang_code . ' ' . ( false === $loc ? '✖' : '✔ - ' . $_zp_UTF8->convert($loc, FILESYSTEM_CHARSET, LOCAL_CHARSET) );
 									}
-									if (is_dir(CORE_SERVERPATH . 'locale/' . $locale)) {
-										$support[$parts[0]]['npgsupport'] = true;
+									echo '  <td>' . implode('<br />', $a) . '</td>' . "\n";
+									echo '</tr>' . "\n";
+								}
+								echo '</table>' . "\n";
+							} else {
+								ob_start();
+								system('locale -a');
+								$locales = ob_get_contents();
+								ob_end_clean();
+								$list = explode("\n", $locales);
+								$last = '';
+								foreach ($list as $locale) {
+									if ($last != substr($locale, 0, 3)) {
+										echo "<br />";
+										$last = substr($locale, 0, 3);
 									}
+									echo $locale . ' ';
 								}
 							}
-							foreach ($support as $key => $lang) {
-								if (!isset($lang['text'])) {
-									$support[$key]['text'] = $key;
-								}
-							}
-							$support = sortMultiArray($support, array('text'));
-							foreach ($support as $key => $lang) {
-								$text = '<em>' . $lang['text'] . '</em>';
-								if (isset($lang['npgsupport'])) {
-									$text = '<strong>' . $text . '</strong>';
-								}
-								echo $text . ':&nbsp;&nbsp;' . implode(', ', $lang['locales']) . '<br />';
-							}
+
 							break;
 						case 'cookie':
 							?>
@@ -289,7 +299,7 @@ echo "\n</head>";
 										<tr>
 											<td><input type="checkbox" name="delete_cookie[<?php echo html_encode(postIndexEncode($cookie)); ?>]" value="1"></td>
 											<td><?php echo html_encode($cookie); ?> </td>
-											<td><?php echo html_encode(encodeNPGCookie($cookiev)); ?></td>
+											<td><?php echo html_encode(zp_cookieEncode($cookiev)); ?></td>
 										</tr>
 										<?php
 									}
@@ -308,21 +318,14 @@ echo "\n</head>";
 							</form>
 							<?php
 							break;
-						case 'filters':
-							?>
-							<div class="tabbox">
-								<?php include (SERVERPATH . '/docs/filterDoc.htm'); ?>
-							</div>
-							<?php
-							break;
 					}
 					?>
-
-
 				</div>
 			</div>
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
+	<?php printAdminFooter();
+	?>
+
 </body>
 </html>

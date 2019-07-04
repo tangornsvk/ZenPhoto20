@@ -4,7 +4,7 @@
  * Collects and analyzes searches
  *
  * @author Stephen Billard (sbillard)
- * @package plugins/search_statistics
+ * @package plugins
  */
 define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
@@ -15,119 +15,104 @@ if (isset($_GET['reset'])) {
 	XSRFdefender('search_statistics');
 	$sql = 'DELETE FROM ' . prefix('plugin_storage') . ' WHERE `type`="search_statistics"';
 	query($sql);
-	header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/search_statistics/search_analysis.php'));
-	exit();
+	header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/search_statistics/search_analysis.php');
+	exitZP();
 }
 printAdminHeader('overview', 'analysis');
-scriptLoader(CORE_SERVERPATH . 'admin-statistics.css');
+?>
+<link rel="stylesheet" href="../../admin-statistics.css" type="text/css" media="screen" />
+<?php
 echo '</head>';
 
-$nodata = gettext('No search criteria collected.');
-$criteria_maxvalue = 1;
-$cacheHits = 0;
-$data = $results_f = $results = $terms = $sites = array();
-$bargraphmaxsize = 600;
-$opChars = array('(', ')', '&', '|', '!', ',');
-
 $sql = 'SELECT * FROM ' . prefix('plugin_storage') . ' WHERE `type`="search_statistics"';
-$searches = query($sql);
-while ($datum = db_fetch_assoc($searches)) {
-	$element = getSerializedArray($datum['data']);
-	if (is_array($element)) {
-		if (isset($element['iteration'])) {
-			$sql = 'DELETE FROM ' . prefix('plugin_storage') . ' WHERE `type`="search_statistics"';
-			query($sql);
-			$nodata = gettext('Search criteria reset.');
-			break;
-		} else {
-			if ($element['success'] === 'cache') {
-				$cacheHits++;
-				if ($criteria_maxvalue < $cacheHits) {
-					$criteria_maxvalue = $cacheHits;
-				}
+$data = query($sql);
+$ip_maxvalue = $criteria_maxvalue = $criteria_maxvalue_f = $terms_maxvalue = 1;
+$results_f = $results = $terms = $sites = array();
+$bargraphmaxsize = 400;
+$maxiterations = array();
+$opChars = array('(', ')', '&', '|', '!', ',');
+if ($data) {
+	while ($datum = db_fetch_assoc($data)) {
+		$element = getSerializedArray($datum['data']);
+		$ip = $datum['aux'];
+		if (array_key_exists($ip, $sites)) {
+			$sites[$ip] ++;
+			if ($ip_maxvalue < $sites[$ip]) {
+				$ip_maxvalue = $sites[$ip];
 			}
-			if (array_key_exists($datum['subtype'], $data)) {
-				$data[$datum['subtype']]['success'] = $data[$datum['subtype']]['success'] || $element['success'];
-			} else {
-				$data[$datum['subtype']] = $element;
-				$ip = $datum['aux'];
-				if (array_key_exists($ip, $sites)) {
-					$sites[$ip] ++;
-					if ($criteria_maxvalue < $sites[$ip]) {
-						$criteria_maxvalue = $sites[$ip];
+		} else {
+			$sites[$ip] = 1;
+		}
+		if (is_array($element)) {
+			$maxiterations[$element['iteration']] = 1;
+			$searchset = $element['data'];
+			$type = $element['type'];
+			$success = $element['success'];
+			$instance = implode(' ', $searchset);
+			if ($success) {
+				if (array_key_exists($instance, $results)) {
+					$results[$instance] ++;
+					if ($criteria_maxvalue < $results[$instance]) {
+						$criteria_maxvalue = $results[$instance];
 					}
 				} else {
-					$sites[$ip] = 1;
-				}
-			}
-		}
-	}
-}
-
-foreach ($data as $uid => $element) {
-
-	$searchset = $element['data'];
-	$type = $element['type'];
-	$instance = implode(' ', $searchset);
-
-	$success = $element['success'];
-	if ($success) {
-		if (array_key_exists($instance, $results)) {
-			$results[$instance] ++;
-			if ($criteria_maxvalue < $results[$instance]) {
-				$criteria_maxvalue = $results[$instance];
-			}
-		} else {
-			$results[$instance] = 1;
-		}
-	} else {
-		if (array_key_exists($instance, $results_f)) {
-			$results_f[$instance] ++;
-			if ($criteria_maxvalue < $results_f[$instance]) {
-				$criteria_maxvalue = $results_f[$instance];
-			}
-		} else {
-			$results_f[$instance] = 1;
-		}
-	}
-
-	foreach ($searchset as $instance) {
-		if (!in_array($instance, $opChars)) {
-			if (array_key_exists($instance, $terms)) {
-				$terms[$instance] ++;
-				if ($criteria_maxvalue < $terms[$instance]) {
-					$criteria_maxvalue = $terms[$instance];
+					$results[$instance] = 1;
 				}
 			} else {
-				$terms[$instance] = 1;
+				if (array_key_exists($instance, $results_f)) {
+					$results_f[$instance] ++;
+					if ($criteria_maxvalue_f < $results_f[$instance]) {
+						$criteria_maxvalue_f = $results_f[$instance];
+					}
+				} else {
+					$results_f[$instance] = 1;
+				}
+			}
+			foreach ($searchset as $instance) {
+				if (!in_array($instance, $opChars)) {
+					if (array_key_exists($instance, $terms)) {
+						$terms[$instance] ++;
+						if ($terms_maxvalue < $terms[$instance]) {
+							$terms_maxvalue = $terms[$instance];
+						}
+					} else {
+						$terms[$instance] = 1;
+					}
+				}
 			}
 		}
 	}
+	db_free_result($data);
 }
-
 foreach ($results_f as $key => $failed) {
 	if (array_key_exists($key, $results)) { // really a successful search
 		unset($results_f[$key]);
+		$results[$key] ++;
 	}
 }
+$maxiterations = count($maxiterations);
 
 $limit_i = getOption('search_statistics_ip_threshold');
 $sitelimited = count($sites) > $limit_i;
+asort($sites);
 arsort($sites);
 $sites = array_slice($sites, 0, $limit_i, true);
 
 $limit_t = getOption('search_statistics_terms_threshold');
 $termlimited = count($terms) > $limit_t;
+asort($terms);
 arsort($terms);
 $terms = array_slice($terms, 0, $limit_t, true);
 
 $limit_s = getOption('search_statistics_threshold');
 $criterialimited = count($results) > $limit_s;
+asort($results);
 arsort($results);
 $results = array_slice($results, 0, $limit_s, true);
 
 $limit_f = getOption('search_statistics_failed_threshold');
 $criterialimited_f = count($results_f) > $limit_f;
+asort($results_f);
 arsort($results_f);
 $results_f = array_slice($results_f, 0, $limit_f, true);
 ?>
@@ -136,18 +121,16 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 	<div id="main">
 		<?php printTabs(); ?>
 		<div id="content">
-			<?php npgFilters::apply('admin_note', 'albums', ''); ?>
+			<?php zp_apply_filter('admin_note', 'albums', ''); ?>
 			<h1><?php echo (gettext('Search analysis')); ?></h1>
 			<div class="tabbox">
 				<?php
-				if (empty($results) && empty($results_f) && empty($cacheHits)) {
-					echo $nodata;
+				if (empty($results) && empty($results_f)) {
+					echo gettext('No search criteria collected.');
 				} else {
-					?>
-					<table class="bordered">
-						<?php
-						if (!empty($results)) {
-							?>
+					if (!empty($results)) {
+						?>
+						<table class="bordered">
 							<tr class="statistic_wrapper">
 								<th class="statistic_short_title"><?php
 									if ($criterialimited) {
@@ -160,7 +143,8 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 							</tr>
 							<?php
 							foreach ($results as $criteria => $count) {
-								$barsize = ceil($count / $criteria_maxvalue * $bargraphmaxsize);
+								$count = round($count / $maxiterations);
+								$barsize = round($count / $criteria_maxvalue * $bargraphmaxsize);
 								?>
 								<tr class="statistic_wrapper">
 									<td class="statistic_short_title" >
@@ -171,14 +155,16 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 										<div class="statistic_value"><?php echo $count; ?></div>
 									</td>
 								</tr>
-								<tr>
-									<td></td><td></td>
-								</tr>
+
 								<?php
 							}
-						}
-						if (!empty($results_f)) {
 							?>
+						</table>
+						<?php
+					}
+					if (!empty($results_f)) {
+						?>
+						<table class="bordered">
 							<tr class="statistic_wrapper">
 								<th class="statistic_short_title"><?php
 									if ($criterialimited_f) {
@@ -191,7 +177,8 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 							</tr>
 							<?php
 							foreach ($results_f as $criteria => $count) {
-								$barsize = ceil($count / $criteria_maxvalue * $bargraphmaxsize);
+								$count = round($count / $maxiterations);
+								$barsize = round($count / $criteria_maxvalue_f * $bargraphmaxsize);
 								?>
 								<tr class="statistic_wrapper">
 									<td class="statistic_short_title" >
@@ -202,16 +189,17 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 										<div class="statistic_value"><?php echo $count; ?></div>
 									</td>
 								</tr>
-								<tr>
-									<td></td><td></td>
-								</tr>
 								<?php
 							}
-						}
-						if (!empty($terms)) {
 							?>
+						</table>
+						<?php
+					}
+					if (!empty($terms)) {
+						?>
+						<table class="bordered">
 							<tr class="statistic_wrapper">
-								<th class="statistic_short_title"><?php
+								<th class="statistic_link"><?php
 									if ($termlimited) {
 										printf(gettext('Top %u search terms used'), $limit_t);
 									} else {
@@ -222,10 +210,11 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 							</tr>
 							<?php
 							foreach ($terms as $criteria => $count) {
-								$barsize = ceil($count / $criteria_maxvalue * $bargraphmaxsize);
+								$count = round($count / $maxiterations);
+								$barsize = round($count / $terms_maxvalue * $bargraphmaxsize);
 								?>
 								<tr class="statistic_wrapper">
-									<td class="statistic_short_title" >
+									<td class="statistic_link" >
 										<strong><?php echo $criteria; ?></strong>
 									</td>
 									<td class="statistic_graphwrap" >
@@ -233,52 +222,32 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 										<div class="statistic_value"><?php echo $count; ?></div>
 									</td>
 								</tr>
-								<tr>
-									<td></td><td></td>
-								</tr>
 								<?php
 							}
-						}
-						if (!empty($cacheHits)) {
-							$barsize = ceil($cacheHits / $criteria_maxvalue * $bargraphmaxsize);
-							?><tr class="statistic_wrapper">
-								<th class="statistic_short_title"><?php
-									echo gettext('Cache hits');
-									?></th>
-								<th class="statistic_graphwrap"></th>
-							</tr>
-							<tr class="statistic_wrapper">
-								<td class="statistic_short_title" >
-
-								</td>
-								<td class="statistic_graphwrap" >
-									<div class="statistic_bargraph" style="width: <?php echo $barsize; ?>px"></div>
-									<div class="statistic_value"><?php echo $cacheHits; ?></div>
-								</td>
-							</tr>
-							<tr>
-								<td></td><td></td>
-							</tr>
-							<?php
-						}
-						if (!empty($sites)) {
 							?>
+						</table>
+						<?php
+					}
+					if (!empty($sites)) {
+						?>
+						<table class="bordered">
 							<tr class="statistic_wrapper">
-								<th class="statistic_short_title"><?php
+								<th class="statistic_link"><?php
 									if ($sitelimited) {
-										printf(gettext('Top %u Search IDs'), $limit_i);
+										printf(gettext('Top %u Search IPs'), $limit_i);
 									} else {
-										echo gettext('Search IDs');
+										echo gettext('Search IPs');
 									}
 									?></th>
 								<th class="statistic_graphwrap"></th>
 							</tr>
 							<?php
 							foreach ($sites as $ip => $count) {
-								$barsize = ceil($count / $criteria_maxvalue * $bargraphmaxsize);
+								$count = round($count / $maxiterations);
+								$barsize = round($count / $ip_maxvalue * $bargraphmaxsize);
 								?>
 								<tr class="statistic_wrapper">
-									<td class="statistic_short_title" >
+									<td class="statistic_link" >
 										<strong><?php echo $ip; ?></strong>
 									</td>
 									<td class="statistic_graphwrap" >
@@ -286,23 +255,20 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 										<div class="statistic_value"><?php echo $count; ?></div>
 									</td>
 								</tr>
-								<tr>
-									<td></td><td></td>
-								</tr>
 								<?php
 							}
-						}
-						?>
-					</table>
-					<?php
-					if (npg_loggedin(ADMIN_RIGHTS)) {
+							?>
+						</table>
+						<?php
+					}
+					if (zp_loggedin(ADMIN_RIGHTS)) {
 						?>
 						<p class="buttons">
 							<a href="?reset&amp;XSRFToken=<?php echo getXSRFToken('search_statistics'); ?>"><?php echo gettext('reset'); ?></a>
 						</p>
 						<br class="clearall">
 						<p>
-							<a href="<?php echo getAdminLink('admin-tabs/options.php') ?>?tab=plugin&amp;single=search_statistics#search_statistics" ><?php echo gettext('Change <em>Threshold</em> values') ?></a>
+							<a href="<?php echo WEBPATH . '/' . ZENFOLDER ?>/admin-options.php?tab=plugin&amp;single=search_statistics#search_statistics" ><?php echo gettext('Change <em>Threshold</em> values') ?></a>
 						</p>
 						<?php
 					} else {
@@ -313,8 +279,8 @@ $results_f = array_slice($results_f, 0, $limit_f, true);
 				?>
 			</div>
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
+	<?php printAdminFooter(); ?>
 </body>
 <?php
 echo "</html>";

@@ -9,19 +9,20 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/user_groups
- * @pluginCategory users
+ * @package plugins
+ * @subpackage users
  */
 // force UTF-8 Ø
 
 $plugin_is_filter = 10 | ADMIN_PLUGIN;
 $plugin_description = gettext("Provides rudimentary user groups.");
+$plugin_author = "Stephen Billard (sbillard)";
 
 
-npgFilters::register('admin_tabs', 'user_groups::admin_tabs', 2000);
-npgFilters::register('admin_alterrights', 'user_groups::admin_alterrights');
-npgFilters::register('save_admin_data', 'user_groups::save_admin');
-npgFilters::register('edit_admin_custom', 'user_groups::edit_admin');
+zp_register_filter('admin_tabs', 'user_groups::admin_tabs', 2000);
+zp_register_filter('admin_alterrights', 'user_groups::admin_alterrights');
+zp_register_filter('save_admin_custom_data', 'user_groups::save_admin');
+zp_register_filter('edit_admin_custom_data', 'user_groups::edit_admin');
 
 class user_groups {
 
@@ -31,7 +32,7 @@ class user_groups {
 	 * @param array $groups
 	 */
 	static function merge_rights($userobj, $groups, $primeObjects) {
-		global $_authority;
+		global $_zp_authority;
 		$templates = false;
 		$objects = $primeObjects;
 		$custom = array();
@@ -42,10 +43,10 @@ class user_groups {
 		foreach ($groups as $key => $groupname) {
 			if (empty($groupname)) {
 				//	force the first template to happen
-				$group = new npg_Administrator('', 0);
+				$group = new Zenphoto_Administrator('', 0);
 				$group->setName('template');
 			} else {
-				$group = npg_Authority::newAdministrator($groupname, 0, false);
+				$group = Zenphoto_Authority::newAdministrator($groupname, 0, false);
 			}
 			if ($group->loaded) {
 				if ($group->getName() == 'template') {
@@ -84,31 +85,35 @@ class user_groups {
 		$userobj->setGroup($newgroups = implode(',', $groups));
 		$userobj->setRights($rights);
 		$userobj->setObjects($objects);
+
+		$updated = $newgroups != $oldgroups || $oldobjects != $objects || (empty($newgroups) && $rights != $oldrights);
+		return $updated;
 	}
 
 	/**
 	 * Saves admin custom data
 	 * Called when an admin is saved
 	 *
+	 * @param string $updated true if there has been an update to the user
 	 * @param object $userobj admin user object
 	 * @param string $i prefix for the admin
 	 * @param bool $alter will be true if critical admin data may be altered
 	 * @return bool
 	 */
-	static function save_admin($userobj, $i, $alter) {
+	static function save_admin($updated, $userobj, $i, $alter) {
 		if ($alter && $userobj->getValid()) {
-			if (isset($_POST['user'][$i]['group'])) {
-				$newgroups = sanitize($_POST['user'][$i]['group']);
-				self::merge_rights($userobj, $newgroups, self::getPrimeObjects($userobj));
+			if (isset($_POST[$i . 'group'])) {
+				$newgroups = sanitize($_POST[$i . 'group']);
+				$updated = self::merge_rights($userobj, $newgroups, self::getPrimeObjects($userobj)) || $updated;
 			}
 		}
-		return $userobj;
+		return $updated;
 	}
 
 	static function groupList($userobj, $i, $background, $current, $template) {
-		global $_authority;
+		global $_zp_authority;
 		$group = $userobj->getGroup();
-		$admins = $_authority->getAdministrators('groups');
+		$admins = $_zp_authority->getAdministrators('groups');
 		$membership = $groups = array();
 		$hisgroups = explode(',', $userobj->getGroup());
 
@@ -154,7 +159,7 @@ class user_groups {
 			} else {
 				$display = $user['user'];
 			}
-			$grouppart .= '<label title="' . html_encode($user['other_credentials']) . $type . '"' . $highlight . '><input type="checkbox" class="' . $class . '" name="user[' . $i . '][group][]" id="' . $user['user'] . '_' . $i . '" value="' . $user['user'] . '" onclick="groupchange' . $i . '(' . $case . ');"' . $checked . ' />' . html_encode($display) . '</label>' . "\n";
+			$grouppart .= '<label title="' . html_encode($user['other_credentials']) . $type . '"' . $highlight . '><input type="checkbox" class="' . $class . '" name="' . $i . 'group[]" id="' . $user['user'] . '_' . $i . '" value="' . $user['user'] . '" onclick="groupchange' . $i . '(' . $case . ');"' . $checked . ' />' . html_encode($display) . '</label>' . "\n";
 		}
 
 		$grouppart .= "</ul>\n";
@@ -208,7 +213,7 @@ class user_groups {
 	static function edit_admin($html, $userobj, $i, $background, $current) {
 		if (!$userobj->getValid())
 			return $html;
-		if (npg_loggedin(ADMIN_RIGHTS)) {
+		if (zp_loggedin(ADMIN_RIGHTS)) {
 			if ($userobj->getID() >= 0) {
 				$notice = ' ' . gettext("Applying a template will merge the template with the current <em>rights</em> and <em>objects</em>.");
 			} else {
@@ -235,8 +240,8 @@ class user_groups {
 	}
 
 	static function admin_tabs($tabs) {
-		global $_current_admin_obj;
-		if ((npg_loggedin(ADMIN_RIGHTS) && $_current_admin_obj->getID())) {
+		global $_zp_current_admin_obj;
+		if ((zp_loggedin(ADMIN_RIGHTS) && $_zp_current_admin_obj->getID())) {
 			$subtabs = $tabs['admin']['subtabs'];
 			$subtabs[gettext('groups')] = PLUGIN_FOLDER . '/user_groups/user_groups-tab.php?page=admin&tab=groups';
 			$subtabs[gettext('assignments')] = PLUGIN_FOLDER . '/user_groups/user_groups-tab.php?page=admin&tab=assignments';
@@ -246,9 +251,9 @@ class user_groups {
 	}
 
 	static function admin_alterrights($alterrights, $userobj) {
-		global $_authority;
+		global $_zp_authority;
 		$group = $userobj->getGroup();
-		$admins = $_authority->getAdministrators('groups');
+		$admins = $_zp_authority->getAdministrators('groups');
 		foreach ($admins as $admin) {
 			if ($group == $admin['user']) {
 				return ' disabled="disabled"';

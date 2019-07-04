@@ -3,31 +3,33 @@
 /**
  * Zenpage root classes
  * @author Stephen Billard (sbillard), Malte Müller (acrylian)
- * @package plugins/zenpage
+ * @package plugins
+ * @subpackage zenpage
  */
 /**
  * Some global variable setup
  *
  */
-define('SHORTENINDICATOR', $shortenindicator = getOption('zenpage_textshorten_indicator'));
-define('SHORTEN_LENGTH', getOption('zenpage_text_length'));
-define('READ_MORE', getOption("zenpage_read_more"));
-define('ARTICLES_PER_PAGE', getOption("zenpage_articles_per_page"));
+define('ZP_SHORTENINDICATOR', $shortenindicator = getOption('zenpage_textshorten_indicator'));
+define('ZP_SHORTEN_LENGTH', getOption('zenpage_text_length'));
+define('ZP_READ_MORE', getOption("zenpage_read_more"));
+define('ZP_ARTICLES_PER_PAGE', getOption("zenpage_articles_per_page"));
+if (!defined('MENU_TRUNCATE_STRING'))
+	define('MENU_TRUNCATE_STRING', getOption('menu_truncate_string'));
+if (!defined('MENU_TRUNCATE_INDICATOR'))
+	define('MENU_TRUNCATE_INDICATOR', getOption('menu_truncate_indicator'));
 
 class CMS {
 
 	public $categoryStructure = array();
 	protected $categoryCache = array();
-	// category defaults
-	protected $cat_sortorder = 'sort_order';
-	protected $cat_sortdirection = false;
 	// article defaults (mirrors category vars)
 	protected $sortorder = 'date';
 	protected $sortdirection = true;
 	protected $sortSticky = true;
 	// page defaults
-	protected $page_sortorder = 'sort_order';
-	protected $page_sortdirection = false;
+	protected $page_sortorder;
+	protected $page_sortdirection;
 	var $news_enabled = NULL;
 	var $pages_enabled = NULL;
 
@@ -58,10 +60,10 @@ class CMS {
 	/*	 * ********************************* */
 
 	function visibleCategory($cat) {
-		if (npg_loggedin(MANAGE_ALL_NEWS_RIGHTS | VIEW_UNPUBLISHED_NEWS_RIGHTS))
+		if (zp_loggedin(MANAGE_ALL_NEWS_RIGHTS | VIEW_UNPUBLISHED_NEWS_RIGHTS))
 			return true;
 		$vis = $this->categoryStructure[$cat['cat_id']]['show'];
-		if (!$vis && npg_loggedin()) {
+		if (!$vis && zp_loggedin()) {
 			$catobj = newCategory($cat['titlelink']);
 			if ($catobj->subRights()) {
 				return true;
@@ -79,31 +81,34 @@ class CMS {
 	 * @param bool $toplevel TRUE for only the toplevel pages
 	 * @param int $number number of pages to get (NULL by default for all)
 	 * @param string $sorttype NULL for the standard order as sorted on the backend, "title", "date", "id", "popular", "mostrated", "toprated", "random"
-	 * @param bool $sortdirection false for ascenting, true for descending
+	 * @param string $sortdirection false for ascenting, true for descending
 	 * @return array
 	 */
 	function getPages($published = NULL, $toplevel = false, $number = NULL, $sorttype = NULL, $sortdirection = NULL) {
-		global $_loggedin;
+		global $_zp_loggedin;
 		if (is_null($sortdirection)) {
 			$sortdirection = $this->getSortDirection('pages');
 		}
 		if (is_null($sorttype)) {
 			$sorttype = $this->getSortType('pages');
+			if (empty($sorttype)) {
+				$sorttype = 'date';
+			}
 		}
 		if (is_null($published)) {
-			$published = !npg_loggedin();
-			$all = npg_loggedin(MANAGE_ALL_PAGES_RIGHTS | VIEW_UNPUBLISHED_PAGE_RIGHTS);
+			$published = !zp_loggedin();
+			$all = zp_loggedin(MANAGE_ALL_PAGES_RIGHTS | VIEW_UNPUBLISHED_PAGE_RIGHTS);
 		} else {
 			$all = !$published;
 		}
-		$published = $published && !npg_loggedin(ZENPAGE_PAGES_RIGHTS);
+		$published = $published && !zp_loggedin(ZENPAGE_PAGES_RIGHTS);
 		$now = date('Y-m-d H:i:s');
 
 		$gettop = '';
 		if ($published) {
 			if ($toplevel)
 				$gettop = " AND parentid IS NULL";
-			$show = " WHERE `show`=1 AND date <= '" . $now . "'" . $gettop;
+			$show = " WHERE `show` = 1 AND date <= '" . $now . "'" . $gettop;
 		} else {
 			if ($toplevel)
 				$gettop = " WHERE parentid IS NULL";
@@ -141,7 +146,7 @@ class CMS {
 			while ($row = db_fetch_assoc($result)) {
 				if ($all || $row['show']) {
 					$all_pages[] = $row;
-				} else if ($_loggedin) {
+				} else if ($_zp_loggedin) {
 					$page = newPage($row['titlelink']);
 					if ($page->subRights()) {
 						$all_pages[] = $row;
@@ -149,7 +154,7 @@ class CMS {
 						$parentid = $page->getParentID();
 						if ($parentid) {
 							$parent = getItemByID('pages', $parentid);
-							if ($parent && $parent->subRights() & MANAGED_OBJECT_RIGHTS_VIEW) {
+							if ($parent->subRights() & MANAGED_OBJECT_RIGHTS_VIEW) {
 								$all_pages[] = $row;
 							}
 						}
@@ -185,15 +190,13 @@ class CMS {
 	 * 													This parameter is not used for date archives
 	 * @param bool $sortdirection TRUE for descending, FALSE for ascending. Note: This parameter is not used for date archives
 	 * @param bool $sticky set to true to place "sticky" articles at the front of the list.
-	 * @param obj $category Optional category to get the article from
-	 * @param string $author Optional author name to get the articles of
-	 * @param int $limit if passed, the max number of articles to return
 	 * @return array
 	 */
-	function getArticles($articles_per_page = 0, $published = NULL, $ignorepagination = false, $sortorder = NULL, $sortdirection = NULL, $sticky = NULL, $category = NULL, $author = null, $limit = NULL) {
-		global $_CMS_current_category, $_post_date, $_newsCache;
+	function getArticles($articles_per_page = 0, $published = NULL, $ignorepagination = false, $sortorder = NULL, $sortdirection = NULL, $sticky = NULL, $category = NULL) {
+
+		global $_zp_current_category, $_zp_post_date, $_zp_newsCache;
 		if (empty($published)) {
-			if (npg_loggedin(ZENPAGE_NEWS_RIGHTS | VIEW_UNPUBLISHED_NEWS_RIGHTS)) {
+			if (zp_loggedin(ZENPAGE_NEWS_RIGHTS | VIEW_UNPUBLISHED_NEWS_RIGHTS)) {
 				$published = "all";
 			} else {
 				$published = "published";
@@ -203,9 +206,6 @@ class CMS {
 		if ($category && $category->exists) {
 			$sortObj = $category;
 			$cat = $category->getTitlelink();
-		} else if (is_object($_CMS_current_category)) {
-			$sortObj = $_CMS_current_category;
-			$cat = $sortObj->getTitlelink();
 		} else {
 			$sortObj = $this;
 			$cat = '*';
@@ -223,19 +223,16 @@ class CMS {
 				$sortorder = 'date';
 			}
 		}
-		$newsCacheIndex = "$sortorder-$sortdirection-$published-$cat-$author-" . (int) $sticky;
-		if ($limit) {
-			$newsCacheIndex .= '_' . $limit;
-		}
+		$newsCacheIndex = "$sortorder-$sortdirection-$published-$cat-" . (int) $sticky;
 
-		if (isset($_newsCache[$newsCacheIndex])) {
-			$result = $_newsCache[$newsCacheIndex];
+		if (isset($_zp_newsCache[$newsCacheIndex])) {
+			$result = $_zp_newsCache[$newsCacheIndex];
 		} else {
 			$cat = $show = $currentCat = false;
 			if ($category) {
 				if ($category->exists) {
-					if (is_object($_CMS_current_category)) {
-						$currentCat = $_CMS_current_category->getTitlelink();
+					if (is_object($_zp_current_category)) {
+						$currentCat = $_zp_current_category->getTitlelink();
 					}
 					// new code to get nested cats
 					$catid = $category->getID();
@@ -307,30 +304,22 @@ class CMS {
 					$getUnpublished = true;
 					break;
 				case 'sticky':
-					$show = "`sticky`<>0";
+					$show = "`sticky` <> 0";
 					$getUnpublished = true;
 					break;
 				case "all":
-					$getUnpublished = npg_loggedin(MANAGE_ALL_NEWS_RIGHTS);
-					$show = '';
+					$getUnpublished = zp_loggedin(MANAGE_ALL_NEWS_RIGHTS);
+					$show = false;
 					break;
-			}
-			if ($author) {
-				if ($cat || $show) {
-					$author_conjuction = ' AND ';
-				} else {
-					$author_conjuction = ' WHERE ';
-				}
-				$show .= $author_conjuction . ' author = ' . db_quote($author);
 			}
 			$order = " ORDER BY $sticky";
 
-			if (in_context(ZENPAGE_NEWS_DATE)) {
+			if (in_context(ZP_ZENPAGE_NEWS_DATE)) {
 				switch ($published) {
 					case "published":
 					case "unpublished":
 					case "all":
-						$datesearch = "date LIKE '$_post_date%' ";
+						$datesearch = "date LIKE '$_zp_post_date%' ";
 						break;
 					default:
 						$datesearch = '';
@@ -374,7 +363,7 @@ class CMS {
 			$resource = query($sql);
 			$result = array();
 			if ($resource) {
-				if (npg_loggedin(VIEW_UNPUBLISHED_NEWS_RIGHTS)) {
+				if (zp_loggedin(VIEW_UNPUBLISHED_NEWS_RIGHTS)) {
 					$getUnpublished = true;
 				}
 				while ($item = db_fetch_assoc($resource)) {
@@ -389,9 +378,6 @@ class CMS {
 									|| $article->isMyItem(ZENPAGE_NEWS_RIGHTS)
 					) {
 						$result[] = $item;
-						if ($limit && count($result) >= $limit) {
-							break;
-						}
 					}
 				}
 				db_free_result($resource);
@@ -410,7 +396,7 @@ class CMS {
 					}
 				}
 			}
-			$_newsCache[$newsCacheIndex] = $result;
+			$_zp_newsCache[$newsCacheIndex] = $result;
 		}
 
 		if ($articles_per_page) {
@@ -431,9 +417,9 @@ class CMS {
 	 * @return int
 	 */
 	function getArticle($index, $published = NULL, $sortorder = NULL, $sortdirection = NULL, $sticky = true) {
-		global $_CMS_current_category;
-		if (in_context(ZENPAGE_NEWS_CATEGORY)) {
-			$category = $_CMS_current_category;
+		global $_zp_current_category;
+		if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+			$category = $_zp_current_category;
 		} else {
 			$category = NULL;
 		}
@@ -454,13 +440,13 @@ class CMS {
 	 * @return string
 	 */
 	static function getOffset($articles_per_page, $ignorepagination = false) {
-		global $_current_page, $subpage;
+		global $_zp_page, $subpage;
 		if (OFFSET_PATH) {
 			$page = $subpage + 1;
 		} else {
-			$page = $_current_page;
+			$page = $_zp_page;
 		}
-		if ($ignorepagination || is_null($page)) { //	maybe from a feed since this means that $_current_page is not set
+		if ($ignorepagination || is_null($page)) { //	maybe from a feed since this means that $_zp_page is not set
 			$offset = 0;
 		} else {
 			$offset = ($page - 1) * $articles_per_page;
@@ -473,8 +459,8 @@ class CMS {
 	 *
 	 */
 	function getTotalArticles() {
-		global $_CMS_current_category;
-		if (empty($_CMS_current_category)) {
+		global $_zp_current_category;
+		if (empty($_zp_current_category)) {
 			if (isset($_GET['category'])) {
 				$cat = sanitize($_GET['category']);
 				$catobj = newCategory($cat);
@@ -482,7 +468,7 @@ class CMS {
 				return count($this->getArticles(0));
 			}
 		} else {
-			$catobj = $_CMS_current_category;
+			$catobj = $_zp_current_category;
 		}
 		return count($catobj->getArticles());
 	}
@@ -497,8 +483,8 @@ class CMS {
 		$alldates = array();
 		$cleandates = array();
 		$sql = "SELECT date FROM " . prefix('news');
-		if (!npg_loggedin(MANAGE_ALL_NEWS_RIGHTS)) {
-			$sql .= " WHERE `show`=1";
+		if (!zp_loggedin(MANAGE_ALL_NEWS_RIGHTS)) {
+			$sql .= " WHERE `show` = 1";
 		}
 		$result = query_full_array($sql);
 		foreach ($result as $row) {
@@ -580,18 +566,14 @@ class CMS {
 	 * Gets all categories
 	 * @param bool $visible TRUE for published and unprotected
 	 * @param string $sorttype NULL for the standard order as sorted on the backend, "title", "id", "popular", "random"
-	 * @param bool $sortdirection TRUE for descending or FALSE for ascending order
+	 * @param bool $sortdirection TRUE for ascending or FALSE for descending order
 	 * @return array
 	 */
 	function getAllCategories($visible = true, $sorttype = NULL, $sortdirection = NULL) {
 
 		$structure = $this->getCategoryStructure();
-		if (is_null($sortdirection)) {
-			$sortdirection = $this->cat_sortdirection;
-		}
-		if (is_null($sorttype)) {
-			$sorttype = $this->cat_sortorder;
-		}
+		if (is_null($sortdirection))
+			$sortdirection = $this->sortdirection;
 
 		switch ($sorttype) {
 			case "id":
@@ -608,10 +590,9 @@ class CMS {
 				break;
 			default:
 				$sortorder = "sort_order";
-				$sortdirection = false;
 				break;
 		}
-		$all = npg_loggedin(MANAGE_ALL_NEWS_RIGHTS);
+		$all = zp_loggedin(MANAGE_ALL_NEWS_RIGHTS);
 		if (array_key_exists($key = $sortorder . (int) $sortdirection . (bool) $visible . (bool) $all, $this->categoryCache)) {
 			return $this->categoryCache[$key];
 		} else {
@@ -630,7 +611,7 @@ class CMS {
 				if ($sorttype == 'random') {
 					shuffle($structure);
 				} else {
-					$structure = sortMultiArray($structure, $sortorder, $sortdirection, true, false, false);
+					$structure = sortMultiArray($structure, $sortorder, !$sortdirection, true, false, false);
 				}
 			}
 			$this->categoryCache[$key] = $structure;
@@ -648,60 +629,35 @@ class CMS {
 	}
 
 	function getSortDirection($what = 'news') {
-		switch ($what) {
-			case 'pages':
-				$type = $this->page_sortdirection;
-				break;
-			case'categories':
-				$type = $this->cat_sortdirection;
-				break;
-			default:
-				$type = $this->sortdirection;
-				break;
+		if ($what == 'pages') {
+			return $this->page_sortdirection;
+		} else {
+			return $this->sortdirection;
 		}
-		return $type;
 	}
 
 	function setSortDirection($value, $what = 'news') {
-		switch ($what) {
-			case 'pages':
-				$this->page_sortdirection = $value;
-				break;
-			case'categories':
-				$this->cat_sortdirection = $value;
-				break;
-			default:
-				$this->sortdirection = $value;
-				break;
+		if ($what == 'pages') {
+			$this->page_sortdirection = (int) ($value && true);
+		} else {
+			$this->sortdirection = (int) ($value && true);
 		}
 	}
 
 	function getSortType($what = 'news') {
-		switch ($what) {
-			case 'pages':
-				$type = $this->page_sortorder;
-				break;
-			case'categories':
-				$type = $this->cat_sortorder;
-				break;
-			default:
-				$type = $this->sortorder;
-				break;
+		if ($what == 'pages') {
+			$type = $this->page_sortorder;
+		} else {
+			$type = $this->sortorder;
 		}
 		return $type;
 	}
 
 	function setSortType($value, $what = 'news') {
-		switch ($what) {
-			case 'pages':
-				$this->page_sortorder = $value;
-				break;
-			case'categories':
-				$this->cat_sortorder = $value;
-				break;
-			default:
-				$this->sortorder = $value;
-				break;
+		if ($what == 'pages') {
+			$this->page_sortorder = $value;
+		} else {
+			$this->sortorder = $value;
 		}
 	}
 
@@ -788,8 +744,17 @@ class CMSItems extends CMSRoot {
 	 *
 	 * @return string
 	 */
-	function getOwner() {
-		return $this->get("owner");
+	function getAuthor() {
+		return $this->get("author");
+	}
+
+	/**
+	 *
+	 * sets the author attribute
+
+	 */
+	function setAuthor($a) {
+		$this->set("author", $a);
 	}
 
 	/**
@@ -800,9 +765,9 @@ class CMSItems extends CMSRoot {
 	function getContent($locale = NULL) {
 		$text = $this->get("content");
 		if ($locale == 'all') {
-			return npgFunctions::unTagURLs($text);
+			return zpFunctions::unTagURLs($text);
 		} else {
-			return applyMacros(npgFunctions::unTagURLs(get_language_string($text, $locale)));
+			return applyMacros(zpFunctions::unTagURLs(get_language_string($text, $locale)));
 		}
 	}
 
@@ -812,8 +777,49 @@ class CMSItems extends CMSRoot {
 	 * @param $c full language string
 	 */
 	function setContent($c) {
-		$c = npgFunctions::tagURLs($c);
+		$c = zpFunctions::tagURLs($c);
 		$this->set("content", $c);
+	}
+
+	/**
+	 * Returns the last change date
+	 *
+	 * @return string
+	 */
+	function getLastchange() {
+		return $this->get("lastchange");
+	}
+
+	/**
+	 *
+	 * sets the last change date
+	 */
+	function setLastchange($d) {
+		if ($d) {
+			$newtime = dateTimeConvert($d);
+			if ($newtime === false)
+				return;
+			$this->set('lastchange', $newtime);
+		} else {
+			$this->set('lastchange', NULL);
+		}
+	}
+
+	/**
+	 * Returns the last change author
+	 *
+	 * @return string
+	 */
+	function getLastchangeAuthor() {
+		return $this->get("lastchangeauthor");
+	}
+
+	/**
+	 *
+	 * stores the last change author
+	 */
+	function setLastchangeAuthor($a) {
+		$this->set("lastchangeauthor", $a);
 	}
 
 	/**
@@ -841,9 +847,9 @@ class CMSItems extends CMSRoot {
 	function getExtraContent($locale = NULL) {
 		$text = $this->get("extracontent");
 		if ($locale == 'all') {
-			return npgFunctions::unTagURLs($text);
+			return zpFunctions::unTagURLs($text);
 		} else {
-			return applyMacros(npgFunctions::unTagURLs(get_language_string($text, $locale)));
+			return applyMacros(zpFunctions::unTagURLs(get_language_string($text, $locale)));
 		}
 	}
 
@@ -852,7 +858,7 @@ class CMSItems extends CMSRoot {
 	 *
 	 */
 	function setExtraContent($ec) {
-		$this->set("extracontent", npgFunctions::tagURLs($ec));
+		$this->set("extracontent", zpFunctions::tagURLs($ec));
 	}
 
 }

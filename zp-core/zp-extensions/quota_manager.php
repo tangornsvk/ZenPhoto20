@@ -24,28 +24,29 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/quota_manager
- * @pluginCategory users
+ * @package plugins
+ * @subpackage users
  */
 $plugin_is_filter = 5 | ADMIN_PLUGIN;
 $plugin_description = gettext("Provides a quota management system to limit the sum of sizes of images a user uploads.");
 $plugin_notice = gettext("<strong>Note:</strong> if FTP is used to upload images, manual user assignment is necessary. ZIP file upload is disabled by default as quotas are not applied to the files contained therein.");
-$plugin_disable = (npgFilters::has_filter('get_upload_header_text') && !extensionEnabled('quota_manager')) ? sprintf(gettext('<a href="#%1$s"><code>%1$s</code></a> is already enabled.'), stripSuffix(npgFilters::script('get_upload_header_text'))) : '';
+$plugin_author = "Stephen Billard (sbillard)";
+$plugin_disable = (zp_has_filter('get_upload_header_text') && !extensionEnabled('quota_manager')) ? sprintf(gettext('<a href="#%1$s"><code>%1$s</code></a> is already enabled.'), stripSuffix(get_filterScript('get_upload_header_text'))) : '';
 
 $option_interface = 'quota_manager';
 
 if ($plugin_disable) {
 	enableExtension('quota_manager', 0);
 } else {
-	npgFilters::register('save_admin_data', 'quota_manager::save_admin');
-	npgFilters::register('edit_admin_custom', 'quota_manager::edit_admin');
-	npgFilters::register('new_image', 'quota_manager::new_image');
-	npgFilters::register('image_refresh', 'quota_manager::image_refresh');
-	npgFilters::register('check_upload_quota', 'quota_manager::checkQuota');
-	npgFilters::register('get_upload_limit', 'quota_manager::getUploadLimit');
-	npgFilters::register('get_upload_header_text', 'quota_manager::get_header');
-	npgFilters::register('upload_filetypes', 'quota_manager::upload_filetypes');
-	npgFilters::register('upload_helper_js', 'quota_manager::upload_helper_js');
+	zp_register_filter('save_admin_custom_data', 'quota_manager::save_admin');
+	zp_register_filter('edit_admin_custom_data', 'quota_manager::edit_admin');
+	zp_register_filter('new_image', 'quota_manager::new_image');
+	zp_register_filter('image_refresh', 'quota_manager::image_refresh');
+	zp_register_filter('check_upload_quota', 'quota_manager::checkQuota');
+	zp_register_filter('get_upload_limit', 'quota_manager::getUploadLimit');
+	zp_register_filter('get_upload_header_text', 'quota_manager::get_header');
+	zp_register_filter('upload_filetypes', 'quota_manager::upload_filetypes');
+	zp_register_filter('upload_helper_js', 'quota_manager::upload_helper_js');
 }
 
 /**
@@ -57,6 +58,7 @@ class quota_manager {
 	/**
 	 * class instantiation function
 	 *
+	 * @return filter_zenphoto_seo
 	 */
 	function __construct() {
 		if (OFFSET_PATH == 2) {
@@ -86,16 +88,21 @@ class quota_manager {
 	 * Saves admin custom data
 	 * Called when an admin is saved
 	 *
+	 * @param string $updated true if data has changed
 	 * @param object $userobj admin user object
 	 * @param string $i prefix for the admin
 	 * @param bool $alter will be true if critical admin data may be altered
 	 * @return bool
 	 */
-	static function save_admin($userobj, $i, $alter) {
-		if (isset($_POST['user'][$i]['quota']) && $alter) {
-			$userobj->setQuota(sanitize_numeric($_POST['user'][$i]['quota']));
+	static function save_admin($updated, $userobj, $i, $alter) {
+		if (isset($_POST[$i . 'quota']) && $alter) {
+			$oldquota = $userobj->getQuota();
+			$userobj->setQuota(sanitize_numeric($_POST[$i . 'quota']));
+			if ($oldquota != $userobj->getQuota()) {
+				$updated = true;
+			}
 		}
-		return $userobj;
+		return $updated;
 	}
 
 	/**
@@ -124,11 +131,10 @@ class quota_manager {
 		}
 		$result = '<div class="user_left">' . "\n"
 						. gettext("Image storage quota:") . '&nbsp;' .
-						sprintf(gettext('Allowed: %s kb'), '<input type="text" size="10" name="user[' . $i . '][quota]" value="' . $quota . '" ' . $local_alterrights . ' />') . ' ' .
+						sprintf(gettext('Allowed: %s kb'), '<input type="text" size="10" name="' . $i . 'quota" value="' . $quota . '" ' . $local_alterrights . ' />') . ' ' .
 						$used . "\n"
 						. '</div>' . "\n"
 						. '<br class="clearall">' . "\n";
-
 		return $html . $result;
 	}
 
@@ -138,9 +144,9 @@ class quota_manager {
 	 * @return int
 	 */
 	static function getCurrentUse($userobj) {
-		global $_current_admin_obj;
+		global $_zp_current_admin_obj;
 		if (is_null($userobj)) {
-			$userobj = $_current_admin_obj;
+			$userobj = $_zp_current_admin_obj;
 		}
 		$sql = 'SELECT sum(`filesize`) FROM ' . prefix('images') . ' WHERE `owner`="' . $userobj->getUser() . '"';
 		$result = query_single_row($sql);
@@ -153,9 +159,9 @@ class quota_manager {
 	 * @return object
 	 */
 	static function new_image($image) {
-		global $_current_admin_obj;
-		if (is_object($_current_admin_obj)) {
-			$image->set('owner', $_current_admin_obj->getUser());
+		global $_zp_current_admin_obj;
+		if (is_object($_zp_current_admin_obj)) {
+			$image->set('owner', $_zp_current_admin_obj->getUser());
 		}
 		$image->set('filesize', filesize($image->localpath));
 		$image->save();
@@ -179,11 +185,11 @@ class quota_manager {
 	 * @return int
 	 */
 	static function getUploadQuota($quota) {
-		global $_current_admin_obj;
-		if (npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
+		global $_zp_current_admin_obj;
+		if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
 			$quota = -1;
 		} else {
-			$quota = $_current_admin_obj->getQuota();
+			$quota = $_zp_current_admin_obj->getQuota();
 			if ($quota == NULL)
 				$quota = getOption('quota_default');
 		}
@@ -196,7 +202,7 @@ class quota_manager {
 	 * @return int
 	 */
 	static function getUploadLimit($uploadlimit) {
-		if (!npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
+		if (!zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
 			$uploadlimit = (quota_manager::getUploadQuota(0) - quota_manager::getCurrentUse(NULL)) * 1024;
 		}
 		return $uploadlimit;
@@ -209,7 +215,7 @@ class quota_manager {
 	 * @return int
 	 */
 	static function checkQuota($error, $image) {
-		if (npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
+		if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
 			return UPLOAD_ERR_OK;
 		}
 		if (getSuffix($image) == 'zip') {
@@ -235,7 +241,7 @@ class quota_manager {
 	 * @return string
 	 */
 	static function get_header($default) {
-		if (npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
+		if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
 			return $default;
 		}
 		$uploadlimit = quota_manager::getUploadLimit(0);
@@ -274,7 +280,7 @@ class quota_manager {
 	 * @return array
 	 */
 	static function upload_filetypes($types) {
-		if (npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS) || (getoption('quota_allowZIP'))) {
+		if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS) || (getoption('quota_allowZIP'))) {
 			return $types;
 		}
 		$key = array_search('ZIP', $types);

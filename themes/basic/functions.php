@@ -1,7 +1,9 @@
 <?php
-npgFilters::register('themeSwitcher_head', 'switcher_head');
-npgFilters::register('themeSwitcher_Controllink', 'switcher_controllink');
-npgFilters::register('theme_head', 'css_head', 500);
+zp_register_filter('themeSwitcher_head', 'switcher_head');
+zp_register_filter('iconColor', 'iconColor');
+zp_register_filter('themeSwitcher_Controllink', 'switcher_controllink');
+zp_register_filter('theme_head', 'css_head', 500);
+enableExtension('zenpage', 0, false); //	we do not support it
 
 $curdir = getcwd();
 chdir(SERVERPATH . "/themes/" . basename(dirname(__FILE__)) . "/styles");
@@ -11,12 +13,9 @@ foreach ($filelist as $file) {
 	$themecolors[] = stripSuffix(filesystemToInternal($file));
 }
 chdir($curdir);
-if (class_exists('themeSwitcher')) {
-	$themeColor = themeSwitcher::themeSelection('themeColor', $themecolors);
-}
 
-function css_head() {
-	global $themecolors, $zenCSS, $themeColor, $_themeroot;
+function css_head($ignore) {
+	global $themecolors, $zenCSS, $themeColor, $_zp_themeroot;
 	if (!$themeColor) {
 		$themeColor = getOption('Theme_colors');
 	}
@@ -28,11 +27,12 @@ function css_head() {
 		}
 	}
 
-	$zenCSS = $_themeroot . '/styles/' . $themeColor . '.css';
+	$zenCSS = $_zp_themeroot . '/styles/' . $themeColor . '.css';
 	$unzenCSS = str_replace(WEBPATH, '', $zenCSS);
 	if (!file_exists(SERVERPATH . internalToFilesystem($unzenCSS))) {
-		$zenCSS = $_themeroot . "/styles/light.css";
+		$zenCSS = $_zp_themeroot . "/styles/light.css";
 	}
+	return $ignore;
 }
 
 function iconColor($icon) {
@@ -59,10 +59,19 @@ function printSoftwareLink() {
 			$logo = 'sterile';
 			break;
 	}
-	print_SW_Link();
+	printZenphotoLink($logo);
 }
 
 function switcher_head($ignore) {
+	global $personalities, $themecolors, $themeColor;
+	$themeColor = zp_getCookie('themeSwitcher_color');
+	if (isset($_GET['themeColor'])) {
+		$new = $_GET['themeColor'];
+		if (in_array($new, $themecolors)) {
+			zp_setCookie('themeSwitcher_color', $new, false);
+			$themeColor = $new;
+		}
+	}
 	?>
 	<script type="text/javascript">
 		// <!-- <![CDATA[
@@ -78,7 +87,7 @@ function switcher_head($ignore) {
 
 function switcher_controllink($ignore) {
 	global $themecolors;
-	$color = getNPGCookie('themeSwitcher_themeColor');
+	$color = zp_getCookie('themeSwitcher_color');
 	if (!$color) {
 		$color = getOption('Theme_colors');
 	}
@@ -93,5 +102,5 @@ function switcher_controllink($ignore) {
 	return $ignore;
 }
 
-$_current_page_check = 'checkPageValidity'; //	opt-in, standard behavior
+$_zp_page_check = 'checkPageValidity'; //	opt-in, standard behavior
 ?>

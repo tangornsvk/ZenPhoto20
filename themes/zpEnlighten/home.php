@@ -4,15 +4,12 @@ if (!defined('WEBPATH'))
 ?>
 <!DOCTYPE html>
 <head>
-	<?php
-	npgFilters::apply('theme_head');
-	printZDRoundedCornerJS();
-
-	scriptLoader($_themeroot . '/style.css');
-	?>
+	<?php zp_apply_filter('theme_head'); ?>
+	<?php printZDRoundedCornerJS(); ?>
+	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
 </head>
 <body>
-	<?php npgFilters::apply('theme_body_open'); ?>
+	<?php zp_apply_filter('theme_body_open'); ?>
 
 	<div id="main" class="home">
 
@@ -50,15 +47,15 @@ if (!defined('WEBPATH'))
 							</div>
 							<div class="albumdesc">
 								<?php
-								$_current_album = $i->getAlbum();
+								$_zp_current_album = $i->getAlbum();
 								?>
-								<h3><span style="color: #999;">Album:</span> <a href="<?php echo htmlspecialchars(getAlbumURL()); ?>" title="<?php echo gettext('View album:'); ?> <?php echo $_current_album->getTitle(); ?>"><?php echo $_current_album->getTitle(); ?></a></h3>
+								<h3><span style="color: #999;">Album:</span> <a href="<?php echo htmlspecialchars(getAlbumURL()); ?>" title="<?php echo gettext('View album:'); ?> <?php echo $_zp_current_album->getTitle(); ?>"><?php echo $_zp_current_album->getTitle(); ?></a></h3>
 								<h3 class="date"><?= $date; ?></h3>
 							</div>
 						</div>
 					<?php endforeach ?>
 					<?php
-					$_current_album = NULL;
+					$_zp_current_album = NULL;
 					?>
 				</div>
 				<br style="clear:both;" /><br />
@@ -67,7 +64,7 @@ if (!defined('WEBPATH'))
 				$ln = getLatestNews(3);
 
 				foreach ($ln as $n) :
-					$_CMS_current_article = newArticle($n['titlelink']);
+					$_zp_current_article = newArticle($n['titlelink']);
 					?>
 
 
@@ -108,6 +105,6 @@ if (!defined('WEBPATH'))
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php npgFilters::apply('theme_body_close'); ?>
+	<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

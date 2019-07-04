@@ -7,20 +7,17 @@ if (class_exists('CMS')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
-			<?php npgFilters::apply('theme_head'); ?>
+			<?php zp_apply_filter('theme_head'); ?>
 
 
 
 			<meta name="viewport" content="width=device-width, initial-scale=1">
-
-			<?php
-			scriptLoader($_themeroot . '/style.css');
-			jqm_loadScripts();
-			?>
+			<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" />
+			<?php jqm_loadScripts(); ?>
 		</head>
 
 		<body>
-			<?php npgFilters::apply('theme_body_open'); ?>
+			<?php zp_apply_filter('theme_body_open'); ?>
 
 			<div data-role="page" id="mainpage">
 				<?php jqm_printMainHeaderNav(); ?>
@@ -40,12 +37,12 @@ if (class_exists('CMS')) {
 				<?php jqm_printFooterNav(); ?>
 			</div><!-- /page -->
 
-			<?php npgFilters::apply('theme_body_close');
+			<?php zp_apply_filter('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

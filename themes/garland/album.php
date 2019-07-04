@@ -1,26 +1,21 @@
 <?php
 if (!defined('WEBPATH'))
 	die();
-$map = simpleMap::mapPlugin();
+$map = function_exists('printGoogleMap');
 ?>
 <!DOCTYPE html>
 <html>
 	<head>
 
-		<?php
-		npgFilters::apply('theme_head');
+		<?php zp_apply_filter('theme_head'); ?>
 
-		$handler->theme_head($_themeroot);
-
-		scriptLoader($_themeroot . '/zen.css');
-
-		if (class_exists('RSS'))
-			printRSSHeaderLink('Album', getAlbumTitle());
-		?>
+		<?php $handler->theme_head($_zp_themeroot); ?>
+		<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
+		<?php if (class_exists('RSS')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
 	</head>
 	<body class="sidebars">
-		<?php npgFilters::apply('theme_body_open'); ?>
-		<?php $handler->theme_bodyopen($_themeroot); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php $handler->theme_bodyopen($_zp_themeroot); ?>
 		<div id="navigation"></div>
 		<div id="wrapper">
 			<div id="container">
@@ -80,7 +75,7 @@ $map = simpleMap::mapPlugin();
 										printPageListWithNav(gettext("« prev"), gettext("next »"), $_oneImagePage);
 									}
 									if (function_exists('printAddToFavorites'))
-										printAddToFavorites($_current_album);
+										printAddToFavorites($_zp_current_album);
 									@call_user_func('printRating');
 									@call_user_func('printCommentForm');
 									printCodeblock(2);
@@ -105,7 +100,7 @@ $map = simpleMap::mapPlugin();
 							if ($nextalbum) {
 								?>
 								<div id="nextalbum" class="slides">
-									<a href="<?php echo html_encode(getNextAlbumURL()); ?>" title="<?php echo gettext('Next album'); ?>"><?php echo gettext('Next album »'); ?><br /><img src="<?php echo html_encode($nextalbum->getThumb()); ?>" /></a>
+									<a href="<?php echo html_encode(getNextAlbumURL()); ?>" title="<?php echo gettext('Next album'); ?>"><?php echo gettext('Next album »'); ?><br /><img src="<?php echo html_encode(pathurlencode($nextalbum->getThumb())); ?>" /></a>
 								</div>
 								<br />
 								<?php
@@ -113,7 +108,7 @@ $map = simpleMap::mapPlugin();
 							if ($prevalbum) {
 								?>
 								<div id="prevalbum" class="slides">
-									<a href="<?php echo html_encode(getPrevAlbumURL()); ?>" title="<?php echo gettext('Prev Album'); ?>"><?php echo gettext('« Prev Album'); ?><br /><img src="<?php echo html_encode($prevalbum->getThumb()); ?>" /></a>
+									<a href="<?php echo html_encode(getPrevAlbumURL()); ?>" title="<?php echo gettext('Prev Album'); ?>"><?php echo gettext('« Prev Album'); ?><br /><img src="<?php echo html_encode(pathurlencode($prevalbum->getThumb())); ?>" /></a>
 								</div>
 								<?php
 							}
@@ -122,11 +117,11 @@ $map = simpleMap::mapPlugin();
 						<?php printTags('links', gettext('Tags: '), NULL, ''); ?>
 						<?php
 						if (!empty($points) && $map) {
-							simpleMap::setMapDisplay('colorbox');
+							setOption('gmap_display', 'colorbox', false);
 							?>
 							<div id="map_link">
 								<?php
-								simpleMap::printMap($points, array('obj' => 'album_page'));
+								printGoogleMap(NULL, NULL, NULL, 'album_page', 'gMapOptionsAlbum');
 								?>
 							</div>
 							<br class="clearall">
@@ -136,9 +131,9 @@ $map = simpleMap::mapPlugin();
 						<?php
 						if (function_exists('printLatestImages')) {
 							?>
-							<h2><?php printf(gettext('Latest Images for %s'), $_current_album->getTitle()); ?></h2>
+							<h2><?php printf(gettext('Latest Images for %s'), $_zp_current_album->getTitle()); ?></h2>
 							<?php
-							printLatestImages(5, $_current_album->name);
+							printLatestImages(5, $_zp_current_album->name);
 						}
 						?>
 					</div><!-- right sidebar -->
@@ -147,7 +142,7 @@ $map = simpleMap::mapPlugin();
 			<span class="clear"></span>
 		</div><!-- wrapper -->
 		<?php
-		npgFilters::apply('theme_body_close');
+		zp_apply_filter('theme_body_close');
 		?>
 	</body>
 </html>

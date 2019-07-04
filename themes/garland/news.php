@@ -6,17 +6,12 @@ if (class_exists('CMS')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
-			<?php
-			npgFilters::apply('theme_head');
-
-			scriptLoader($_themeroot . '/zen.css');
-
-			if (class_exists('RSS'))
-				printRSSHeaderLink("News", "Zenpage news", "");
-			?>
+			<?php zp_apply_filter('theme_head'); ?>
+			<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
+			<?php if (class_exists('RSS')) printRSSHeaderLink("News", "Zenpage news", ""); ?>
 		</head>
 		<body class="sidebars">
-	<?php npgFilters::apply('theme_body_open'); ?>
+			<?php zp_apply_filter('theme_body_open'); ?>
 			<div id="navigation"></div>
 			<div id="wrapper">
 				<div id="container">
@@ -31,7 +26,7 @@ if (class_exists('CMS')) {
 					<!-- header -->
 					<div class="sidebar">
 						<div id="leftsidebar">
-	<?php include("sidebar.php"); ?>
+							<?php include("sidebar.php"); ?>
 						</div>
 					</div>
 
@@ -59,16 +54,11 @@ if (class_exists('CMS')) {
 											<div class="newsarticlecredit">
 												<span class="newsarticlecredit-left">
 													<?php
-													$cat = getNewsCategories();
 													$count = @call_user_func('getCommentCount');
 													printNewsDate();
 													if ($count > 0) {
 														echo ' | ';
 														printf(gettext("Comments: %d"), $count);
-													}
-													if (!empty($cat)) {
-														echo ' | ';
-														printNewsCategories(", ", gettext("Categories: "), "newscategories");
 													}
 													?>
 												</span>
@@ -76,15 +66,16 @@ if (class_exists('CMS')) {
 
 												<?php printCodeblock(1); ?>
 												<?php printNewsContent(); ?>
-											<?php printCodeblock(2); ?>
+												<?php printCodeblock(2); ?>
 											</div>
 											<?php
+											@call_user_func('printRating');
 											@call_user_func('printCommentForm');
 										} else { // news article loop
 											commonNewsLoop(true);
 										}
 										?>
-	<?php footer(); ?>
+										<?php footer(); ?>
 										<p style="clear: both;"></p>
 									</div>
 									<!-- end content -->
@@ -127,12 +118,12 @@ if (class_exists('CMS')) {
 				</div><!-- /container -->
 			</div>
 			<?php
-			npgFilters::apply('theme_body_close');
+			zp_apply_filter('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

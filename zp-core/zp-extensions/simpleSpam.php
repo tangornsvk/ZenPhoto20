@@ -6,26 +6,27 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/simpleSpam
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  */
-$plugin_is_filter = 5 | FEATURE_PLUGIN;
+$plugin_is_filter = 5 | CLASS_PLUGIN;
 $plugin_description = gettext("Simple SPAM filter.");
-$plugin_disable = (isset($_spamFilter) && !extensionEnabled('simpleSpam')) ? sprintf(gettext('Only one SPAM handler plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), $_spamFilter->name) : '';
+$plugin_author = "Stephen Billard (sbillard)";
+$plugin_disable = (isset($_zp_spamFilter) && !extensionEnabled('simpleSpam')) ? sprintf(gettext('Only one SPAM handler plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), $_zp_spamFilter->name) : '';
 
-$option_interface = '_SimpleSpam';
+$option_interface = 'zpSimpleSpam';
 
 if ($plugin_disable) {
 	enableExtension('simpleSpam', 0);
 } else {
-	$_spamFilter = new _SimpleSpam();
+	$_zp_spamFilter = new zpSimpleSpam();
 }
 
 /**
  * This implements the standard SpamFilter class for the Simple spam filter.
  *
  */
-class _SimpleSpam {
+class zpSimpleSpam {
 
 	var $name = 'simpleSpam';
 	var $wordsToDieOn = array('cialis', 'ebony', 'nude', 'porn', 'porno', 'pussy', 'upskirt', 'ringtones', 'phentermine', 'viagra', 'levitra'); /* the word black list */
@@ -56,17 +57,17 @@ class _SimpleSpam {
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		return array(gettext('Words to die on') => array('key' => 'Words_to_die_on', 'type' => OPTION_TYPE_TEXTAREA,
-						'multilingual' => false,
-						'desc' => gettext('SPAM blacklist words (separate with commas)')),
-				gettext('Patterns to die on') => array('key' => 'Patterns_to_die_on', 'type' => OPTION_TYPE_TEXTAREA,
-						'multilingual' => false,
-						'desc' => gettext('SPAM blacklist <a href="http://en.wikipedia.org/wiki/Regular_expression">regular expressions</a> (separate with spaces)')),
-				gettext('Excessive URL count') => array('key' => 'Excessive_URL_count', 'type' => OPTION_TYPE_NUMBER, 'desc' => gettext('Message is considered SPAM if there are more than this many URLs in it')),
-				gettext('Banned IPs') => array('key' => 'Banned_IP_list', 'type' => OPTION_TYPE_TEXTAREA,
-						'multilingual' => false,
-						'desc' => gettext('Prevent posts from this list of IP addresses')),
-				gettext('Forgiving') => array('key' => 'Forgiving', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Mark suspected SPAM for moderation rather than as SPAM')));
+		return array(gettext('Words to die on')		 => array('key'					 => 'Words_to_die_on', 'type'				 => OPTION_TYPE_TEXTAREA,
+										'multilingual' => false,
+										'desc'				 => gettext('SPAM blacklist words (separate with commas)')),
+						gettext('Patterns to die on')	 => array('key'					 => 'Patterns_to_die_on', 'type'				 => OPTION_TYPE_TEXTAREA,
+										'multilingual' => false,
+										'desc'				 => gettext('SPAM blacklist <a href="http://en.wikipedia.org/wiki/Regular_expression">regular expressions</a> (separate with spaces)')),
+						gettext('Excessive URL count') => array('key' => 'Excessive_URL_count', 'type' => OPTION_TYPE_NUMBER, 'desc' => gettext('Message is considered SPAM if there are more than this many URLs in it')),
+						gettext('Banned IPs')					 => array('key'					 => 'Banned_IP_list', 'type'				 => OPTION_TYPE_TEXTAREA,
+										'multilingual' => false,
+										'desc'				 => gettext('Prevent posts from this list of IP addresses')),
+						gettext('Forgiving')					 => array('key' => 'Forgiving', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Mark suspected SPAM for moderation rather than as SPAM')));
 	}
 
 	/**

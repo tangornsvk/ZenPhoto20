@@ -13,13 +13,14 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/pluginEnabler
- * @pluginCategory development
+ * @package plugins
+ * @subpackage development
+ * @category package
  */
 $plugin_is_filter = 5 | ADMIN_PLUGIN;
 $plugin_description = gettext("Mass enable/disable for plugins.");
 
-npgFilters::register('admin_utilities_buttons', 'pluginEnabler::buttons');
+zp_register_filter('admin_utilities_buttons', 'pluginEnabler::buttons');
 
 class pluginEnabler {
 
@@ -29,9 +30,9 @@ class pluginEnabler {
 				'category' => gettext('Development'),
 				'enable' => true,
 				'button_text' => gettext('Plugins » standard'),
-				'formname' => 'enablebutton1',
-				'action' => getAdminLink(USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php'),
-				'icon' => BADGE_BLUE,
+				'formname' => 'enablebutton',
+				'action' => FULLWEBPATH . '/' . USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php',
+				'icon' => ZP_BLUE,
 				'title' => gettext('Enables all standard plugins (except <em>show_not_logged-in</em>!) Third party plugins are disabled.'),
 				'alt' => '',
 				'hidden' => '<input type="hidden" name="pluginsEnable" value="1" />',
@@ -42,8 +43,8 @@ class pluginEnabler {
 				'category' => gettext('Development'),
 				'enable' => true,
 				'button_text' => gettext('Plugins » all'),
-				'formname' => 'enablebutton3',
-				'action' => getAdminLink(USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php'),
+				'formname' => 'enablebutton',
+				'action' => FULLWEBPATH . '/' . USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php',
 				'icon' => CHECKMARK_GREEN,
 				'title' => gettext('Enables all plugins.'),
 				'alt' => '',
@@ -55,8 +56,8 @@ class pluginEnabler {
 				'category' => gettext('Development'),
 				'enable' => true,
 				'button_text' => gettext('Plugins » remembered'),
-				'formname' => 'enablebutton2',
-				'action' => getAdminLink(USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php'),
+				'formname' => 'enablebutton',
+				'action' => FULLWEBPATH . '/' . USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php',
 				'icon' => CURVED_UPWARDS_AND_RIGHTWARDS_ARROW_BLUE,
 				'title' => gettext('Restores the plugin states to what was remembered.'),
 				'alt' => '',
@@ -68,8 +69,8 @@ class pluginEnabler {
 				'category' => gettext('Development'),
 				'enable' => true,
 				'button_text' => gettext('Plugins ¤ current'),
-				'formname' => 'enablebutton4',
-				'action' => getAdminLink(USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php'),
+				'formname' => 'enablebutton',
+				'action' => FULLWEBPATH . '/' . USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php',
 				'icon' => ARROW_DOWN_GREEN,
 				'title' => gettext('Remembers current plugin states.'),
 				'alt' => '',
@@ -82,7 +83,7 @@ class pluginEnabler {
 				'enable' => true,
 				'button_text' => gettext('Plugins × all'),
 				'formname' => 'disablebutton',
-				'action' => getAdminLink(USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php'),
+				'action' => FULLWEBPATH . '/' . USER_PLUGIN_FOLDER . '/pluginEnabler/handler.php',
 				'icon' => CROSS_MARK_RED,
 				'title' => gettext('Disables all plugins except pluginEnabler.'),
 				'alt' => '',

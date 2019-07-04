@@ -1,17 +1,14 @@
 <?php
 
-/**
- * @package plugins/instagramLogin
- */
 if (!defined('OFFSET_PATH'))
 	define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-functions.php');
 
 define('INSTAGRAM_CLIENT_ID', getOption('instagramClientID'));
 define('INSTAGRAM_CLIENT_SECRET', getOption('instagramClientSecret'));
-define('INSTAGRAM_REDIRECT_URI', getAdminLink(PLUGIN_FOLDER . '/instagramLogin/instagram-auth.php'));
+define('INSTAGRAM_REDIRECT_URI', FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/instagramLogin/instagram-auth.php');
 
-npg_session_start();
+zp_session_start();
 
 require_once('instagram-login-api.php');
 
@@ -34,6 +31,6 @@ if (isset($_GET['code'])) {
 	$code = gettext('Instagram did not provide a response code.');
 }
 session_unset();
-header('Location: ' . getAdminLink('admin.php') . '?_login_error=' . html_encode($error));
-exit();
+header('Location: ' . WEBPATH . '/' . ZENFOLDER . '/admin.php?_zp_login_error=' . html_encode($error));
+exitZP();
 ?>

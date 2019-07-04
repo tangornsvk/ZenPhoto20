@@ -6,7 +6,7 @@
  *
  * <i>utf8</i> encoding supports only <i>Basic Multilingual Plane</i> (BMP) characters. Many
  * recently defined Emoji characters are coded in with <i>trans-BMP</i> codes. For MySql to
- * handle these the data field character set must be set to <i>utf8mb4</i>. Existing
+ * handle these the data field character set must be set to <i>utf8mb4</i>. Existing ZenPhoto20
  * installations encode all text fields as <i>utf8</i> so trying to store a <i>trans-BMP</i>
  * character will result in data truncation at that character since it is not valid
  * in <i>utf8</i>.
@@ -21,33 +21,35 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/utf8mb4Migration
- * @pluginCategory development
+ * @package plugins
+ * @subpackage development
+ * @category package
  *
- * @Copyright 2017 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2017 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
 
 // force UTF-8 Ø
 
 $plugin_is_filter = defaultExtension(5 | ADMIN_PLUGIN);
 $plugin_description = gettext("Migrate database to utf8mb4 encodings.");
-$plugin_disable = npgFunctions::pluginDisable(array(array(version_compare(MySQL_VERSION, '5.5.3', '<'), gettext('MySQL version 5.5.3 or greater is required to support trans-BMP character encodings.')), array(@$_conf_vars['UTF-8'] == 'utf8mb4', gettext('<em>utf8mb4</em> migration is complete. '))));
+$plugin_disable = zpFunctions::pluginDisable(array(array(version_compare(MySQL_VERSION, '5.5.3', '<'), gettext('MySQL versuib 5.5.3 or greter is required to support trans-BMP character encodings..')), array($_zp_conf_vars['UTF-8'] == 'utf8mb4', gettext('<em>utf8mb4</em> migration is complete. '))));
 
-npgFilters::register('admin_utilities_buttons', 'utf8mb4Migration::buttons');
+zp_register_filter('admin_utilities_buttons', 'utf8mb4Migration::buttons');
 
 class utf8mb4Migration {
 
 	static function buttons($buttons) {
+		global $_zp_conf_vars;
 
-		if (getOption('UTF-8') == 'utf8') {
+		if ($_zp_conf_vars['UTF-8'] == 'utf8') {
 			if (version_compare(MySQL_VERSION, '5.5.3', '>=')) {
 				$buttons[] = array(
 						'category' => gettext('Development'),
 						'enable' => true,
 						'button_text' => gettext('Migrate to utf8mb4'),
 						'formname' => 'utf8button',
-						'action' => getAdminLink(USER_PLUGIN_FOLDER . '/utf8mb4Migration/migrate.php'),
-						'icon' => BADGE_BLUE,
+						'action' => FULLWEBPATH . '/' . USER_PLUGIN_FOLDER . '/utf8mb4Migration/migrate.php',
+						'icon' => ZP_BLUE,
 						'title' => gettext('A utility to migrate TEXT and LONGTEXT database fields to utf8mb4 so as to allow 4-byte unicode characters.'),
 						'alt' => '',
 						'hidden' => '',

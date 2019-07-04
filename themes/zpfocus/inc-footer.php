@@ -8,7 +8,7 @@
 		<div id="zpcredit">
 			<?php
 			if ($zpfocus_show_credit) {
-				print_SW_Link();
+				printZenphotoLink();
 			}
 			?>
 		</div>
@@ -20,13 +20,13 @@
 				printFavoritesURL(NULL, '<li>', '</li><li>', '</li>');
 			}
 			?>
-			<?php if (!npg_loggedin() && function_exists('printRegistrationForm')) { ?>
+			<?php if (!zp_loggedin() && function_exists('printRegistrationForm')) { ?>
 				<li><a href="<?php echo getCustomPageURL('register'); ?>" title="<?php echo gettext('Register'); ?>"><?php echo gettext('Register'); ?></a></li>
 			<?php } ?>
 
 			<?php
 			if (function_exists("printUserLogin_out")) {
-				if (npg_loggedin()) {
+				if (zp_loggedin()) {
 					?>
 					<li><?php printUserLogin_out("", ""); ?></li>
 				<?php } else { ?>
@@ -40,14 +40,14 @@
 				<div id="rsslinks">
 					<span><?php echo gettext('Subscribe: '); ?></span>
 					<?php
-					if ((in_context(NPG_ALBUM)) && (getOption('RSS_album_image'))) {
+					if ((in_context(ZP_ALBUM)) && (getOption('RSS_album_image'))) {
 						printRSSLink("Collection", "", gettext('This Album'), "  |  ", false, "rsslink");
 					}
 					if (getOption('RSS_items_albums')) {
 						printRSSLink("Gallery", "", (gettext('Gallery Images')), "", false, "rsslink");
 					}
-					if (function_exists('getBarePageTitle') && getOption('RSS_zenpage_items') && hasNews()) {
-						printRSSLink("News", ' | ', NEWS_LABEL, '', false);
+					if (function_exists('getBarePageTitle') && getOption('RSS_zenpage_items') && getNumNews(true)) {
+						printRSSLink("News", ' | ', gettext('News'), '', false);
 					}
 					?>
 				</div>
@@ -61,6 +61,6 @@
 		?>
 	</div>
 </div>
-<?php npgFilters::apply('theme_body_close'); ?>
+<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

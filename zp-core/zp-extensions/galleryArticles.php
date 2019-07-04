@@ -5,21 +5,22 @@
  *
  * @author Stephen Billard (sbillard)
 
- * @package plugins/galleryArticles
- * @pluginCategory theme
+ * @package plugins
+ * @subpackage theme
  */
 $plugin_is_filter = 600 | THEME_PLUGIN | ADMIN_PLUGIN;
 $plugin_description = gettext('Create news articles when a gallery item is published.');
+$plugin_author = "Stephen Billard (sbillard)";
 $plugin_disable = extensionEnabled('zenpage') ? '' : gettext('Gallery Articles requires Zenpage to be enabled.');
 
 $option_interface = 'galleryArticles';
 
-npgFilters::register('show_change', 'galleryArticles::published');
+zp_register_filter('show_change', 'galleryArticles::published');
 if (getOption('galleryArticles_albums'))
-	npgFilters::register('new_album', 'galleryArticles::published');
+	zp_register_filter('new_album', 'galleryArticles::published');
 if (getOption('galleryArticles_images'))
-	npgFilters::register('new_image', 'galleryArticles::published');
-npgFilters::register('content_macro', 'galleryArticles::macro');
+	zp_register_filter('new_image', 'galleryArticles::published');
+zp_register_filter('content_macro', 'galleryArticles::macro');
 
 class galleryArticles {
 
@@ -35,15 +36,14 @@ class galleryArticles {
 			setOptionDefault('galleryArticles_images', NULL);
 			setOptionDefault('galleryArticles_albums', NULL);
 			setOptionDefault('galleryArticles_category', NULL);
-			setOptionDefault('galleryArticles_show', 1);
 			setOptionDefault('galleryArticles_albumCategory', 0);
 			setOptionDefault('galleryArticles_album_text', getAllTranslations('New album: %1$s'));
 			setOptionDefault('galleryArticles_image_text', getAllTranslations('New image: [%2$s]%1$s'));
 			setOptionDefault('galleryArticles_size', 80);
 			setOptionDefault('galleryArticles_protected', 0);
 			if (class_exists('cacheManager')) {
-				cacheManager::deleteCacheSizes('galleryArticles');
-				cacheManager::addCacheSize('galleryArticles', getOption('galleryArticles_size'), NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL);
+				cacheManager::deleteThemeCacheSizes('galleryArticles');
+				cacheManager::addThemeCacheSize('galleryArticles', getOption('galleryArticles_size'), NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL);
 			}
 		}
 	}
@@ -53,10 +53,10 @@ class galleryArticles {
 	 * supported options
 	 */
 	function getOptionsSupported() {
-		global $_CMS;
-		if ($_CMS) {
+		global $_zp_CMS;
+		if ($_zp_CMS) {
 			$categories = array();
-			$list = $_CMS->getAllCategories();
+			$list = $_zp_CMS->getAllCategories();
 			foreach ($list as $cat) {
 				$categories[get_language_string($cat['title'])] = $cat['titlelink'];
 			}
@@ -81,9 +81,6 @@ class galleryArticles {
 					gettext('Publish protected') => array('key' => 'galleryArticles_protected', 'type' => OPTION_TYPE_CHECKBOX,
 							'order' => 4,
 							'desc' => gettext('Unless this is checked, objects which are "protected" will not have news articles generated.')),
-					gettext('Publish article') => array('key' => 'galleryArticles_show', 'type' => OPTION_TYPE_CHECKBOX,
-							'order' => 4.5,
-							'desc' => gettext('If checked the generated article will be published.')),
 					gettext('Category') => array('key' => 'galleryArticles_category', 'type' => OPTION_TYPE_SELECTOR,
 							'order' => 6,
 							'selections' => $categories,
@@ -116,7 +113,7 @@ class galleryArticles {
 
 	function handleOptionSave($themename, $themealbum) {
 		if (getOption('galleryArticles_import')) {
-			require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/galleryArticles/combiNews.php');
+			require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/galleryArticles/combiNews.php');
 			purgeOption('galleryArticles_import');
 		}
 		return false;
@@ -129,12 +126,10 @@ class galleryArticles {
 	 */
 	static function published($obj) {
 		global $_seen;
-		if ($obj->getShow()) {
-			$me = array($obj->table, $obj->getID());
-			if (!$_seen || !in_array($me, $_seen)) { //prevent recursive publications
-				$_seen[] = $me;
-				self::publishArticlesWithCheck($obj);
-			}
+		$me = array($obj->table, $obj->getID());
+		if (!$_seen || !in_array($me, $_seen)) { //prevent recursive publications
+			$_seen[] = $me;
+			self::publishArticlesWithCheck($obj);
 		}
 		return $obj;
 	}
@@ -158,24 +153,23 @@ class galleryArticles {
 	 * @param object $obj
 	 */
 	protected static function publishArticle($obj, $override = NULL) {
-		global $_CMS;
+		global $_zp_CMS;
 		$galleryitem_text = array();
 		$locale = getOption('locale');
-
 		switch ($type = $obj->table) {
 			case 'albums':
-				$folder = $album = $obj->name;
+				$album = $obj->name;
 				$dbstring = getOption('galleryArticles_album_text');
 				$localtext = get_language_string($dbstring);
 				$galleryitem_text[$locale] = sprintf($localtext, $obj->getTitle($locale));
-				foreach (i18n::generateLanguageList() as $key) {
+				foreach (generateLanguageList() as $key) {
 					$languagetext = get_language_string($dbstring, $key);
 					if ($localtext != $languagetext) {
 						$galleryitem_text[$key] = sprintf($languagetext, $obj->getTitle($key));
 					}
 				}
 				$ref = '"' . $album . '"';
-				$title = $album;
+				$title = $folder = $album;
 				$img = $obj->getAlbumThumbImage();
 				$class = 'galleryarticles-newalbum';
 				break;
@@ -185,7 +179,7 @@ class galleryArticles {
 				$dbstring = unserialize(getOption('galleryArticles_image_text'));
 				$localtext = get_language_string($dbstring);
 				$galleryitem_text[$locale] = sprintf($localtext, $obj->getTitle($locale), $obj->album->getTitle($locale));
-				foreach (i18n::generateLanguageList() as $key => $val) {
+				foreach (generateLanguageList() as $key => $val) {
 					$languagetext = get_language_string($dbstring, $key);
 					if ($localtext != $languagetext) {
 						$galleryitem_text[$key] = sprintf($localtext, $obj->getTitle($key), $obj->album->getTitle($key));
@@ -204,14 +198,16 @@ class galleryArticles {
 		$article = newArticle(seoFriendly('galleryArticles-' . $title));
 		$article->setTitle(serialize($galleryitem_text));
 		$imglink = $img->getCustomImage(getOption('galleryArticles_size'), NULL, NULL, NULL, NULL, NULL, NULL, -1);
-		$desc = '<p><a class="' . $class . '" href="' . $obj->getLink() . '" title="' . sprintf(gettext('View %1$s'), $title) . '"><img src="' . $imglink . '"></a></p><p>[GALLERYARTICLEDESC ' . $ref . ']</p>';
+		$desc = '<p><a class="' . $class . '" href="' . $obj->getLink() . '"><img src="' . $imglink . '"></a></p><p>[GALLERYARTICLEDESC ' . $ref . ']</p>';
 
 		$article->setContent($desc);
 		$date = $obj->getPublishDate();
 		if (!$date)
 			$date = date('Y-m-d H:i:s');
 		$article->setDateTime($date);
-		$article->setOwner('galleryArticles');
+		$article->setLastchange(date('Y-m-d H:i:s'));
+		$article->setAuthor('galleryArticles');
+		$article->setLastchangeauthor('galleryArticles');
 		$article->setShow(true);
 		$article->save();
 
@@ -220,7 +216,7 @@ class galleryArticles {
 		} else {
 			$cat = getOption('galleryArticles_category');
 			if (getOption('galleryArticles_albumCategory')) {
-				$catlist = $_CMS->getAllCategories();
+				$catlist = $_zp_CMS->getAllCategories();
 				foreach ($catlist as $category) {
 					if ($category['titlelink'] == $folder) {
 						$cat = $category['titlelink'];

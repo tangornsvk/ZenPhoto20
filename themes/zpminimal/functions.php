@@ -1,6 +1,6 @@
 <?php
 
-$_current_page_check = 'my_checkPageValidity';
+$_zp_page_check = 'my_checkPageValidity';
 
 function my_checkPageValidity($request, $gallery_page, $page) {
 	switch ($gallery_page) {

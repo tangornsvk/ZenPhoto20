@@ -5,39 +5,38 @@
  *
  * To change what is hidden, comment lines you do want to display.
  *
- * @author Stephen Billard (sbillard), Fred Sondaar (fretzl)
+ * @author Stephen Billard (sbillard)
  *
- * @package plugins/showNoUserRights
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
  */
 $plugin_is_filter = 5 | ADMIN_PLUGIN;
 $plugin_description = gettext("Hide the output of user rights and other info if user does NOT have ADMIN_RIGHTS.");
+$plugin_author = "Stephen Billard (sbillard), Fred Sondaar (fretzl)";
 
-npgFilters::register('admin_head', 'showNoUserRights::customDisplayRights');
-npgFilters::register('plugin_tabs', 'showNoUserRights::tab');
+zp_register_filter('admin_head', 'showNoUserRights::customDisplayRights');
+zp_register_filter('plugin_tabs', 'showNoUserRights::tab');
 
 class showNoUserRights {
 
 	static function customDisplayRights() {
-		global $_admin_tab, $_admin_subtab;
-		if (!npg_loggedin(ADMIN_RIGHTS)) {
-			if ($_admin_tab == 'admin' && ($_admin_subtab == 'users') || is_null($_admin_subtab)) {
-				?>
-				<script type="text/javascript">
-					// <!-- <![CDATA[
-					$(document).ready(function () {
-						$('select[name="showgroup"]').parent("th").remove(); 	// the "Show" dropdownn menu
-						$('.box-rights').remove(); 								// Rights. (the part with all the checkboxes).
-						$('.box-albums-unpadded').remove(); 			// Albums, Pages, and Categories.
-						$('td .notebox').parent().parent().remove();	//	notes and warnings he can't do anything about
-						$('.notebox').remove();
-					});
-					// ]]> -->
-				</script>
+		global $_zp_admin_tab, $_zp_admin_subtab;
+		if (!zp_loggedin(ADMIN_RIGHTS) && $_zp_admin_tab == 'admin' && $_zp_admin_subtab == 'users') {
+			?>
+			<script type="text/javascript">
+				// <!-- <![CDATA[
+				$(document).ready(function () {
+					$('select[name="showgroup"]').parent("th").remove(); 	// the "Show" dropdownn menu
+					$('.box-rights').remove(); 								// Rights. (the part with all the checkboxes).
+					$('.box-albums-unpadded').remove(); 					// Albums, Pages, and Categories.
+					$('label[for="admin_language_0"], ul.flags').remove(); 	// Languages
+				});
+				// ]]> -->
+			</script>
 
-				<?php
+			<?php
 
-			}
 		}
 	}
 

@@ -5,22 +5,23 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/favoritesAlbums
+ * @package plugins
+ * @subpackage media
  */
 // force UTF-8 Ø
 
 define('OFFSET_PATH', 1);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-require_once(CORE_SERVERPATH . 'template-functions.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
 
 admin_securityChecks(ALBUM_RIGHTS, $return = currentRelativeURL());
 
 $imagelist = array();
 
 function getSubalbumImages($folder) {
-	global $imagelist, $_gallery;
+	global $imagelist, $_zp_gallery;
 	$album = newAlbum($folder);
 	if ($album->isDynamic())
 		return;
@@ -34,20 +35,20 @@ function getSubalbumImages($folder) {
 	}
 }
 
-$user = $_current_admin_obj->getUser();
+$user = $_zp_current_admin_obj->getUser();
 $favorite = trim(sanitize($_REQUEST['title']), '/');
-if (isset($_GET['action']) && $_GET['action'] == 'savealbum') {
+if (isset($_POST['savealbum'])) {
 	XSRFdefender('savealbum');
 	$albumname = sanitize($_POST['album']);
 	if ($album = sanitize($_POST['albumselect'])) {
 		$albumobj = newAlbum($album);
 		$allow = $albumobj->isMyItem(UPLOAD_RIGHTS);
 	} else {
-		$allow = npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS);
+		$allow = zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS);
 	}
 	if (!$allow) {
-		if (!npgFilters::apply('admin_managed_albums_access', false, $return)) {
-			trigger_error(gettext("You do not have edit rights on this album."), E_USER_ERROR);
+		if (!zp_apply_filter('admin_managed_albums_access', false, $return)) {
+			zp_error(gettext("You do not have edit rights on this album."));
 		}
 	}
 
@@ -65,8 +66,8 @@ if (isset($_GET['action']) && $_GET['action'] == 'savealbum') {
 			fclose($f);
 			clearstatcache();
 			// redirct to edit of this album
-			header("Location: " . getAdminLink('admin-tabs/edit.php') . '?page=edit&album=' . pathurlencode($redirect));
-			exit();
+			header("Location: " . FULLWEBPATH . "/" . ZENFOLDER . "/admin-edit.php?page=edit&album=" . pathurlencode($redirect));
+			exitZP();
 		}
 	}
 }
@@ -78,7 +79,7 @@ printLogoAndLinks();
 echo "\n" . '<div id="main">';
 printTabs();
 echo "\n" . '<div id="content">';
-npgFilters::apply('admin_note', 'albums', 'dynamic');
+zp_apply_filter('admin_note', 'albums', 'dynamic');
 echo "<h1>" . gettext("Create Favorites Album") . "</h1>\n";
 
 if (isset($_POST['savealbum'])) { // we fell through, some kind of error
@@ -117,7 +118,7 @@ while ($old != $albumname) {
 }
 ?>
 <div class="tabbox">
-	<form class="dirtylistening" onReset="setClean('savealbum_form');" id="savealbum_form" action="?action=savealbum" method="post">
+	<form class="dirtylistening" onReset="setClean('savealbum_form');" id="savealbum_form" action="?savealbum" method="post">
 		<?php XSRFToken('savealbum'); ?>
 		<input type="hidden" name="savealbum" value="yes" />
 		<input type="hidden" name="title" value="<?php echo sanitize($_GET['title']); ?>" />
@@ -162,11 +163,11 @@ while ($old != $albumname) {
 					<select id="thumb" name="thumb">
 						<?php
 						$selections = array();
-						foreach ($_albumthumb_selector as $key => $selection) {
+						foreach ($_zp_albumthumb_selector as $key => $selection) {
 							$selections[$selection['desc']] = $key;
 						}
 						generateListFromArray(array(getOption('AlbumThumbSelect')), $selections, false, true);
-						$showThumb = $_gallery->getThumbSelectImages();
+						$showThumb = $_zp_gallery->getThumbSelectImages();
 						foreach ($imagelist as $imagepath) {
 							$pieces = explode('/', $imagepath);
 							$filename = array_pop($pieces);
@@ -212,8 +213,10 @@ while ($old != $albumname) {
 </div>
 <?php
 echo "\n" . '</div>';
-printAdminFooter();
 echo "\n" . '</div>';
+
+printAdminFooter();
+
 echo "\n</body>";
 echo "\n</html>";
 ?>

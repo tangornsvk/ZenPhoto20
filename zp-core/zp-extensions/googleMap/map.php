@@ -2,19 +2,18 @@
 /*
  * google_maps -- map server
  *
- * @package plugins/googleMap
+ * @package plugins
  */
 
 // force UTF-8 Ø
-header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+
 define('OFFSET_PATH', 3);
 require_once(dirname(dirname(dirname(__FILE__))) . '/functions.php');
 if (getOption('gmap_sessions')) {
-	npg_session_start();
+	zp_session_start();
 }
 require_once(dirname(dirname(__FILE__)) . '/googleMap.php');
-
-GoogleMap::js();
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/2002/REC-xhtml1-20020801/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" />
@@ -25,9 +24,9 @@ GoogleMap::js();
 <body>
 	<?php
 	if (getOption('gmap_sessions')) {
-		$map_data = @$_SESSION['GoogleMapVars'];
+		$map_data = $_SESSION['GoogleMapVars'];
 	} else {
-		$param = base64_decode(str_replace(' ', '+', sanitize(@$_GET['map_data'])));
+		$param = base64_decode(str_replace(' ', '+', sanitize($_GET['map_data'])));
 		if ($param) {
 			if (function_exists('bzcompress')) {
 				$data = bzdecompress($param);
@@ -35,8 +34,6 @@ GoogleMap::js();
 				$data = gzuncompress($param);
 			}
 			$map_data = sanitize(unserialize($data), 4);
-		} else {
-			$map_data = '';
 		}
 	}
 
@@ -75,6 +72,7 @@ GoogleMap::js();
 		$config['clusterAverageCenter'] = true;
 		$config['onclick'] = "iw.close();";
 		$config['minifyJS'] = true;
+
 		$map = new Googlemaps($config);
 
 		$map->output_js_contents = $map_data["output_js_contents"];
@@ -85,7 +83,7 @@ GoogleMap::js();
 				//<![CDATA[
 	<?php
 	echo $map->output_js_contents;
-	echo GoogleMap::omsAdditions();
+	echo omsAdditions();
 	?>
 
 				function image(album, image) {
@@ -115,7 +113,7 @@ GoogleMap::js();
 					<?php
 					if (!getOption('gmap_sessions')) {
 						?>
-						<li><?php printf(gettext('Enable the <a href="javascript:parent.window.location=%s;">GoogleMap option</a> <em>Map sessions</em>.'), "'" . getAdminLink('admin-tabs/options.php') . '?tab=plugin&show-GoogleMap' . "'"); ?></li>
+						<li><?php printf(gettext('Enable the <a href="javascript:parent.window.location=%s;">GoogleMap option</a> <em>Map sessions</em>.'), "'" . FULLWEBPATH . '/' . ZENFOLDER . '/admin-options.php?tab=plugin&show-GoogleMap' . "'"); ?></li>
 						<?php
 					}
 					?>

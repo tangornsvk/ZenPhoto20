@@ -7,7 +7,7 @@
  * This plugin supplies file handling using <i>elFinder</i> by {@link http://elfinder.org/ Studio-42 }.
  *
  * <hr>
- * <img src="%WEBPATH%/%CORE_FOLDER%/%PLUGIN_FOLDER%/elFInder/elfinder-logo.png" />
+ * <img src="%WEBPATH%/%ZENFOLDER%/%PLUGIN_FOLDER%/elFInder/elfinder-logo.png" />
  * "<i>elFinder</i> is a file manager for web similar to that you use on your computer. Written in JavaScript
  * using jQuery UI, it just work's in any modern browser. Its creation is inspired by simplicity and
  * convenience of Finder.app program used in Mac OS X."
@@ -19,11 +19,12 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/elFinder
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  */
 $plugin_is_filter = defaultExtension(50 | ADMIN_PLUGIN);
 $plugin_description = gettext('Provides file handling for the <code>upload/files</code> tab and the <em>TinyMCE</em> file browser.');
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'elFinder_options';
 
@@ -67,81 +68,60 @@ class elFinder_options {
 
 }
 
-if (getOption('elFinder_files') && npg_loggedin(FILES_RIGHTS | UPLOAD_RIGHTS)) {
-	npgFilters::register('admin_tabs', 'elFinder_admin_tabs');
+if (getOption('elFinder_files') && zp_loggedin(FILES_RIGHTS | UPLOAD_RIGHTS)) {
+	zp_register_filter('admin_tabs', 'elFinder_admin_tabs');
 	if (getOption('elFinder_themeeditor')) {
-		npgFilters::register('theme_editor', 'elFinderThemeEdit');
+		zp_register_filter('theme_editor', 'elFinderThemeEdit');
 	}
 }
 if (getOption('elFinder_tinymce')) {
-	npgFilters::register('tinymce_config', 'elFinder_tinymce');
+	zp_register_filter('tinymce_config', 'elFinder_tinymce');
 }
 
 function elFinder_admin_tabs($tabs) {
-	if (npg_loggedin(UPLOAD_RIGHTS)) {
+	if (zp_loggedin(UPLOAD_RIGHTS)) {
 		$me = sprintf(gettext('files (%s)'), 'elFinder');
+		$mylink = PLUGIN_FOLDER . '/' . 'elFinder/filemanager.php?page=upload&tab=elFinder&type=' . gettext('files');
 		if (is_null($tabs['upload'])) {
 			$tabs['upload'] = array('text' => gettext("upload"),
-					'link' => getAdminLink(PLUGIN_FOLDER . '/' . 'elFinder/filemanager.php') . '?page=upload&tab=elFinder&type=' . gettext('files'),
+					'link' => WEBPATH . "/" . ZENFOLDER . '/' . $mylink,
 					'subtabs' => NULL,
 					'default' => 'elFinder'
 			);
 		}
-		$tabs['upload']['subtabs'][$me] = PLUGIN_FOLDER . '/' . 'elFinder/filemanager.php?page=upload&tab=elFinder&type=' . gettext('files');
-		;
+		$tabs['upload']['subtabs'][$me] = $mylink;
 	}
 	return $tabs;
 }
 
 function elFinder_tinymce($discard) {
-	global $MCEspecial;
 
-	$file = FULLWEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/elFinder/connector.mce.php?XSRFToken=' . getXSRFToken('elFinder');
-	$MCEspecial ['file_picker_callback'] = 'elFinderBrowser';
+	$file = FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/elFinder/elfinder.php?XSRFToken=' . getXSRFToken('elFinder') . '&type=';
 	?>
 	<script type="text/javascript">
 		// <!-- <![CDATA[
-		function elFinderBrowser(callback, value, meta) {
-			var windowManagerURL = '<?php echo $file; ?>&type=' + meta.type,
-							windowManagerCSS = '<style type="text/css">' +
-							'.tox-dialog {max-width: 100%!important; width:900px!important; overflow: hidden; height:500px!important; bborder-radius:0.25em;}' +
-							'.tox-dialog__header{ border-bottom: 1px solid lightgray!important; }' + // for custom header in filemanage
-							'.tox-dialog__footer { display: none!important; }' + // for custom footer in filemanage
-							'.tox-dialog__body { padding: 5!important; }' +
-							'.tox-dialog__body-content > div { height: 100%; overflow:hidden}' +
-							'</style > ';
-			window.tinymceCallBackURL = '';
-			window.tinymceWindowManager = tinymce.activeEditor.windowManager;
-			tinymceWindowManager.open({
-				title: 'elFinder',
-				body: {
-					type: 'panel',
-					items: [{
-							type: 'htmlpanel',
-							html: windowManagerCSS + '<iframe src="' + windowManagerURL + '"  frameborder="0" style="width:100%; height:100%"></iframe>'
-						}]
-				},
-				buttons: [],
-				onClose: function () {
-					//to set selected file path
-					if (tinymceCallBackURL != '') {
-						if (meta.filetype == 'image') {
-							callback(tinymceCallBackURL, {alt: tinymceCallBackInfo});
-						} else {
-							callback(tinymceCallBackURL, {});
-						}
-					}
+		function elFinderBrowser(field_name, url, type, win) {
+			tinymce.activeEditor.windowManager.open({
+				file: '<?php echo $file; ?>' + type, // use an absolute path!
+				title: 'elFinder 2.0',
+				width: 900,
+				height: 450,
+				close_previous: 'no',
+				inline: 'yes', // This parameter only has an effect if you use the inlinepopups plugin!
+				popup_css: false, // Disable TinyMCE's default popup CSS
+				resizable: 'yes'
+			}, {
+				setUrl: function (url) {
+					win.document.getElementById(field_name).value = url;
 				}
-
-
-			}
-			);
+			});
 			return false;
 		}
 		// ]]> -->
 	</script>
 
 	<?php
+	return 'elFinderBrowser';
 }
 
 function elFinderThemeEdit($html, $theme) {

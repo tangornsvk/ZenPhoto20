@@ -66,7 +66,7 @@ body {
 
 /* Link Styles
 ------------------------------ */
-a, a:link, a:active, a:visited { text-decoration: underline; color: #86a1b6; }
+a:link, a:active, a:visited { text-decoration: underline; color: #86a1b6; }
 a:hover, a:focus { text-decoration: underline; color: #94c2e5; }
 
 /* Text Styles
@@ -101,11 +101,6 @@ h3 {
 h3 a:link, h3 a:visited { text-decoration: none; }
 h3 a:hover { text-decoration: underline; }
 
-
-.zp_link a {
-	background-color: #333;
-	color: #86a1b6;
-}
 
 /* Miscellaneous
 ------------------------------ */
@@ -193,10 +188,13 @@ ul.pagelist li.next {
 #imageDescEditable, #albumTagsEditable {
 	margin-top: 24px;
 }
-#imageDesc {
+#imageDesc, #exif_link {
 	margin-bottom: 4px;
 }
 
+#exif_link {
+	float: right;
+}
 
 /* Tags
 ------------------------------ */
@@ -357,11 +355,6 @@ span.tags_title {
 	width: 440px;
 }
 
-/* Clear floats
------------------------------- */
-.clearfloat {
-	clear: both;
-}
 
 /* Comments
 ------------------------------ */
@@ -418,6 +411,10 @@ input#code {
 	margin-left: 10px;
 	width: 10em !important;
 }
+#recaptcha_widget_div {
+	float: left;
+}
+
 
 /* Forms
 ------------------------------ */
@@ -451,14 +448,14 @@ label:hover {
 /* Admin Toolbox
 ------------------------------ */
 
-#admin_tb h3 {
+#admin h3 {
 	font-weight: normal;
 	color: #aaa;
 	margin:0;
 	padding:0;
 	text-align: left;
 }
-#admin_tb h3:hover { color: #86a1b6; }
+#admin h3:hover { color: #86a1b6; }
 
 /* Search Box
 ------------------------------ */
@@ -658,7 +655,7 @@ label:hover {
 #registration_form input[type="password"],
 #mailform input[type="text"],
 #commentform input[type="text"] {
-	width: 250px;
+	width: 65%;
 }
 
 input.button {
@@ -675,10 +672,21 @@ input.button {
 
 form input[type="submit"],
 form input[type="reset"],
-form input[type="button"] {
+form input[type="button"],
+a.slideshowlink {
 	background-color: gray;
 	border: 0;
 	font-size: 12px;
+}
+
+a.slideshowlink {
+	color: black;
+	padding: 5px 6px 3px 6px;
+	margin-top: 10px !important;
+	text-decoration: none;
+	clear: both;
+	margin-top: 10px;
+	display: inline-block;
 }
 
 

@@ -5,17 +5,17 @@
 $optionRights = ADMIN_RIGHTS;
 
 function saveOptions() {
-	global $_gallery;
+	global $_zp_gallery;
 
 	$notify = $returntab = NULL;
-	if (isset($_GET['single'])) {
-		$returntab = "&tab=plugin&single=" . sanitize($_GET['single']);
-	} else {
-		$returntab = "&tab=plugin&subpage=$subpage";
-	}
-
-	if (!isset($_POST['checkForPostTruncation'])) {
+	if (isset($_POST['checkForPostTruncation'])) {
 		// all plugin options are handled by the custom option code.
+		if (isset($_GET['single'])) {
+			$returntab = "&tab=plugin&single=" . sanitize($_GET['single']);
+		} else {
+			$returntab = "&tab=plugin&subpage=$subpage";
+		}
+	} else {
 		$notify = '?post_error';
 	}
 
@@ -23,7 +23,7 @@ function saveOptions() {
 }
 
 function getOptionContent() {
-	global $_gallery;
+	global $_zp_gallery;
 
 	if (isset($_GET['subpage'])) {
 		$subpage = sanitize_numeric($_GET['subpage']);
@@ -35,7 +35,7 @@ function getOptionContent() {
 		}
 	}
 
-	if (npg_loggedin(ADMIN_RIGHTS)) {
+	if (zp_loggedin(ADMIN_RIGHTS)) {
 		if (isset($_GET['single'])) {
 			$showExtension = sanitize($_GET['single']);
 			$_GET['show-' . $showExtension] = true;
@@ -43,7 +43,7 @@ function getOptionContent() {
 			$showExtension = NULL;
 		}
 
-		$_plugin_count = 0;
+		$_zp_plugin_count = 0;
 
 		$plugins = array();
 		$list = array_keys(getPluginFiles('*.php'));
@@ -104,7 +104,7 @@ function getOptionContent() {
 							<th style="text-align:left">
 							</th>
 							<th style="text-align:right; padding-right: 10px;">
-								<?php printPageSelector($subpage, $rangeset, 'admin-tabs/options.php', array('page' => 'options', 'tab' => 'plugin')); ?>
+								<?php printPageSelector($subpage, $rangeset, 'admin-options.php', array('page' => 'options', 'tab' => 'plugin')); ?>
 							</th>
 							<th></th>
 						</tr>
@@ -136,7 +136,7 @@ function getOptionContent() {
 							}
 						}
 						if (!empty($option_interface)) {
-							$_plugin_count++;
+							$_zp_plugin_count++;
 							?>
 							<!-- <?php echo $extension; ?> -->
 							<tr>
@@ -162,7 +162,7 @@ function getOptionContent() {
 
 											<?php
 										} else {
-											$optionlink = getAdminLink('admin-tabs/options.php') . '?page=options&amp;tab=plugin&amp;single=' . html_encode($extension);
+											$optionlink = FULLWEBPATH . '/' . ZENFOLDER . '/admin-options.php?page=options&amp;tab=plugin&amp;single=' . html_encode($extension);
 											?>
 											<span class="icons">
 												<a href="<?php echo $optionlink; ?>" title="<?php printf(gettext("Change %s options"), html_encode($extension)); ?>">
@@ -215,7 +215,7 @@ function getOptionContent() {
 							}
 						}
 					}
-					if ($_plugin_count == 0) {
+					if ($_zp_plugin_count == 0) {
 						?>
 						<tr>
 							<td style="padding: 0;margin:0" colspan="100%">
@@ -248,7 +248,7 @@ function getOptionContent() {
 							<tr>
 								<th></th>
 								<th style="text-align:right; padding-right: 10px;">
-									<?php printPageSelector($subpage, $rangeset, 'admin-tabs/options.php', array('page' => 'options', 'tab' => 'plugin')); ?>
+									<?php printPageSelector($subpage, $rangeset, 'admin-options.php', array('page' => 'options', 'tab' => 'plugin')); ?>
 								</th>
 								<th></th>
 							</tr>

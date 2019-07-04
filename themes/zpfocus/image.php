@@ -10,7 +10,7 @@
 	<?php
 	if ($zpfocus_logotype) {
 		?>
-		<a style="display:block;" href="<?php echo getGalleryIndexURL(); ?>"><img src="<?php echo $_themeroot; ?>/images/<?php echo $zpfocus_logofile; ?>" alt="<?php echo html_encode(getBareGalleryTitle()); ?>" /></a>
+		<a style="display:block;" href="<?php echo getGalleryIndexURL(); ?>"><img src="<?php echo $_zp_themeroot; ?>/images/<?php echo $zpfocus_logofile; ?>" alt="<?php echo html_encode(getBareGalleryTitle()); ?>" /></a>
 		<?php
 	} else {
 		?>
@@ -29,7 +29,7 @@
 		<span id="img-title"><?php printImageTitle(true); ?></span>
 	</div>
 	<div class="album-details">
-		<?php if ($useGslideshow && isImagePhoto()) { ?>
+		<?php if ($useGslideshow) { ?>
 			<div class="slideshowlink"><?php printSlideShowLink(gettext('Slideshow')); ?></div>
 		<?php } ?>
 		<ul>
@@ -60,7 +60,7 @@
 	</div>
 	<?php
 	if (function_exists('printAddToFavorites')) {
-		printAddToFavorites($_current_image);
+		printAddToFavorites($_zp_current_image);
 		echo '<br/>';
 	}
 	?>
@@ -81,10 +81,10 @@
 		</div>
 	<?php } ?>
 
-	<?php if (simplemap::mapPlugin()) { ?>
+	<?php if (function_exists('printGoogleMap')) { ?>
 		<div class="gmap">
 			<?php
-			simplemap::printMap();
+			printGoogleMap();
 			?>
 		</div>
 	<?php } ?>

@@ -1,13 +1,12 @@
 <?php
 
-/**
- * @package plugins/uploader_http
- */
 function upload_head() {
-	$myfolder = CORE_SERVERPATH .  PLUGIN_FOLDER . '/uploader_http';
-	scriptLoader($myfolder . '/httpupload.css');
-	scriptLoader($myfolder . '/httpupload.js');
-	return getAdminLink(PLUGIN_FOLDER . '/uploader_http/uploader.php');
+	$myfolder = WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/uploader_http';
+	?>
+	<link rel="stylesheet" type="text/css" href="<?php echo $myfolder; ?>/httpupload.css">
+	<script type="text/javascript" src="<?php echo $myfolder; ?>/httpupload.js"></script>
+	<?php
+	return $myfolder . '/uploader.php';
 }
 
 function upload_extra($uploadlimit, $passedalbum) {
@@ -15,7 +14,7 @@ function upload_extra($uploadlimit, $passedalbum) {
 }
 
 function upload_form($uploadlimit, $passedalbum) {
-	global $_current_admin_obj;
+	global $_zp_current_admin_obj;
 
 	XSRFToken('upload');
 	?>
@@ -41,8 +40,8 @@ function upload_form($uploadlimit, $passedalbum) {
 	</script>
 
 	<input type="hidden" name="existingfolder" id="existingfolder" value="false" />
-	<input type="hidden" name="auth" id="auth" value="<?php echo $_current_admin_obj->getPass(); ?>" />
-	<input type="hidden" name="id" id="id" value="<?php echo $_current_admin_obj->getID(); ?>" />
+	<input type="hidden" name="auth" id="auth" value="<?php echo $_zp_current_admin_obj->getPass(); ?>" />
+	<input type="hidden" name="id" id="id" value="<?php echo $_zp_current_admin_obj->getID(); ?>" />
 	<input type="hidden" name="processed" id="processed" value="1" />
 	<input type="hidden" name="folder" id="folderslot" value="<?php echo html_encode($passedalbum); ?>" />
 	<input type="hidden" name="albumtitle" id="albumtitleslot" value="" />
@@ -65,8 +64,8 @@ function upload_form($uploadlimit, $passedalbum) {
 	<p id="addUploadBoxes"><a href="javascript:addUploadBoxes('place','filetemplate',5)" title="<?php echo gettext("Does not reload!"); ?>">+ <?php echo gettext("Add more upload boxes"); ?></a> <small>
 			<?php echo gettext("(will not reload the page, but remember your upload limits!)"); ?></small></p>
 
-	<p class="fileUploadActions" class="buttons" style="display: none;">
-		<button type="submit" value="<?php echo gettext('Upload'); ?>" onclick="$('#folderslot').val($('#folderdisplay').val());" class="button">
+	<p id="fileUploadbuttons" class="buttons" style="display: none;">
+		<button type="submit" value="<?php echo gettext('Upload'); ?>" onclick="this.form.folder.value = this.form.folderdisplay.value;" class="button">
 			<?php echo CHECKMARK_GREEN; ?>
 			<?php echo gettext('Upload'); ?>
 		</button>

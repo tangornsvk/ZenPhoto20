@@ -10,21 +10,21 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/crop_image
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
  */
 if (isset($_REQUEST['performcrop'])) {
 	if (!defined('OFFSET_PATH'))
 		define('OFFSET_PATH', 3);
 	require_once(dirname(dirname(__FILE__)) . '/admin-globals.php');
-	require_once(dirname(dirname(__FILE__)) . '/lib-image.php');
+	require_once(dirname(dirname(__FILE__)) . '/functions-image.php');
 	admin_securityChecks(ALBUM_RIGHTS, $return = currentRelativeURL());
 } else {
-	npgFilters::register('admin_toolbox_image', 'crop_image::toolbox');
-	npgFilters::register('edit_image_utilities', 'crop_image::edit', 99999); // we want this one to come right after the crop thumbnail button
+	zp_register_filter('admin_toolbox_image', 'crop_image::toolbox');
+	zp_register_filter('edit_image_utilities', 'crop_image::edit', 99999); // we want this one to come right after the crop thumbnail button
 	$plugin_is_filter = defaultExtension(5 | ADMIN_PLUGIN);
 	$plugin_description = gettext("An image cropping tool.");
-
+	$plugin_author = "Stephen Billard (sbillard)";
 	return;
 }
 
@@ -37,7 +37,8 @@ class crop_image {
 			if (isImagePhoto($image)) {
 				?>
 				<li>
-					<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/crop_image.php'); ?>?a=<?php echo pathurlencode($albumname); ?>						 &amp;i=<?php echo urlencode($imagename); ?>&amp;performcrop=frontend "><?php echo gettext("Crop image"); ?></a>
+					<a href="<?php echo WEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/crop_image.php?a=<?php echo pathurlencode($albumname); ?>
+						 &amp;i=<?php echo urlencode($imagename); ?>&amp;performcrop=frontend "><?php echo gettext("Crop image"); ?></a>
 				</li>
 				<?php
 			}
@@ -55,10 +56,11 @@ class crop_image {
 			}
 			if ($singleimage)
 				$singleimage = '&amp;singleimage=' . $singleimage;
-			$output .= '<div class="button buttons tooltip" title="' . gettext('Permanently crop the actual image.') . '">' . "\n" .
-							'<a href="' . getAdminLink(PLUGIN_FOLDER . '/crop_image.php') . '?a=' . pathurlencode($albumname) . "\n" .
+			$output .=
+							'<div class="button buttons tooltip" title="' . gettext('Permanently crop the actual image.') . '">' . "\n" .
+							'<a href="' . WEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/crop_image.php?a=' . pathurlencode($albumname) . "\n" .
 							'&amp;i=' . urlencode($imagename) . '&amp;performcrop=backend&amp;subpage=' . $subpage . $singleimage . '&amp;tagsort=' . html_encode($tagsort) . '">' . "\n" .
-							'<img src="' . WEBPATH . '/' . CORE_FOLDER . '/images/shape_handles.png" alt="" />' . gettext("Crop image") . '</a>' . "\n" .
+							'<img src="images/shape_handles.png" alt="" />' . gettext("Crop image") . '</a>' . "\n" .
 							'<br class="clearall">' .
 							'</div>' . "\n";
 		}
@@ -67,13 +69,13 @@ class crop_image {
 
 }
 
-$albumname = sanitize_path(@$_REQUEST['a']);
-$imagename = sanitize(@$_REQUEST['i']);
-$album = newAlbum($albumname, true, true);
-if (!$album->exists || !$album->isMyItem(ALBUM_RIGHTS)) { // prevent nefarious access to this page.
-	if (!npgFilters::apply('admin_managed_albums_access', false, $return)) {
-		header('Location: ' . getAdminLink('admin.php') . '?from=' . $return);
-		exit();
+$albumname = sanitize_path($_REQUEST['a']);
+$imagename = sanitize($_REQUEST['i']);
+$album = newAlbum($albumname);
+if (!$album->isMyItem(ALBUM_RIGHTS)) { // prevent nefarious access to this page.
+	if (!zp_apply_filter('admin_managed_albums_access', false, $return)) {
+		header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?from=' . $return);
+		exitZP();
 	}
 }
 if (isset($_REQUEST['singleimage'])) {
@@ -86,12 +88,12 @@ if (isset($_REQUEST['singleimage'])) {
 $use_side = getOption('image_use_side');
 // get full width and height
 $albumobj = newAlbum($albumname);
-$imageobj = newImage($albumobj, $imagename, true);
+$imageobj = newImage($albumobj, $imagename);
 
 if (isImagePhoto($imageobj)) {
 	$imgpath = $imageobj->localpath;
 	$imagepart = basename($imgpath);
-	$timg = gl_imageGet($imgpath);
+	$timg = zp_imageGet($imgpath);
 	$width = $imageobj->getWidth();
 	$height = $imageobj->getHeight();
 } else {
@@ -147,7 +149,7 @@ $iH = round($sizedheight * 0.9);
 $iX = round($sizedwidth * 0.05);
 $iY = round($sizedheight * 0.05);
 
-if (isset($_GET['action']) && $_GET['action'] == 'crop') {
+if (isset($_REQUEST['crop'])) {
 	XSRFdefender('crop');
 	$cw = $_REQUEST['w'];
 	$ch = $_REQUEST['h'];
@@ -164,21 +166,21 @@ if (isset($_GET['action']) && $_GET['action'] == 'crop') {
 //create a new image with the set cropping
 	$quality = getOption('full_image_quality');
 	$rotate = false;
-	if (gl_imageCanRotate()) {
-		$rotate = imageProcessing::getRotation($imageobj);
+	if (zp_imageCanRotate()) {
+		$rotate = getImageRotation($imageobj);
 	}
 	if (DEBUG_IMAGE)
 		debugLog("image_crop: crop " . basename($imgpath) . ":\$cw=$cw, \$ch=$ch, \$cx=$cx, \$cy=$cy \$rotate=$rotate");
 
 	if ($rotate) {
-		$timg = gl_rotateImage($timg, $rotate);
+		$timg = zp_rotateImage($timg, $rotate);
 	}
 
-	$newim = gl_createImage($cw, $ch);
-	gl_resampleImage($newim, $timg, 0, 0, $cx, $cy, $cw, $ch, $cw, $ch, getSuffix($imagename));
+	$newim = zp_createImage($cw, $ch);
+	zp_resampleImage($newim, $timg, 0, 0, $cx, $cy, $cw, $ch, $cw, $ch, getSuffix($imagename));
 	@chmod($imgpath, 0777);
 	@unlink($imgpath);
-	if (gl_imageOutputt($newim, getSuffix($imgpath), $imgpath, $quality)) {
+	if (zp_imageOutput($newim, getSuffix($imgpath), $imgpath, $quality)) {
 		if (DEBUG_IMAGE)
 			debugLog('image_crop Finished:' . basename($imgpath));
 	} else {
@@ -186,8 +188,8 @@ if (isset($_GET['action']) && $_GET['action'] == 'crop') {
 			debugLog('image_crop: failed to create ' . $imgpath);
 	}
 	@chmod($imgpath, FILE_MOD);
-	gl_imageKill($newim);
-	gl_imageKill($timg);
+	zp_imageKill($newim);
+	zp_imageKill($timg);
 	Gallery::clearCache($albumname);
 // update the image data
 	$imageobj->set('rotation', 0);
@@ -199,7 +201,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'crop') {
 	$imageobj->save();
 
 	if ($_REQUEST['performcrop'] == 'backend') {
-		$return = getAdminLink('admin-tabs/edit.php') . '?page=edit&album=' . pathurlencode($albumname) . '&saved&subpage=' . sanitize($_REQUEST['subpage']) . '&tagsort=' . sanitize($_REQUEST['tagsort']) . '&tab=imageinfo';
+		$return = FULLWEBPATH . '/' . ZENFOLDER . '/admin-edit.php?page=edit&album=' . pathurlencode($albumname) . '&saved&subpage=' . sanitize($_REQUEST['subpage']) . '&tagsort=' . sanitize($_REQUEST['tagsort']) . '&tab=imageinfo';
 		if ($singleimage)
 			$return .= '&singleimage=' . html_encode($singleimage);
 	} else {
@@ -207,7 +209,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'crop') {
 	}
 
 	header('Location: ' . $return);
-	exit();
+	exitZP();
 }
 if (isset($_REQUEST['subpage'])) {
 	$subpage = sanitize($_REQUEST['subpage']);
@@ -231,18 +233,19 @@ if ($pasteobj) {
 	</style>
 	<?php
 }
-scriptLoader(CORE_SERVERPATH . 'js/Jcrop/jquery.Jcrop.css');
-scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/crop_image/crop_image.css');
-scriptLoader(CORE_SERVERPATH . 'js/Jcrop/jquery.Jcrop.js');
-scriptLoader(CORE_SERVERPATH . 'js/htmlencoder.js');
 ?>
+
+<script src="<?php echo WEBPATH . '/' . ZENFOLDER ?>/js/jquery.Jcrop.js" type="text/javascript"></script>
+<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/htmlencoder.js"></script>
+<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER ?>/js/jquery.Jcrop.css" type="text/css" />
+<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER ?>/crop_image/crop_image.css" type="text/css" />
 <script type="text/javascript" >
 	//<!-- <![CDATA[
 	var jcrop_api;
 	var sizedWidth = <?php echo $sizedwidth ?>;
 	var sizedHeight = <?php echo $sizedheight ?>;
 	var oldSize = <?php echo $size; ?>;
-	jQuery(window).on("load", function () {
+	jQuery(window).load(function () {
 		initJcrop();
 		function initJcrop() {
 			jcrop_api = jQuery.Jcrop('#cropbox');
@@ -346,7 +349,7 @@ if ($pasteobj && isset($_REQUEST['size'])) {
 			wmk = '!';
 		}
 
-		uri = '<?php echo WEBPATH . '/' . CORE_FOLDER . '/i.php?a=' . pathurlencode($albumname) . '&i=' . urlencode($imagename); ?>' + '&w=' + new_width + '&h=' + new_height + '&cw=' + cw + '&ch=' + ch + '&cx=' + cx + '&cy=' + cy + '&wmk=' + wmk;
+		uri = '<?php echo WEBPATH . '/' . ZENFOLDER . '/i.php?a=' . pathurlencode($albumname) . '&i=' . urlencode($imagename); ?>' + '&w=' + new_width + '&h=' + new_height + '&cw=' + cw + '&ch=' + ch + '&cx=' + cx + '&cy=' + cy + '&wmk=' + wmk;
 		jQuery('#imageURI').val(uri);
 		jQuery('#imageURI').attr('size', uri.length + 10);
 		$('#crop').addClass('dirty');
@@ -377,7 +380,7 @@ if ($pasteobj && isset($_REQUEST['size'])) {
 			<div id="main">
 				<?php printTabs(); ?>
 				<div id="content">
-					<?php npgFilters::apply('admin_note', 'crop_image', ''); ?>
+					<?php zp_apply_filter('admin_note', 'crop_image', ''); ?>
 					<h1><?php echo gettext("Image cropping") . ": <em>" . $albumobj->name . " (" . $albumobj->getTitle() . ") /" . $imageobj->filename . " (" . $imageobj->getTitle() . ")</em>"; ?></h1>
 					<div id="notice_div">
 						<p><?php echo gettext('You can crop your image by dragging the crop handles on the image'); ?></p>
@@ -390,12 +393,12 @@ if ($pasteobj && isset($_REQUEST['size'])) {
 
 					<div style="text-align:left; float: left;">
 						<!-- This is the form that our event handler fills -->
-						<form class="dirtylistening" onReset="setClean('crop');"  name="crop" id="crop" method="post" action="?action=crop" onsubmit="return checkCoords();">
+						<form class="dirtylistening" onReset="setClean('crop');"  name="crop" id="crop" action="?crop" onsubmit="return checkCoords();">
 							<?php XSRFToken('crop'); ?>
 
 							<div style="width: <?php echo $sizedwidth; ?>px; height: <?php echo $sizedheight; ?>px; margin-bottom: 10px; border: 4px solid gray;">
 								<!-- This is the image we're attaching Jcrop to -->
-								<img src="<?php echo html_encode($imageurl); ?>" id="cropbox" />
+								<img src="<?php echo html_encode(pathurlencode($imageurl)); ?>" id="cropbox" />
 								<span class="floatright">
 									<?php echo sprintf(gettext('(<span id="new-width">%1$u</span> x <span id="new-height">%2$u</span> pixels)'), round($iW * ($width / $sizedwidth)), round($iH * ($height / $sizedheight)));
 									?>
@@ -408,7 +411,7 @@ if ($pasteobj && isset($_REQUEST['size'])) {
 							</p>
 							<p>
 								<?php
-								printf(gettext('crop width:%1$s %2$s crop height:%3$s'), '<input type="text" id="aspect-ratio-width" name="aspect-ratio-width" value="" size="5" />', '&nbsp;<span id="aspect" ><a id="swap_button" onclick="swapAspect();" title="' . gettext('swap width and height fields') . '" > ' . SWAP_ICON . ' </a></span>&nbsp;', '<input type="text" id="aspect-ratio-height" name="aspect-ratio-height" value="" size="5" />');
+								printf(gettext('crop width:%1$s %2$s crop height:%3$s'), '<input type="text" id="aspect-ratio-width" name="aspect-ratio-width" value="" size="5" />', '&nbsp;<span id="aspect" ><a id="swap_button" onclick="swapAspect();" title="' . gettext('swap width and height fields') . '" > <img src="crop_image/swap.png"> </a></span>&nbsp;', '<input type="text" id="aspect-ratio-height" name="aspect-ratio-height" value="" size="5" />');
 								?>
 							</p>
 							<?php
@@ -455,7 +458,7 @@ if ($pasteobj && isset($_REQUEST['size'])) {
 								<?php
 								if ($_REQUEST['performcrop'] == 'backend') {
 									?>
-									<button type="button" value="<?php echo gettext('Back') ?>" onclick="window.location = '<?php echo getAdminLink('admin-tabs/edit.php'); ?>?page=edit&album=<?php echo pathurlencode($albumname); ?>&subpage=<?php echo $subpage . ($singleimage) ? '&singleimage=' . html_encode($singleimage) : ''; ?>&tagsort=<?php echo html_encode($tagsort); ?>&tab=imageinfo'">
+									<button type="button" value="<?php echo gettext('Back') ?>" onclick="window.location = '../admin-edit.php?page=edit&album=<?php echo pathurlencode($albumname); ?>&subpage=<?php echo $subpage . ($singleimage) ? '&singleimage=' . html_encode($singleimage) : ''; ?>&tagsort=<?php echo html_encode($tagsort); ?>&tab=imageinfo'">
 										<?php echo BACK_ARROW_BLUE; ?>
 										<strong><?php echo gettext("Back"); ?></strong>
 									</button>
@@ -495,16 +498,17 @@ if ($pasteobj && isset($_REQUEST['size'])) {
 					<br class="clearall">
 				</div><!-- block -->
 			</div><!-- content -->
-			<?php
-			if (!$pasteobj) {
-				?>
-				<?php
-				printAdminFooter();
-				?>
-				<?php
-			}
-			?>
 		</div><!-- main -->
+
+		<?php
+		if (!$pasteobj) {
+			?>
+			<?php
+			printAdminFooter();
+			?>
+			<?php
+		}
+		?>
 </body>
 
 </html>

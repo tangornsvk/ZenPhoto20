@@ -1,8 +1,5 @@
 <?php
 
-/**
- * @package plugins/cacheManager
- */
 define("CACHE_HASH_LENGTH", strlen(sha1(HASH_SEED)));
 
 function getImageProcessorURIFromCacheName($match, $watermarks) {
@@ -12,31 +9,36 @@ function getImageProcessorURIFromCacheName($match, $watermarks) {
 	$params = explode('_', stripSuffix($match));
 	while (!$done && count($params) > 1) {
 		$check = array_pop($params);
-		$c = substr($check, 0, 1);
-		if ($c == 'w' || $c == 'h' || $c == 's') {
-			if (is_numeric($v = substr($check, 1))) {
-				$set[$c] = (int) $v;
-				continue;
-			}
-		}
-		if ($c == 'c') {
-			$c = substr($check, 0, 2);
-			if (is_numeric($v = substr($check, 2))) {
-				$set[$c] = (int) $v;
-				continue;
-			}
-		}
-		if (!isset($set['w']) && !isset($set['h']) && !isset($set['s'])) {
-			if (!isset($set['wm']) && in_array($check, $watermarks)) {
-				$set['wmk'] = $check;
-			} else if ($check == 'thumb') {
-				$set['t'] = true;
-			} else {
-				$set['effects'] = $check;
-			}
-		} else {
-			array_push($params, $check);
+		if (is_numeric($check) && !isset($set['w']) && !isset($set['h'])) {
+			$set['s'] = $check;
 			break;
+		} else {
+			$c = substr($check, 0, 1);
+			if ($c == 'w' || $c == 'h') {
+				if (is_numeric($v = substr($check, 1))) {
+					$set[$c] = (int) $v;
+					continue;
+				}
+			}
+			if ($c == 'c') {
+				$c = substr($check, 0, 2);
+				if (is_numeric($v = substr($check, 2))) {
+					$set[$c] = (int) $v;
+					continue;
+				}
+			}
+			if (!isset($set['w']) && !isset($set['h']) && !isset($set['s'])) {
+				if (!isset($set['wm']) && in_array($check, $watermarks)) {
+					$set['wmk'] = $check;
+				} else if ($check == 'thumb') {
+					$set['t'] = true;
+				} else {
+					$set['effects'] = $check;
+				}
+			} else {
+				array_push($params, $check);
+				break;
+			}
 		}
 	}
 	if (!isset($set['wmk'])) {
@@ -70,9 +72,7 @@ function getTitle($table, $row) {
 function recordMissing($table, $row, $image) {
 	global $missingImages;
 	$obj = getItemByID($table, $row['id']);
-	if ($obj) {
-		$missingImages[] = '<a href="' . $obj->getLink() . '">' . $obj->getTitle() . '</a> (' . html_encode($image) . ')<br />';
-	}
+	$missingImages[] = '<a href="' . $obj->getLink() . '">' . $obj->getTitle() . '</a> (' . html_encode($image) . ')<br />';
 }
 
 /**

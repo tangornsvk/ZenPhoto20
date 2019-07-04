@@ -6,20 +6,22 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/disableWatermark
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
  */
 $plugin_is_filter = 5 | ADMIN_PLUGIN;
 $plugin_description = gettext("Disable setting watermarks if user does not have ADMIN_RIGHTS.");
+$plugin_author = "Stephen Billard (sbillard)";
 
-npgFilters::register('admin_note', 'disableWatermark::customData');
-npgFilters::register('plugin_tabs', 'disableWatermark::tab');
+zp_register_filter('admin_note', 'disableWatermark::customData');
+zp_register_filter('plugin_tabs', 'disableWatermark::tab');
 
 class disableWatermark {
 
 	static function customData($tab, $subtab) {
-		global $_admin_tab;
-		if (!npg_loggedin(ADMIN_RIGHTS) && $_admin_tab == 'edit') {
+		global $_zp_admin_tab;
+		if (!zp_loggedin(ADMIN_RIGHTS) && $_zp_admin_tab == 'edit') {
 			?>
 			<?php
 
@@ -28,7 +30,7 @@ class disableWatermark {
 					?>
 					<script type="text/javascript">
 						// <!-- <![CDATA[
-						$(window).on("load", function () {
+						$(window).load(function () {
 							var num = $('input[name=totalimages]').val();
 							for (i = 0; i < num; i++) {
 								var selector = $('#image_watermark-' + i);
@@ -46,7 +48,7 @@ class disableWatermark {
 					?>
 					<script type="text/javascript">
 						// <!-- <![CDATA[
-						$(window).on("load", function () {
+						$(window).load(function () {
 							var selector = $('#album_watermark');
 							var selected = $('#album_watermark option:selected');
 							selector.before('<input type="hidden" name="album_watermark" value="' + selected.val() + '" />' + selected.text());
@@ -66,7 +68,7 @@ class disableWatermark {
 						?>
 						<script type="text/javascript">
 							// <!-- <![CDATA[
-							$(window).on("load", function () {
+							$(window).load(function () {
 								var num = $('input[name=totalalbums]').val();
 								for (i = 1; i <= num; i++) {
 									var selector = $('#album_watermark_' + i);

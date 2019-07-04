@@ -2,27 +2,28 @@
 
 /*
  * LDAP authorization module
- * Use to link site to an LDAP server for user verification.
+ * Use to link ZenPhoto20 to an LDAP server for user verification.
  * It assumes that your LDAP server contains posix-style users and groups.
  *
  * @author Stephen Billard (sbillard), Arie (ariep)
  *
- * @package alt/LDAP_auth
+ * @package alt
+ * @subpackage users
  */
 
 define('LDAP_DOMAIN', getOption('ldap_domain'));
 define('LDAP_BASEDN', getOption('ldap_basedn'));
-define('LDAP_ID_OFFSET', getOption('ldap_id_offset')); //	number added to LDAP ID to insure it does not overlap any of our admin ids
+define('LDAP_ID_OFFSET', getOption('ldap_id_offset')); //	number added to LDAP ID to insure it does not overlap any ZP admin ids
 define('LDAP_READER_USER', getOption('ldap_reader_user'));
 define('LDAP_REAER_PASS', getOption('ldap_reader_pass'));
 $_LDAPGroupMap = getSerializedArray(getOption('ldap_group_map'));
 
-require_once(CORE_SERVERPATH . 'lib-auth.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/lib-auth.php');
 if (extensionEnabled('user_groups')) {
-	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/user_groups.php');
+	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/user_groups.php');
 }
 
-class _Authority extends _Authority {
+class Zenphoto_Authority extends _Authority {
 
 	function getOptionsSupported() {
 		setOptionDefault('ldap_id_offset', 100000);
@@ -42,7 +43,7 @@ class _Authority extends _Authority {
 	}
 
 	function handleLogon() {
-		global $_current_admin_obj;
+		global $_zp_current_admin_obj;
 		$user = sanitize(@$_POST['user'], 0);
 		$password = sanitize(@$_POST['pass'], 0);
 		$loggedin = false;
@@ -58,9 +59,9 @@ class _Authority extends _Authority {
 				$userData = array_change_key_case(self::ldapUser($ad, "(uid={$user})"), CASE_LOWER);
 				$userobj = self::setupUser($ad, $userData);
 				if ($userobj) {
-					$_current_admin_obj = $userobj;
-					$loggedin = $_current_admin_obj->getRights();
-					self::logUser($_current_admin_obj);
+					$_zp_current_admin_obj = $userobj;
+					$loggedin = $_zp_current_admin_obj->getRights();
+					self::logUser($_zp_current_admin_obj);
 					if (DEBUG_LOGIN) {
 						debugLog(sprintf('LDAPhandleLogon: authorized as %1$s->%2$X', $userdn, $loggedin));
 					}
@@ -85,7 +86,7 @@ class _Authority extends _Authority {
 	}
 
 	function checkAuthorization($authCode, $id) {
-		global $_current_admin_obj;
+		global $_zp_current_admin_obj;
 		if (LDAP_ID_OFFSET && $id > LDAP_ID_OFFSET) { //	LDAP ID
 			$ldid = $id - LDAP_ID_OFFSET;
 			$ad = self::ldapInit(LDAP_DOMAIN);
@@ -97,12 +98,12 @@ class _Authority extends _Authority {
 					if (DEBUG_LOGIN) {
 						debugLogBacktrace("LDAPcheckAuthorization($authCode, $ldid)");
 					}
-					$goodAuth = npg_Authority::passwordHash($userData['uid'][0], serialize($userData));
+					$goodAuth = Zenphoto_Authority::passwordHash($userData['uid'][0], serialize($userData));
 					if ($authCode == $goodAuth) {
 						$userobj = self::setupUser($ad, $userData);
 						if ($userobj) {
-							$_current_admin_obj = $userobj;
-							$rights = $_current_admin_obj->getRights();
+							$_zp_current_admin_obj = $userobj;
+							$rights = $_zp_current_admin_obj->getRights();
 						} else {
 							$rights = 0;
 						}
@@ -118,8 +119,8 @@ class _Authority extends _Authority {
 				@ldap_unbind($ad);
 			}
 		}
-		if ($_current_admin_obj) {
-			return $_current_admin_obj->getRights();
+		if ($_zp_current_admin_obj) {
+			return $_zp_current_admin_obj->getRights();
 		} else {
 			return parent::checkAuthorization($authCode, $id);
 		}
@@ -130,13 +131,13 @@ class _Authority extends _Authority {
 	}
 
 	static function setupUser($ad, $userData) {
-		global $_authority;
+		global $_zp_authority;
 		$user = $userData['uid'][0];
 		$id = $userData['uidnumber'][0] + LDAP_ID_OFFSET;
 		$name = $userData['cn'][0];
-		$groups = self::getNPGGroups($ad, $user);
+		$groups = self::getZPGroups($ad, $user);
 
-		$adminObj = npg_Authority::newAdministrator('');
+		$adminObj = Zenphoto_Authority::newAdministrator('');
 		$adminObj->setID($id);
 		$adminObj->transient = true;
 
@@ -149,7 +150,7 @@ class _Authority extends _Authority {
 		if (class_exists('user_groups')) {
 			user_groups::merge_rights($adminObj, $groups, array());
 			if (DEBUG_LOGIN) {
-				debugLogVar(["LDAsetupUser: groups:" => $adminObj->getGroup()]);
+				debugLogVar("LDAsetupUser: groups:", $adminObj->getGroup());
 			}
 			$rights = $adminObj->getRights() & ~ USER_RIGHTS;
 			$adminObj->setRights($rights);
@@ -159,7 +160,7 @@ class _Authority extends _Authority {
 		}
 
 		if ($rights) {
-			$_authority->addOtherUser($adminObj);
+			$_zp_authority->addOtherUser($adminObj);
 			return $adminObj;
 		}
 		return NULL;
@@ -190,13 +191,13 @@ class _Authority extends _Authority {
 	}
 
 	/**
-	 * returns an array the user's of groups
+	 * returns an array the user's of ZenPhoto20 groups
 	 * @param type $ad
 	 */
-	static function getNPGGroups($ad, $user) {
+	static function getZPGroups($ad, $user) {
 		global $_LDAPGroupMap;
 		$groups = array();
-		foreach ($_LDAPGroupMap as $NPGgroup => $LDAPgroup) {
+		foreach ($_LDAPGroupMap as $ZPgroup => $LDAPgroup) {
 			if (!empty($LDAPgroup)) {
 				$group = self::ldapSingle($ad, '(cn=' . $LDAPgroup . ')', 'ou=Groups,' . LDAP_BASEDN, array('memberUid'));
 				if ($group) {
@@ -205,7 +206,7 @@ class _Authority extends _Authority {
 					unset($members['count']);
 					$isMember = in_array($user, $members, true);
 					if ($isMember) {
-						$groups[] = $NPGgroup;
+						$groups[] = $ZPgroup;
 					}
 				}
 			}
@@ -221,7 +222,7 @@ class _Authority extends _Authority {
 				ldap_set_option($ad, LDAP_OPT_REFERRALS, 0);
 				return $ad;
 			} else {
-				trigger_error(gettext('Could not connect to LDAP server.'), E_USER_ERROR);
+				zp_error(gettext('Could not connect to LDAP server.'));
 			}
 		}
 		return false;
@@ -240,7 +241,7 @@ class _Authority extends _Authority {
 
 }
 
-class _Administrator extends _Administrator {
+class Zenphoto_Administrator extends _Administrator {
 
 	function setID($id) {
 		$this->set('id', $id);

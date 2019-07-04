@@ -20,9 +20,9 @@ Define('DATABASE_DESIRED_VERSION', '0.0.0');
  * @return true if successful connection
  */
 function db_connect($config, $errorstop = true) {
-	global $_DB_connection, $_DB_details;
-	$_DB_details = unserialize(DB_NOT_CONNECTED);
-	$_DB_connection = NULL;
+	global $_zp_DB_connection, $_zp_DB_details;
+	$_zp_DB_details = unserialize(DB_NOT_CONNECTED);
+	$_zp_DB_connection = NULL;
 	return false;
 }
 
@@ -33,7 +33,7 @@ function db_connect($config, $errorstop = true) {
  * @return results of the sql statements
  * @since 0.6
  */
-function db_query($sql, $errorstop = true) {
+function query($sql, $errorstop = true) {
 	return false;
 }
 
@@ -88,19 +88,11 @@ function db_fetch_assoc($resource) {
 }
 
 /*
- * 	returns the error number from the previous operation
- */
-
-function db_errorno() {
-	return gettext('No database');
-}
-
-/*
  * Returns the text of the error message from previous operation
  */
 
 function db_error() {
-	return gettext('No databases are configured.');
+	return gettext('No supported PHP database extensions are enabled.');
 }
 
 /*
@@ -131,7 +123,7 @@ function db_num_rows($result) {
  * Closes the database
  */
 function db_close() {
-	$_DB_connection = NULL;
+	$_zp_DB_connection = NULL;
 	return true;
 }
 
@@ -140,7 +132,7 @@ function db_close() {
  */
 
 function db_software() {
-	global $_DB_connection;
+	global $_zp_DB_connection;
 	return array('application' => DATABASE_SOFTWARE, 'required' => 'N/A', 'desired' => 'N/A', 'version' => '0.0.0');
 }
 

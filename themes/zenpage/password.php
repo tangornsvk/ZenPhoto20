@@ -7,15 +7,15 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php
-		npgFilters::apply('theme_head');
+		<?php zp_apply_filter('theme_head'); ?>
 
-		scriptLoader($_themeroot . '/style.css');
-		?>
+
+
+		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
 	</head>
 
 	<body>
-		<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 
 		<div id="main">
 
@@ -25,22 +25,17 @@ if (!defined('WEBPATH'))
 
 			<div id="content">
 				<div id="breadcrumb">
-					<h2><a href="<?php echo getGalleryIndexURL(); ?>">Index</a>
-						<?php if (isset($hint)) {
-							?> » <strong><?php echo gettext("A password is required for the page you requested"); ?></strong>
-							<?php
-						}
-						?></h2>
+					<h2><a href="<?php echo getGalleryIndexURL(); ?>">Index</a> » <strong><?php echo gettext("A password is required for the page you requested"); ?></strong></h2>
 				</div>
 
 				<div id="content-error">
 
 					<div class="errorbox">
-						<?php printPasswordForm(isset($hint) ? $hint : NULL, isset($show) ? $show : TRUE, false, isset($hint) ? WEBPATH : NULL); ?>
+						<?php printPasswordForm($hint, $show, false); ?>
 					</div>
 
 					<?php
-					if (!npg_loggedin() && function_exists('printRegisterURL') && $_gallery->isUnprotectedPage('register')) {
+					if (!zp_loggedin() && function_exists('printRegisterURL') && $_zp_gallery->isUnprotectedPage('register')) {
 						printRegisterURL(gettext('Register for this site'), '<br />');
 						echo '<br />';
 					}
@@ -58,7 +53,7 @@ if (!defined('WEBPATH'))
 
 		</div><!-- main -->
 		<?php
-		npgFilters::apply('theme_body_close');
+		zp_apply_filter('theme_body_close');
 		?>
 	</body>
 </html>

@@ -7,20 +7,17 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php npgFilters::apply('theme_head'); ?>
+		<?php zp_apply_filter('theme_head'); ?>
 
 
 
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-
-		<?php
-		scriptLoader($_themeroot . '/style.css');
-		jqm_loadScripts();
-		?>
+		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" />
+		<?php jqm_loadScripts(); ?>
 	</head>
 
 	<body>
-		<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 
 		<div data-role="page" id="mainpage">
 
@@ -44,7 +41,7 @@ if (!defined('WEBPATH'))
 						<?php
 						if (isImagePhoto()) {
 							?>
-							<img src="<?php echo html_encode(getDefaultSizedImage()); ?>" alt="<?php printBareImageTitle(); ?>" style="max-width:<?php echo getDefaultWidth(); ?>px"/>
+							<img src="<?php echo html_encode(pathurlencode(getDefaultSizedImage())); ?>" alt="<?php printBareImageTitle(); ?>" style="max-width:<?php echo getDefaultWidth(); ?>px"/>
 							<?php
 						} else {
 							printDefaultSizedImage(getImageTitle());
@@ -63,7 +60,7 @@ if (!defined('WEBPATH'))
 							<h3><?php echo gettext('Tags:'); ?></h3>
 							<?php printTags('links', '', 'taglist', ''); ?>
 						</div>
-					<?php }
+						<?php }
 					?>
 					<?php
 					if (getImageMetaData()) {
@@ -77,20 +74,18 @@ if (!defined('WEBPATH'))
 					?>
 					<br style="clear:both" />
 					<?php
-					if (function_exists('printSlideShowLink') && isImagePhoto()) {
-						echo '<span id="slideshowlink">';
-						printSlideShowLink();
-						echo '</span>';
-					}
-					if (function_exists('printAddToFavorites'))
-						printAddToFavorites($_current_image);
+						if (function_exists('printSlideShowLink')) {
+							echo '<span id="slideshowlink">';
+							printSlideShowLink();
+							echo '</span>';
+						}
+					if (function_exists('printAddToFavorites')) printAddToFavorites($_zp_current_image);
 					if (function_exists('printRating')) {
 						echo '<div id="rating">';
 						printRating();
 						echo '</div>';
 					}
-
-					simpleMap::printMap();
+					if (function_exists('printGoogleMap')) printGoogleMap();
 					if (function_exists('printCommentForm')) {
 						echo '<hr />';
 						printCommentForm();
@@ -99,14 +94,14 @@ if (!defined('WEBPATH'))
 
 				</div>
 				<div class="content-secondary">
-					<?php jqm_printMenusLinks(); ?>
+			<?php jqm_printMenusLinks(); ?>
 				</div>
 			</div><!-- /content -->
-			<?php jqm_printBacktoTopLink(); ?>
-			<?php jqm_printFooterNav(); ?>
+<?php jqm_printBacktoTopLink(); ?>
+		<?php jqm_printFooterNav(); ?>
 		</div><!-- /page -->
 
-		<?php npgFilters::apply('theme_body_close'); ?>
+<?php zp_apply_filter('theme_body_close'); ?>
 
 	</body>
 </html>

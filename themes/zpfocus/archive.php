@@ -4,18 +4,18 @@
 <div class="right">
 	<h1 id="tagline"><?php echo gettext('Archive') ?></h1>
 	<?php if ($zpfocus_logotype) { ?>
-		<a style="display:block;" href="<?php echo getGalleryIndexURL(); ?>"><img src="<?php echo $_themeroot; ?>/images/<?php echo $zpfocus_logofile; ?>" alt="<?php echo html_encode(getBareGalleryTitle()); ?>" /></a>
+		<a style="display:block;" href="<?php echo getGalleryIndexURL(); ?>"><img src="<?php echo $_zp_themeroot; ?>/images/<?php echo $zpfocus_logofile; ?>" alt="<?php echo html_encode(getBareGalleryTitle()); ?>" /></a>
 	<?php } else { ?>
 		<h2 id="logo"><a href="<?php echo html_encode(getGalleryIndexURL()); ?>"><?php echo html_encode(getBareGalleryTitle()); ?></a></h2>
 	<?php } ?>
 	<div class="post">
 		<div class="archive">
-			<h3><?php echo gettext('Gallery'); ?></h3>
+			<h3><?php echo gettext('Gallery Archive'); ?></h3>
 			<?php printAllDates('archive-list', 'year', 'month', 'desc'); ?>
 		</div>
-		<?php if (extensionEnabled('zenpage') && hasNews()) { ?>
+		<?php if (function_exists('printNewsArchive')) { ?>
 			<div class="archive">
-				<h3><?php echo NEWS_LABEL; ?></h3>
+				<h3><?php echo gettext('News Archive'); ?></h3>
 				<?php printNewsArchive(); ?>
 			</div>
 		<?php } ?>

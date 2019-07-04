@@ -3,7 +3,6 @@
 /**
  * This is the class declaration
  * @author Stephen Billard (sbillard)
- * @package plugins/favoritesHandler
  */
 class favorites extends AlbumBase {
 
@@ -66,7 +65,7 @@ class favorites extends AlbumBase {
 		}
 		$sql = 'INSERT INTO ' . prefix('plugin_storage') . ' (`type`, `subtype`, `aux`,`data`) VALUES ("favoritesHandler",' . $subtype . ',' . db_quote($this->getInstance()) . ',' . db_quote(serialize(array('type' => 'images', 'id' => $folder . '/' . $filename))) . ')';
 		query($sql);
-		npgFilters::apply('favoritesHandler_action', 'add', $img, $this->name);
+		zp_apply_filter('favoritesHandler_action', 'add', $img, $this->name);
 	}
 
 	function removeImage($img) {
@@ -74,7 +73,7 @@ class favorites extends AlbumBase {
 		$filename = $img->filename;
 		$sql = 'DELETE FROM ' . prefix('plugin_storage') . ' WHERE `type`="favoritesHandler" AND `aux`=' . db_quote($this->getInstance()) . ' AND `data`=' . db_quote(serialize(array('type' => 'images', 'id' => $folder . '/' . $filename)));
 		query($sql);
-		npgFilters::apply('favoritesHandler_action', 'remove', $img, $this->name);
+		zp_apply_filter('favoritesHandler_action', 'remove', $img, $this->name);
 	}
 
 	function addAlbum($alb) {
@@ -86,7 +85,7 @@ class favorites extends AlbumBase {
 		}
 		$sql = 'INSERT INTO ' . prefix('plugin_storage') . ' (`type`, `subtype`, `aux`,`data`) VALUES ("favoritesHandler",' . $subtype . ',' . db_quote($this->getInstance()) . ',' . db_quote(serialize(array('type' => 'albums', 'id' => $folder))) . ')';
 		query($sql);
-		npgFilters::apply('favoritesHandler_action', 'add', $alb, $this->name);
+		zp_apply_filter('favoritesHandler_action', 'add', $alb, $this->name);
 	}
 
 	function removeAlbum($alb) {
@@ -94,7 +93,7 @@ class favorites extends AlbumBase {
 		$sql = 'DELETE FROM ' . prefix('plugin_storage') . ' WHERE `type`="favoritesHandler" AND `aux`=' . db_quote($this->getInstance()) . ' AND `data`=' . db_quote(serialize(array('type' => 'albums', 'id' => $folder)));
 		query($sql);
 		$this->_removeCache(internalToFilesystem($folder));
-		npgFilters::apply('favoritesHandler_action', 'remove', $alb, $this->name);
+		zp_apply_filter('favoritesHandler_action', 'remove', $alb, $this->name);
 	}
 
 	/**
@@ -173,7 +172,7 @@ class favorites extends AlbumBase {
 	 * @return array
 	 */
 	function getAlbums($page = 0, $sorttype = null, $sortdirection = null, $care = true, $mine = NULL) {
-		global $_gallery;
+		global $_zp_gallery;
 		if ($mine || is_null($this->subalbums) || $care && $sorttype . $sortdirection !== $this->lastsubalbumsort) {
 			$results = array();
 			$result = query($sql = 'SELECT * FROM ' . prefix('plugin_storage') . ' WHERE `type`="favoritesHandler" AND `aux`=' . db_quote($this->getInstance()) . ' AND `data` LIKE "%s:4:\"type\";s:6:\"albums\";%"');
@@ -205,7 +204,7 @@ class favorites extends AlbumBase {
 					if (!is_null($sortdirection)) {
 						$order = $sortdirection && strtolower($sortdirection) == 'desc';
 					} else {
-						$order = $this->getSortDirection('album');
+						$order = $obj->getSortDirection('album');
 					}
 				}
 				$results = sortByKey($results, $sortkey, $order);
@@ -275,18 +274,18 @@ class favorites extends AlbumBase {
 	}
 
 	static function loadScript($script, $request) {
-		global $_current_admin_obj, $_gallery_page, $_current_album, $_conf_vars, $_myFavorites;
+		global $_zp_current_admin_obj, $_zp_gallery_page, $_zp_current_album, $_zp_conf_vars, $_myFavorites;
 		if ($_myFavorites && isset($_REQUEST['instance'])) {
 			$_myFavorites->instance = sanitize(rtrim($_REQUEST['instance'], '/'));
 			if ($_myFavorites->instance)
 				$_myFavorites->setTitle($_myFavorites->getTitle() . '[' . $_myFavorites->instance . ']');
 		}
-		if ($_gallery_page == "favorites.php") {
-			if (npg_loggedin()) {
-				$_current_album = $_myFavorites;
-				add_context(NPG_ALBUM);
-				Controller::prepareAlbumPage();
-				$_gallery_page = 'favorites.php';
+		if ($_zp_gallery_page == "favorites.php") {
+			if (zp_loggedin()) {
+				$_zp_current_album = $_myFavorites;
+				add_context(ZP_ALBUM);
+				prepareAlbumPage();
+				$_zp_gallery_page = 'favorites.php';
 			} else {
 				$script = false;
 			}
@@ -311,9 +310,9 @@ class favorites extends AlbumBase {
 			$count = ($pageCount + (int) ceil(($imageCount - $_firstPageImages) / $images_per_page));
 			if ($count < $page && isset($_POST['addToFavorites']) && !$_POST['addToFavorites']) {
 				//We've deleted last item on page, need a place to land when we return
-				global $_current_page;
-				header('location: ' . FULLWEBPATH . '/' . $this->getLink($_current_page - 1));
-				exit();
+				global $_zp_page;
+				header('location: ' . FULLWEBPATH . '/' . $this->getLink($_zp_page - 1));
+				exitZP();
 			}
 		}
 		return $count;
@@ -333,7 +332,7 @@ class favorites extends AlbumBase {
 			$link .= $page;
 			$link_no .= '&page=' . $page;
 		}
-		return npgFilters::apply('getLink', rewrite_path($link, $link_no), 'favorites.php', $page);
+		return zp_apply_filter('getLink', rewrite_path($link, $link_no), 'favorites.php', $page);
 	}
 
 	static function ad_removeButton($obj, $id, $v, $add, $instance, $multi) {

@@ -11,10 +11,10 @@
  *
  * <ul>
  * 	<li>$MCEselector: the class(es) upon which tinyMCE will activate</li>
- * 	<li>$MCEplugins: array of plugins to include in the configuration</li>
+ * 	<li>$MCEplugins: the list of plugins to include in the configuration</li>
  * 	<li>$MCEtoolbars: toolbar(s) for the configuration</li>
  * 	<li>$MCEstatusbar: Status to true for a status bar, false for none</li>
- * 	<li>$MCEmenubar: array of menu items for the menu bar, false for none</li>
+ * 	<li>$MCEmenubar: Status to true for a status bar, false for none</li>
  * </ul>
  *
  * And the following variables are optional, if set they will be used, otherwise default
@@ -23,7 +23,6 @@
  * <ul>
  * 	<li>$MCEdirection: set to "rtl" for right-to-left text flow</li>
  * 	<li>$MCEspecial: used to insert arbitrary initialization parameters such as styles </li>
- *  <li>$MCEexternal: array of external plugins</li>
  * 	<li>$MCEskin: set to the override the default tinyMCE skin</li>
  * 	<li>$MCEcss: css file to be used by tinyMce</li>
  * 	<li>$MCEimage_advtab: set to <var>false</var> to disable the advanced image tab on the image insert popup (<i>style</i>, <i>borders</i>, etc.)</li>
@@ -31,18 +30,18 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
-npgFilters::apply('tinymce_config', NULL);
+$filehandler = zp_apply_filter('tinymce_config', NULL);
 
 if ($MCEcss) {
 	$MCEcss = getPlugin('tinymce/config/' . $MCEcss, true, true);
 } else {
 	$MCEcss = getPlugin('tinymce/config/content.css', true, true);
 }
-global $_RTL_css;
+global $_zp_RTL_css;
 if ($MCEdirection == NULL) {
-	if ($_RTL_css) {
+	if ($_zp_RTL_css) {
 		$MCEdirection = 'rtl';
 	} else {
 		if (getOption('tiny_mce_rtl_override')) {
@@ -50,34 +49,19 @@ if ($MCEdirection == NULL) {
 		}
 	}
 }
-
-scriptLoader(TINYMCE . '/tinymce.5.0.4.min.js');
-scriptLoader(TINYMCE . '/jquery.tinymce.min.js');
-if (OFFSET_PATH && getOption('dirtyform_enable') > 1) {
-	scriptLoader(CORE_SERVERPATH . 'js/dirtyforms/jquery.dirtyforms.helpers.tinymce.min.js');
-}
-
-if ($MCEplugins && !is_array($MCEplugins)) {
-	$MCEplugins = explode(' ', preg_replace('/\s\s+/', ' ', trim($MCEplugins)));
-}
-if ($pasteObjEnabled = array_search('pasteobj', $MCEplugins)) {
-	scriptLoader(TINYMCE . '/pasteobj/plugin.js');
-}
+$MCEplugins = preg_replace('|\stinyzenpage|', '', $MCEplugins);
 ?>
-<script type="text/javascript">
-	// <!-- <![CDATA[
+<script type="text/javascript" src="<?php echo WEBPATH . "/" . ZENFOLDER . "/" . PLUGIN_FOLDER; ?>/tinymce/tinymce.min.js"></script>
+<script type="text/javascript" src="<?php echo WEBPATH . "/" . ZENFOLDER . "/" . PLUGIN_FOLDER; ?>/tinymce/jquery.tinymce.min.js"></script>
 <?php
-if ($pasteObjEnabled) {
+if (OFFSET_PATH && getOption('dirtyform_enable') > 1) {
 	?>
-		var pasteObjConfig = {	//	pasteObject window
-		title: 'netPhotoGraphics:obj',
-						url: '<?php echo WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/tinymce/pasteobj/pasteobj.php'; ?>',
-						height: 600,
-						width: 800
-		};
+	<script src="<?php echo WEBPATH . "/" . ZENFOLDER; ?>/js/dirtyforms/jquery.dirtyforms.helpers.tinymce.min.js" type="text/javascript"></script>
 	<?php
 }
 ?>
+<script type="text/javascript">
+// <!-- <![CDATA[
 	tinymce.init({
 	entity_encoding : "<?php echo getOption('tiny_mce_entity_encoding'); ?>",
 					selector: "<?php echo $MCEselector; ?>",
@@ -95,34 +79,19 @@ if ($MCEdirection) {
 		directionality : '<?php echo $MCEdirection; ?>',
 	<?php
 }
-if ($MCEcss) {
+?>
+	content_css: "<?php echo $MCEcss; ?>",
+<?php
+if ($filehandler) {
 	?>
-		content_css: "<?php echo $MCEcss; ?>",
+		elements : "<?php echo $filehandler; ?>", file_browser_callback : <?php echo $filehandler; ?>,
 	<?php
 }
 ?>
-	plugins: ["<?php echo implode(' ', $MCEplugins); ?>"],
+	plugins: ["<?php echo $MCEplugins; ?>"],
 <?php
-if ($MCEexternal) {
-	?>
-		external_plugins: {
-	<?php
-	foreach ($MCEexternal as $plugin => $url) {
-		echo "		  '" . $plugin . "': '" . $url . "'\n";
-	}
-	?>
-		},
-	<?php
-}
-if (in_array('pagebreak', $MCEplugins)) {
-	?>
-		pagebreak_split_block: true,
-	<?php
-}
 if ($MCEspecial) {
-	foreach ($MCEspecial as $element => $value) {
-		echo $element . ': ' . $value . ",\n";
-	}
+	echo $MCEspecial . ",\n";
 }
 if ($MCEskin) {
 	?>
@@ -140,54 +109,17 @@ if (empty($MCEtoolbars)) {
 		<?php
 	}
 }
-?>
-	statusbar: <?php echo ($MCEstatusbar) ? 'true' : 'false'; ?>,
-<?php
 if ($MCEmenubar) {
-	if (is_array($MCEmenubar)) {
-		$menu = $MCEmenubar;
-	} else if (is_string($MCEmenubar)) {
-		$menu = explode(' ', preg_replace('/\s\s+/', ' ', trim($MCEmenubar)));
-	} else {
-		$menu = array('file', 'edit', 'insert', 'view', 'format', 'table', 'tools');
+	if (!is_string($MCEmenubar)) {
+		$MCEmenubar = "file edit insert view format table tools ";
 	}
-
-	$MCEmenubar = "    menu: {\n";
-	foreach ($menu as $item) {
-		switch ($item) {
-			case 'file':
-				$MCEmenubar .= "      file: {title: 'File', items: 'newdocument'},\n";
-				break;
-			case 'edit':
-				$MCEmenubar .= "      edit: {title: 'Edit', items: 'undo redo | cut copy paste pastetext | selectall'},\n";
-				break;
-			case 'insert':
-				$MCEmenubar .= "      insert: {title: 'Insert', items: 'image link media";
-				if (in_array('pasteobj', $MCEplugins)) {
-					$MCEmenubar .= " pasteobj";
-				}
-				$MCEmenubar .= " template | charmap hr | pagebreak nonbreaking anchor | insertdatetime'},\n";
-				break;
-			case 'view':
-				$MCEmenubar .= "      view: {title: 'View', items: 'visualaid'},\n";
-				break;
-			case 'format':
-				$MCEmenubar .= "      format: {title: 'Format', items: 'bold italic underline strikethrough superscript subscript | formats | removeformat'},\n";
-				break;
-			case 'table':
-				$MCEmenubar .= "      table: {title: 'Table', items: 'inserttable tableprops deletetable | row column | cell'},\n";
-				break;
-			case 'tools':
-				$MCEmenubar .= "      tools: {title: 'Tools', items: 'spellchecker code'}\n";
-				break;
-		}
-	}
-	$MCEmenubar = trim($MCEmenubar, ",\n") . "\n      }";
 } else {
 	$MCEmenubar = "false";
 }
-echo $MCEmenubar;
-?>,
+?>
+
+	statusbar: <?php echo ($MCEstatusbar) ? 'true' : 'false'; ?>,
+					menubar: '<?php echo $MCEmenubar; ?>',
 					setup: function(editor) {
 					editor.on('blur', function(ed, e) {
 					form = $(editor.getContainer()).closest('form');

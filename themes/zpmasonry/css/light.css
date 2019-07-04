@@ -21,7 +21,7 @@ input[type="submit"]:hover,input[type="reset"]:hover,
 #infscr-loading,
 #breadcrumbs,
 #subscribeextrashow,
-#admin_tb_data,
+#admin_data,
 #password-div,
 input,textarea,select,
 .newsarticlecredit span
@@ -51,7 +51,7 @@ input,textarea,select,
 #infscr-loading,
 #breadcrumbs,
 #subscribeextrashow,
-#admin_tb_data,
+#admin_data,
 #password-div,
 input,textarea,select,
 .newsarticlecredit span,
@@ -65,10 +65,10 @@ input,textarea,select,
 {border-color:#fff;}
 
 #sidebar-inner,
-.newsarticlecredit
+.newsarticlecredit 
 {border-top-color:#F1F1F1;}
 
-#sidebar-inner.fixed
+#sidebar-inner.fixed 
 {border-top-color:#E2E2E2;}
 
 body
@@ -94,7 +94,7 @@ a:hover{color:#287aba;}
 .tags{background-image:url(../images/tag.png);}
 .counts{background-image:url(../images/star.png);}
 #backtotop{background-image:url(../images/arrow-alt-up.png);}
-#admin_tb h3 a{background-image: url(../images/tools.png);}
+#admin h3 a{background-image: url(../images/tools.png);}
 .pass{background-image: url(../images/padlock-closed.png);}
 
 #slideshowlink a{background-image: url(../images/cinema.png);}
@@ -104,28 +104,3 @@ a:hover{color:#287aba;}
 
 img.activecarouselimage
 {border-color:#000!important;}
-
-ul.pagelist {
-	clear: both;
-	padding: 0;
-	margin: 20px 0 0 0;
-	list-style-type: none;
-}
-ul.pagelist li {
-	display: inline;
-}
-ul.pagelist li a, ul.pagelist span.disabledlink {
-	padding: 4px;
-}
-ul.pagelist li.current a {
-	color: __C_50__ ; /*denotes the current page were on (1..5 etc) (I'm hiding it in the background)*/
-}
-ul.pagelist li.prev {
-	margin-right: 10px;
-}
-ul.pagelist li.next {
-	margin-left: 10px;
-}
-.pagenav {
-	clear: both;
-}

@@ -54,9 +54,10 @@
  * it adds the fields, if not it removes any previously added fields.
  *
  * @author Stephen Billard (sbillard)
- * @package plugins/fieldExtender
+ * @package plugins
+ * @subpackage admin
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
 
 class fieldExtender {
@@ -72,96 +73,93 @@ class fieldExtender {
 	 */
 	function constructor($me, $newfields) {
 		if (OFFSET_PATH == 2) {
-			require_once(CORE_SERVERPATH . 'setup/setup-functions.php');
-
 			//clean up creator fields
 			$sql = 'UPDATE ' . prefix('options') . ' SET `creator`=' . db_quote(replaceScriptPath(__FILE__) . '[' . __LINE__ . ']') . ' WHERE `name`=' . db_quote($me . '_addedFields') . ' AND `creator` IS NULL;';
 			query($sql);
+		}
+		$utf8mb4 = version_compare(MySQL_VERSION, '5.5.3', '>=');
 
-			$utf8mb4 = version_compare(MySQL_VERSION, '5.5.3', '>=');
-
-			$database = array();
-			foreach (getDBTables() as $table) {
-				$tablecols = db_list_fields($table);
-				foreach ($tablecols as $key => $datum) {
-					$database[$table][$datum['Field']] = $datum;
-				}
+		$database = array();
+		foreach (getDBTables() as $table) {
+			$tablecols = db_list_fields($table);
+			foreach ($tablecols as $key => $datum) {
+				$database[$table][$datum['Field']] = $datum;
 			}
-			$current = $fields = $searchDefault = array();
-			if (extensionEnabled($me)) { //need to update the database tables.
-				foreach ($newfields as $newfield) {
-					$table = $newfield['table'];
-					$name = $newfield['name'];
-					if (!$existng = isset($database[$table][$name])) {
-						if (isset($newfield['searchDefault']) && $newfield['searchDefault']) {
-							$searchDefault[] = $name;
-						}
+		}
+		$current = $fields = $searchDefault = array();
+		if (extensionEnabled($me)) { //need to update the database tables.
+			foreach ($newfields as $newfield) {
+				$table = $newfield['table'];
+				$name = $newfield['name'];
+				if (!$existng = isset($database[$table][$name])) {
+					if (isset($newfield['searchDefault']) && $newfield['searchDefault']) {
+						$searchDefault[] = $name;
 					}
-					if (is_null($newfield['type'])) {
-						if ($name == 'tags') {
-							setOption('adminTagsTab', 1);
-						}
-					} else {
-						switch (strtolower($newfield['type'])) {
-							default:
-								$dbType = strtoupper($newfield['type']);
-								break;
-							case 'int':
-								$dbType = strtoupper($newfield['type']) . '(' . min(255, $newfield['size']) . ')';
-								if (isset($newfield['attribute'])) {
-									$dbType .= ' ' . $newfield['attribute'];
-									unset($newfield['attribute']);
-								}
-								break;
-							case 'varchar':
-								$dbType = strtoupper($newfield['type']) . '(' . min(255, $newfield['size']) . ')';
-								break;
-						}
-						if ($existng) {
-							if (strtoupper($database[$table][$name]['Type']) != $dbType || empty($database[$table][$name]['Comment'])) {
-								$cmd = ' CHANGE `' . $name . '`';
-							} else {
-								$cmd = NULL;
+				}
+				if (is_null($newfield['type'])) {
+					if ($name == 'tags') {
+						setOption('adminTagsTab', 1);
+					}
+				} else {
+					switch (strtolower($newfield['type'])) {
+						default:
+							$dbType = strtoupper($newfield['type']);
+							break;
+						case 'int':
+							$dbType = strtoupper($newfield['type']) . '(' . min(255, $newfield['size']) . ')';
+							if (isset($newfield['attribute'])) {
+								$dbType.=' ' . $newfield['attribute'];
+								unset($newfield['attribute']);
 							}
-							unset($database[$table][$name]);
+							break;
+						case 'varchar':
+							$dbType = strtoupper($newfield['type']) . '(' . min(255, $newfield['size']) . ')';
+							break;
+					}
+					if ($existng) {
+						if (strtoupper($database[$table][$name]['Type']) != $dbType || empty($database[$table][$name]['Comment'])) {
+							$cmd = ' CHANGE `' . $name . '`';
 						} else {
-							$cmd = ' ADD COLUMN';
+							$cmd = NULL;
 						}
-						$sql = 'ALTER TABLE ' . prefix($newfield['table']) . $cmd . ' `' . $name . '` ' . $dbType;
-						if ($utf8mb4 && ($dbType == 'TEXT' || $dbType == 'LONGTEXT')) {
-							$sql .= ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
-						}
-						if (isset($newfield['attribute']))
-							$sql .= ' ' . $newfield['attribute'];
-						if (isset($newfield['default']))
-							$sql .= ' DEFAULT ' . $newfield['default'];
-						$sql .= " COMMENT 'optional_$me'";
-						if ((!$cmd || setupQuery($sql)) && in_array($newfield['table'], array('albums', 'images', 'news', 'news_categories', 'pages'))) {
-							$fields[] = strtolower($newfield['name']);
-						}
-						$current[$newfield['table']][$newfield['name']] = $dbType;
+						unset($database[$table][$name]);
+					} else {
+						$cmd = ' ADD COLUMN';
 					}
+					$sql = 'ALTER TABLE ' . prefix($newfield['table']) . $cmd . ' `' . $name . '` ' . $dbType;
+					if ($utf8mb4 && ($dbType == 'TEXT' || $dbType == 'LONGTEXT')) {
+						$sql .= ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
+					}
+					if (isset($newfield['attribute']))
+						$sql.= ' ' . $newfield['attribute'];
+					if (isset($newfield['default']))
+						$sql.= ' DEFAULT ' . $newfield['default'];
+					$sql .= " COMMENT 'optional_$me'";
+					if ((!$cmd || setupQuery($sql)) && in_array($newfield['table'], array('albums', 'images', 'news', 'news_categories', 'pages'))) {
+						$fields[] = strtolower($newfield['name']);
+					}
+					$current[$newfield['table']][$newfield['name']] = $dbType;
 				}
-				setOption(get_class($this) . '_addedFields', serialize($current));
-				if (!empty($searchDefault)) {
-					$fieldExtenderMutex = new npgMutex('fE');
-					$fieldExtenderMutex->lock();
-					$engine = new SearchEngine();
-					$set_fields = $engine->allowedSearchFields();
-					$set_fields = array_unique(array_merge($set_fields, $searchDefault));
-					setOption('search_fields', implode(',', $set_fields));
-					$fieldExtenderMutex->unlock();
-				}
-			} else {
-				purgeOption(get_class($this) . '_addedFields');
 			}
+			setOption(get_class($this) . '_addedFields', serialize($current));
+			if (!empty($searchDefault)) {
+				$fieldExtenderMutex = new zpMutex('fE');
+				$fieldExtenderMutex->lock();
+				$engine = new SearchEngine();
+				$set_fields = $engine->allowedSearchFields();
+				$set_fields = array_unique(array_merge($set_fields, $searchDefault));
+				setOption('search_fields', implode(',', $set_fields));
+				$fieldExtenderMutex->unlock();
+			}
+		} else {
+			purgeOption(get_class($this) . '_addedFields');
+		}
 
-			foreach ($database as $table => $fields) { //drop fields no longer defined
-				foreach ($fields as $field => $orphaned) {
-					if ($orphaned['Comment'] == "optional_$me") {
-						$sql = 'ALTER TABLE ' . prefix($table) . ' DROP `' . $field . '`';
-						setupQuery($sql);
-					}
+		foreach ($database as $table => $fields) { //drop fields no longer defined
+			foreach ($fields as $field => $orphaned) {
+				if ($orphaned['Comment'] == "optional_$me") {
+					$sql = 'ALTER TABLE ' . prefix($table) . ' DROP `' . $field . '`';
+					setupQuery($sql);
 				}
 			}
 		}
@@ -187,7 +185,7 @@ class fieldExtender {
 	 * @param type $instance
 	 * @param type $fields
 	 */
-	static protected function _saveHandler($obj, $instance, $field, $userfield = false) {
+	static protected function _saveHandler($obj, $instance, $field) {
 		if (array_key_exists('edit', $field)) {
 			$action = $field['edit'];
 			if (is_null($action)) {
@@ -205,21 +203,13 @@ class fieldExtender {
 				$newdata = call_user_func($field['function'], $obj, $instance, $field, 'save');
 				break;
 			default:
-
-				$newdata = NULL;
-				if ($userfield) {
-					if (isset($_POST[$userfield][$instance][$field['name']])) {
-						$newdata = sanitize($_POST['user'][$instance][$field['name']]);
-					}
+				if (!is_null($instance)) {
+					$instance = '_' . $instance;
+				}
+				if (isset($_POST[$field['name'] . $instance])) {
+					$newdata = sanitize($_POST[$field['name'] . $instance]);
 				} else {
-					if (!is_null($instance)) {
-						$instance = '_' . $instance;
-					}
-					if (isset($_POST[$field['name'] . $instance])) {
-						$newdata = sanitize($_POST[$field['name'] . $instance]);
-					} else {
-
-					}
+					$newdata = NULL;
 				}
 		}
 
@@ -260,6 +250,8 @@ class fieldExtender {
 				}
 				break;
 			default:
+				if ($instance)
+					$instance = '_' . $instance;
 				$item = html_encode($obj->get($field['name']));
 				$formatted = false;
 				break;
@@ -270,22 +262,26 @@ class fieldExtender {
 	/**
 	 * Process the save of user object type elements
 	 *
+	 * @param boolean $updated
 	 * @param object $userobj
 	 * @param int $i
 	 * @param boolean $alter
 	 * @return boolean
 	 */
-	static function _adminSave($userobj, $i, $alter, $fields) {
+	static function _adminSave($updated, $userobj, $i, $alter, $fields) {
 		if ($userobj->getValid()) {
 			foreach ($fields as $field) {
 				if ($field['table'] == 'administrators') {
-					$newdata = fieldExtender::_saveHandler($userobj, $i, $field, 'user');
-					if (!is_null($newdata)) {
+					$olddata = $userobj->get($field['name']);
+					$newdata = fieldExtender::_saveHandler($userobj, $i, $field);
+					if (!is_null($newdata))
 						$userobj->set($field['name'], $newdata);
+					if ($olddata != $newdata) {
+						$updated = true;
 					}
 				}
 			}
-			return $userobj;
+			return $updated;
 		}
 	}
 
@@ -311,12 +307,12 @@ class fieldExtender {
 						$html .= $item;
 					} else {
 						if (in_array(strtolower($field['type']), array('varchar', 'int', 'tinytext'))) {
-							$input .= '<input name = "user[' . $i . '][' . $field['name'] . ']" type = "text" style="width:98%;" value = "' . $item . '" />';
+							$input .= '<input name = "' . $field['name'] . '_' . $i . '" type = "text" style="width:98%;" value = "' . $item . '" />';
 						} else {
-							$input .= '<textarea name = "user[' . $i . '][' . $field['name'] . ']" cols = "' . TEXTAREA_COLUMNS . '"rows = "1">' . $item . '</textarea>';
+							$input .= '<textarea name = "' . $field['name'] . '_' . $i . '" cols = "' . TEXTAREA_COLUMNS . '"rows = "1">' . $item . '</textarea>';
 						}
 					}
-					$input .= '</fieldset>';
+					$input .='</fieldset>';
 					$list[] = $input;
 				}
 			}
@@ -329,12 +325,14 @@ class fieldExtender {
 			$output = array_chunk($list, round($count / 2));
 
 
-			$html .= '<div class="user_left">' .
+			$html .=
+							'<div class="user_left">' .
 							implode($output[0], "\n") .
 							'</div>';
 
 			if (!empty($output[1])) {
-				$html .= '<div class="user_right">' .
+				$html .=
+								'<div class="user_right">' .
 								implode($output[1], "\n") .
 								'</div>';
 			}
@@ -383,7 +381,7 @@ class fieldExtender {
 							$html .= '<textarea name="' . $field['name'] . '_' . $i . '" style = "width:100%;" rows = "6">' . $item . '</textarea>';
 						}
 					}
-					$html .= "</td>\n</tr>\n";
+					$html .="</td>\n</tr>\n";
 				}
 			}
 		}
@@ -394,10 +392,11 @@ class fieldExtender {
 	/**
 	 * Processes the save of zenpage objects
 	 *
+	 * @param string $custom
 	 * @param object $object
 	 * @return string
 	 */
-	static function _cmsItemSave($object, $fields) {
+	static function _cmsItemSave($custom, $object, $fields) {
 		foreach ($fields as $field) {
 			if ($field['table'] == $object->table) {
 				$newdata = fieldExtender::_saveHandler($object, NULL, $field);
@@ -405,7 +404,7 @@ class fieldExtender {
 					$object->set($field['name'], $newdata);
 			}
 		}
-		return $object;
+		return $custom;
 	}
 
 	/**
@@ -445,7 +444,7 @@ value="' . $item . '" />';
 	 * registers filters for handling display and edit of objects as appropriate
 	 */
 	static function _register($me, $fields) {
-		npgFilters::register('searchable_fields', "$me::addToSearch");
+		zp_register_filter('searchable_fields', "$me::addToSearch");
 		$actions = $items = array();
 		foreach ($fields as $field) {
 			$items[$field['table']] = true;
@@ -456,45 +455,45 @@ value="' . $item . '" />';
 		$registerCMSSave = false;
 
 		if (isset($items['albums'])) {
-			npgFilters::register("save_album_data", "$me::mediaItemSave");
-			npgFilters::register("edit_album_custom", "$me::mediaItemEdit");
+			zp_register_filter("save_album_utilities_data", "$me::mediaItemSave");
+			zp_register_filter("edit_album_custom_data", "$me::mediaItemEdit");
 			if (isset($actions['albums'])) {
-				npgFilters::register('bulk_album_actions', "$me::bulkAlbum");
-				npgFilters::register('processBulkAlbumsSave', "$me::bulkAlbumSave");
+				zp_register_filter('bulk_album_actions', "$me::bulkAlbum");
+				zp_register_filter('processBulkAlbumsSave', "$me::bulkAlbumSave");
 			}
 		}
 		if (isset($items['images'])) {
-			npgFilters::register("save_image_data", "$me::mediaItemSave");
-			npgFilters::register("edit_image_custom", "$me::mediaItemEdit");
+			zp_register_filter("save_image_utilities_data", "$me::mediaItemSave");
+			zp_register_filter("edit_image_custom_data", "$me::mediaItemEdit");
 			if (isset($actions['images'])) {
-				npgFilters::register('bulk_image_actions', "$me::bulkImage");
-				npgFilters::register('processBulkImageSave', "$me::bulkImageSave");
+				zp_register_filter('bulk_image_actions', "$me::bulkImage");
+				zp_register_filter('processBulkImageSave', "$me::bulkImageSave");
 			}
 		}
 		if (isset($items['administrators'])) {
-			npgFilters::register("save_admin_data", "$me::adminSave");
-			npgFilters::register("edit_admin_custom", "$me::adminEdit");
+			zp_register_filter("save_admin_custom_data", "$me::adminSave");
+			zp_register_filter("edit_admin_custom_data", "$me::adminEdit");
 			//there are no admin bulk actions currently
 		}
 		if (isset($items['news'])) {
-			npgFilters::register("save_article_data", "$me::cmsItemSave");
-			npgFilters::register("edit_article_custom", "$me::cmsItemEdit");
+			zp_register_filter("save_article_custom_data", "$me::cmsItemSave");
+			zp_register_filter("edit_article_custom_data", "$me::cmsItemEdit");
 			if (isset($actions['news'])) {
-				npgFilters::register('bulk_article_actions', "$me::bulkArticle");
+				zp_register_filter('bulk_article_actions', "$me::bulkArticle");
 				$registerCMSSave = true;
 			}
 		}
 
 		if (isset($items['pages'])) {
-			npgFilters::register("save_page_data", "$me::cmsItemSave");
-			npgFilters::register("edit_page_custom", "$me::cmsItemEdit");
+			zp_register_filter("save_page_custom_data", "$me::cmsItemSave");
+			zp_register_filter("edit_page_custom_data", "$me::cmsItemEdit");
 			if (isset($actions['pages'])) {
-				npgFilters::register('bulk_page_actions', "$me::bulkPage");
+				zp_register_filter('bulk_page_actions', "$me::bulkPage");
 				$registerCMSSave = true;
 			}
 		}
 		if ($registerCMSSave) {
-			npgFilters::register('processBulkCMSSave', "$me::bulkCMSSave");
+			zp_register_filter('processBulkCMSSave', "$me::bulkCMSSave");
 		}
 
 		if (OFFSET_PATH && !getOption($me . "_addedFields")) {
@@ -525,25 +524,25 @@ value="' . $item . '" />';
 	}
 
 	static function getField($field, $object = NULL, &$detail = NULL, $fields) {
-		global $_current_admin_obj, $_current_album, $_current_image
-		, $_CMS_current_article, $_CMS_current_page, $_CMS_current_category;
+		global $_zp_current_admin_obj, $_zp_current_album, $_zp_current_image
+		, $_zp_current_article, $_zp_current_page, $_zp_current_category;
 		$objects = $tables = array();
 		if (is_null($object)) {
-			if (in_context(NPG_IMAGE)) {
-				$object = $_current_image;
-				$objects[$tables[] = 'albums'] = $_current_album;
-			} else if (in_context(NPG_ALBUM)) {
-				$object = $_current_album;
-			} else if (in_context(ZENPAGE_NEWS_ARTICLE)) {
-				$object = $_CMS_current_article;
-				if ($_CMS_current_category)
-					$objects[$tables[] = 'news_categories'] = $_CMS_current_category;
-			} else if (in_context(ZENPAGE_PAGE)) {
-				$object = $_CMS_current_page;
-			} else if (in_context(ZENPAGE_NEWS_CATEGORY)) {
-				$object = $_CMS_current_category;
+			if (in_context(ZP_IMAGE)) {
+				$object = $_zp_current_image;
+				$objects[$tables[] = 'albums'] = $_zp_current_album;
+			} else if (in_context(ZP_ALBUM)) {
+				$object = $_zp_current_album;
+			} else if (in_context(ZP_ZENPAGE_NEWS_ARTICLE)) {
+				$object = $_zp_current_article;
+				if ($_zp_current_category)
+					$objects[$tables[] = 'news_categories'] = $_zp_current_category;
+			} else if (in_context(ZP_ZENPAGE_PAGE)) {
+				$object = $_zp_current_page;
+			} else if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+				$object = $_zp_current_category;
 			} else {
-				trigger_error(gettext('There is no defined context, you must pass a comment object.'), E_USER_ERROR);
+				zp_error(gettext('There is no defined context, you must pass a comment object.'));
 			}
 		}
 
@@ -561,7 +560,7 @@ value="' . $item . '" />';
 		if (isset($detail)) {
 			return get_language_string($object->get($detail['name']));
 		} else {
-			trigger_error(gettext('Field not defined.'), E_USER_ERROR);
+			zp_error(gettext('Field not defined.'));
 		}
 	}
 

@@ -29,28 +29,27 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/xmpMetadata
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
  */
 $plugin_is_filter = 9 | CLASS_PLUGIN;
-if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
-	$plugin_description = gettext('Extracts <em>XMP</em> metadata from images and <code>XMP</code> sidecar files.');
-}
+$plugin_description = gettext('Extracts <em>XMP</em> metadata from images and <code>XMP</code> sidecar files.');
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'xmpMetadata';
 
-npgFilters::register('album_instantiate', 'xmpMetadata::album_instantiate');
-npgFilters::register('new_album', 'xmpMetadata::new_album');
-npgFilters::register('album_refresh', 'xmpMetadata::new_album');
-npgFilters::register('image_instantiate', 'xmpMetadata::image_instantiate');
-npgFilters::register('image_metadata', 'xmpMetadata::new_image');
-npgFilters::register('upload_filetypes', 'xmpMetadata::sidecars');
-npgFilters::register('save_album_data', 'xmpMetadata::putXMP');
-npgFilters::register('edit_album_utilities', 'xmpMetadata::create');
-npgFilters::register('save_image_data', 'xmpMetadata::putXMP');
-npgFilters::register('edit_image_utilities', 'xmpMetadata::create');
-npgFilters::register('bulk_image_actions', 'xmpMetadata::bulkActions');
-npgFilters::register('bulk_album_actions', 'xmpMetadata::bulkActions');
+zp_register_filter('album_instantiate', 'xmpMetadata::album_instantiate');
+zp_register_filter('new_album', 'xmpMetadata::new_album');
+zp_register_filter('album_refresh', 'xmpMetadata::new_album');
+zp_register_filter('image_instantiate', 'xmpMetadata::image_instantiate');
+zp_register_filter('image_metadata', 'xmpMetadata::new_image');
+zp_register_filter('upload_filetypes', 'xmpMetadata::sidecars');
+zp_register_filter('save_album_utilities_data', 'xmpMetadata::putXMP');
+zp_register_filter('edit_album_utilities', 'xmpMetadata::create');
+zp_register_filter('save_image_utilities_data', 'xmpMetadata::putXMP');
+zp_register_filter('edit_image_utilities', 'xmpMetadata::create');
+zp_register_filter('bulk_image_actions', 'xmpMetadata::bulkActions');
+zp_register_filter('bulk_album_actions', 'xmpMetadata::bulkActions');
 
 require_once(dirname(dirname(__FILE__)) . '/exif/exif.php');
 
@@ -578,9 +577,9 @@ class xmpMetadata {
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		global $_supported_images, $_images_classes;
-		$list = array_diff($_supported_images, array('gif', 'wbmp', 'wbm', 'bmp'));
-		foreach ($_images_classes as $suffix => $type) {
+		global $_zp_supported_images, $_zp_images_classes;
+		$list = array_diff($_zp_supported_images, array('gif', 'wbmp', 'wbm', 'bmp'));
+		foreach ($_zp_images_classes as $suffix => $type) {
 			if ($type == 'Video')
 				$list[] = $suffix;
 		}
@@ -612,12 +611,12 @@ class xmpMetadata {
 	 * @return array
 	 *
 	 * @author Stephen Billard
-	 * @Copyright 2015 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+	 * @Copyright 2015 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
 	 */
 	static function getMetadataFields() {
 		return array(
 				// Database Field      => array(0:'source', 1:'Metadata Key', 2;'ZP Display Text', 3:Display?	4:size,	5:enabled, 6:type, 7:linked)
-				'XMPAperatureValue' => array('XMP', '<exif:ApertureValue>', gettext('Aperture Value'), false, 52, true, 'string', false),
+				'XMPAperatureValue' => array('XMP', '<exif:ApertureValue>', gettext('Aperature Value'), false, 52, true, 'string', false),
 				'XMPArtist' => array('XMP', '<dc:creator>', gettext('Artist'), false, 52, true, 'string', false),
 				'XMPContrast' => array('XMP', '<exif:Contrast>', gettext('Contrast Setting'), false, 52, true, 'string', false),
 				'XMPDateTimeOriginal' => array('XMP', '<exif:DateTimeOriginal>', gettext('Original Time Taken'), true, 52, true, 'time', false),
@@ -764,54 +763,52 @@ class xmpMetadata {
 				if (strtolower(getSuffix($file)) == XMP_EXTENSION) {
 					$source = file_get_contents($file);
 					$metadata = self::extract($source);
-					if (!empty($metadata)) {
-						if (array_key_exists('XMPImageCaption', $metadata)) {
-							$album->setDesc(self::to_string($metadata['XMPImageCaption']));
-						}
-						if (array_key_exists('XMPImageHeadline', $metadata)) {
-							$data = self::to_string($metadata['XMPImageHeadline']);
-							if (getoption('transform_newlines')) {
-								$desc = nl2br($desc);
-							}
-							$album->setTitle($data);
-						}
-						if (array_key_exists('XMPLocationName', $metadata)) {
-							$album->setLocation(self::to_string($metadata['XMPLocationName']));
-						}
-						if (array_key_exists('XMPKeywords', $metadata)) {
-							$tags = $metadata['XMPKeywords'];
-							if (!is_array($tags)) {
-								$tags = explode(',', $tags);
-							}
-							$album->setTags($tags);
-						}
-						if (array_key_exists('XMPDateTimeOriginal', $metadata)) {
-							$album->setDateTime($metadata['XMPDateTimeOriginal']);
-						}
-						if (array_key_exists('thumb', $metadata)) {
-							$album->setThumb($metadata['thumb']);
-						}
-						if (array_key_exists('owner', $metadata)) {
-							$album->setOwner($metadata['owner']);
-						}
-						if (array_key_exists('codeblock', $metadata)) {
-							$album->setCodeblock($metadata['codeblock']);
-						}
-						if (array_key_exists('watermark', $metadata)) {
-							$album->setWatermark($metadata['watermark']);
-						}
-						if (array_key_exists('watermark_thumb', $metadata)) {
-							$album->setWatermarkThumb($metadata['watermark_thumb']);
-						}
-						if (array_key_exists('rating', $metadata)) {
-							$v = min(getoption('rating_stars_count'), $metadata['rating']) * min(1, getOption('rating_split_stars'));
-							$album->set('total_value', $v);
-							$album->set('rating', $v);
-							$album->set('total_votes', 1);
-						}
-						$album->save();
-						break;
+					if (array_key_exists('XMPImageCaption', $metadata)) {
+						$album->setDesc(self::to_string($metadata['XMPImageCaption']));
 					}
+					if (array_key_exists('XMPImageHeadline', $metadata)) {
+						$data = self::to_string($metadata['XMPImageHeadline']);
+						if (getoption('transform_newlines')) {
+							$desc = nl2br($desc);
+						}
+						$album->setTitle($data);
+					}
+					if (array_key_exists('XMPLocationName', $metadata)) {
+						$album->setLocation(self::to_string($metadata['XMPLocationName']));
+					}
+					if (array_key_exists('XMPKeywords', $metadata)) {
+						$tags = $metadata['XMPKeywords'];
+						if (!is_array($tags)) {
+							$tags = explode(',', $tags);
+						}
+						$album->setTags($tags);
+					}
+					if (array_key_exists('XMPDateTimeOriginal', $metadata)) {
+						$album->setDateTime($metadata['XMPDateTimeOriginal']);
+					}
+					if (array_key_exists('thumb', $metadata)) {
+						$album->setThumb($metadata['thumb']);
+					}
+					if (array_key_exists('owner', $metadata)) {
+						$album->setOwner($metadata['owner']);
+					}
+					if (array_key_exists('codeblock', $metadata)) {
+						$album->setCodeblock($metadata['codeblock']);
+					}
+					if (array_key_exists('watermark', $metadata)) {
+						$album->setWatermark($metadata['watermark']);
+					}
+					if (array_key_exists('watermark_thumb', $metadata)) {
+						$album->setWatermarkThumb($metadata['watermark_thumb']);
+					}
+					if (array_key_exists('rating', $metadata)) {
+						$v = min(getoption('rating_stars_count'), $metadata['rating']) * min(1, getOption('rating_split_stars'));
+						$album->set('total_value', $v);
+						$album->set('rating', $v);
+						$album->set('total_votes', 1);
+					}
+					$album->save();
+					break;
 				}
 			}
 			return $album;
@@ -918,7 +915,7 @@ class xmpMetadata {
 				}
 			}
 		}
-		// direct import to fields with no processing required
+		// direct import to ZenPhoto20 fields with no processing required
 		$import = array(
 				'location' => 'XMPSubLocation',
 				'city' => 'XMPCity',
@@ -930,7 +927,7 @@ class xmpMetadata {
 		);
 		if (!empty($source)) {
 			$metadata = self::extract($source);
-			if (!empty($metadata)) {
+			if (count($metadata > 0)) {
 				$exifVars = self::getMetadataFields();
 				foreach ($metadata as $field => $element) {
 					if (!array_key_exists($field, $exifVars) || $exifVars[$field][EXIF_FIELD_ENABLED]) {
@@ -1152,15 +1149,14 @@ class xmpMetadata {
 	}
 
 	static function create($html, $object, $prefix) {
-		if ($html) {
+		if ($html)
 			$html .= '<hr />';
-		}
 		$html .= '<label><input type="checkbox" name="xmpMedadataPut_' . $prefix . '" value="1" /> ' . gettext('Export metadata info to XMP sidecar.') . '</label>';
 		return $html;
 	}
 
 	static function bulkActions($actions) {
-		return array_merge($actions, array(gettext('Export Metadata') => 'xmpMetadata::publish'));
+		return array_merge($actions, array(gettext('Export Metadata') => 'xmpMetadataPublish'));
 	}
 
 }
@@ -1180,11 +1176,8 @@ function xmpMetadata_enable($enabled) {
 		}
 		setOption('metadata_disabled', serialize($disable));
 		setOption('metadata_displayed', serialize($display));
-		$report = gettext('XMP metadata fields will be added to the Image object.');
-	} else {
-		$report = gettext('XMP metadata fields will be <span style="color:red;font-weight:bold;">dropped</span> from the Image object.');
 	}
-	requestSetup('XMP Metadata', $report);
+	requestSetup('XMP Metadata');
 }
 
 ?>

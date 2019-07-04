@@ -6,31 +6,32 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/PHPMailer
- * @pluginCategory mail
+ * @package plugins
+ * @subpackage mail
  */
 $plugin_is_filter = 800 | CLASS_PLUGIN;
 $plugin_description = gettext("Outgoing mail handler based on the <em>PHPMailer</em> class mailing facility.");
-$plugin_disable = (npgFilters::has_filter('sendmail') && !extensionEnabled('PHPMailer')) ? sprintf(gettext('Only one Email handler plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), stripSuffix(npgFilters::script('sendmail'))) : '';
+$plugin_author = "Stephen Billard (sbillard)";
+$plugin_disable = (zp_has_filter('sendmail') && !extensionEnabled('PHPMailer')) ? sprintf(gettext('Only one Email handler plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), stripSuffix(get_filterScript('sendmail'))) : '';
 
-$option_interface = '_PHPMailer';
+$option_interface = 'zp_PHPMailer';
 
 if ($plugin_disable) {
 	enableExtension('PHPMailer', 0);
 } else {
-	npgFilters::register('sendmail', '_PHPMailer');
+	zp_register_filter('sendmail', 'zenphoto_PHPMailer');
 }
 
 /**
  * Option handler class
  *
  */
-class _PHPMailer {
+class zp_PHPMailer {
 
 	/**
 	 * class instantiation function
 	 *
-	 * @return _PHPMailer
+	 * @return zp_PHPMailer
 	 */
 	function __construct() {
 		if (OFFSET_PATH == 2) {
@@ -87,31 +88,22 @@ class _PHPMailer {
 
 }
 
-//Import the PHPMailer class into the global namespace
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\POP3;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception;
-
-function _PHPMailer($msg, $email_list, $subject, $message, $from_mail, $from_name, $cc_addresses, $replyTo) {
-	require_once(dirname(__FILE__) . '/PHPMailer/PHPMailer.php');
-	require_once(dirname(__FILE__) . '/PHPMailer/POP3.php');
-	require_once(dirname(__FILE__) . '/PHPMailer/SMTP.php');
-	require_once(dirname(__FILE__) . '/PHPMailer/Exception.php');
-
+function zenphoto_PHPMailer($msg, $email_list, $subject, $message, $from_mail, $from_name, $cc_addresses, $bcc_addresses, $replyTo, $html = false) {
+	require_once(dirname(__FILE__) . '/PHPMailer/class.phpmailer.php');
+	require_once(dirname(__FILE__) . '/PHPMailer/PHPMailerAutoload.php');
 	switch (getOption('PHPMailer_mail_protocol')) {
 		case 'pop3':
 			$pop = new POP3();
-			$authorized = $pop->authorise(getOption('PHPMailer_server'), getOption('PHPMailer_pop_port'), 30, getOption('PHPMailer_user'), getOption('PHPMailer_password'), 0);
+			$authorized = $pop->Authorise(getOption('PHPMailer_server'), getOption('PHPMailer_pop_port'), 30, getOption('PHPMailer_user'), getOption('PHPMailer_password'), 0);
 			$mail = new PHPMailer();
-			$mail->isSMTP();
+			$mail->IsSMTP();
 			$mail->Port = getOption('PHPMailer_smtp_port');
 			$mail->Host = getOption('PHPMailer_server');
 			break;
 		case 'smtp':
 			$mail = new PHPMailer();
 			$mail->SMTPAuth = true; // enable SMTP authentication
-			$mail->isSMTP();
+			$mail->IsSMTP();
 			$mail->Username = getOption('PHPMailer_user');
 			$mail->Password = getOption('PHPMailer_password');
 			$mail->Host = getOption('PHPMailer_server');
@@ -119,7 +111,7 @@ function _PHPMailer($msg, $email_list, $subject, $message, $from_mail, $from_nam
 			break;
 		case 'sendmail':
 			$mail = new PHPMailer();
-			$mail->isSendmail();
+			$mail->IsSendmail();
 			break;
 	}
 	$mail->SMTPSecure = getOption('PHPMailer_secure');
@@ -140,7 +132,7 @@ function _PHPMailer($msg, $email_list, $subject, $message, $from_mail, $from_nam
 	}
 	if (count($cc_addresses) > 0) {
 		foreach ($cc_addresses as $cc_name => $cc_mail) {
-			if (is_numeric($cc_name)) {
+			if (is_numeric($cc_mail)) {
 				$mail->addCC($cc_mail);
 			} else {
 				$mail->addCC($cc_mail, $cc_name);

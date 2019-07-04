@@ -6,17 +6,12 @@ if (class_exists('CMS')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
-			<?php
-			npgFilters::apply('theme_head');
-
-			scriptLoader($_themeroot . '/zen.css');
-
-			if (class_exists('RSS'))
-				printRSSHeaderLink('Gallery', gettext('Gallery'));
-			?>
+			<?php zp_apply_filter('theme_head'); ?>
+			<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
+			<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
 		</head>
 		<body class="sidebars">
-	<?php npgFilters::apply('theme_body_open'); ?>
+			<?php zp_apply_filter('theme_body_open'); ?>
 			<div id="navigation"></div>
 			<div id="wrapper">
 				<div id="container">
@@ -31,7 +26,7 @@ if (class_exists('CMS')) {
 					<!-- header -->
 					<div class="sidebar">
 						<div id="leftsidebar">
-	<?php include("sidebar.php"); ?>
+							<?php include("sidebar.php"); ?>
 						</div>
 					</div>
 
@@ -44,15 +39,16 @@ if (class_exists('CMS')) {
 										<h2 id="gallerytitle">
 											<?php printHomeLink('', ' » '); ?>
 											<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Gallery Index'); ?>"><?php echo html_encode(getGalleryTitle()); ?></a>
-	<?php printZenpageItemsBreadcrumb(" » ", ""); ?><?php printPageTitle(" » "); ?>
+											<?php printZenpageItemsBreadcrumb(" » ", ""); ?><?php printPageTitle(" » "); ?>
 										</h2>
 										<h3><?php printPageTitle(); ?></h3>
 										<div id="pagetext">
 											<?php printCodeblock(1); ?>
 											<?php printPageContent(); ?>
-										<?php printCodeblock(2); ?>
+											<?php printCodeblock(2); ?>
 										</div>
 										<?php
+										@call_user_func('printRating');
 										@call_user_func('printCommentForm');
 										footer();
 										?>
@@ -66,18 +62,18 @@ if (class_exists('CMS')) {
 					<span class="clear"></span>
 					<div class="sidebar">
 						<div id="rightsidebar">
-	<?php printTags('links', gettext('Tags: '), NULL, ''); ?>
+							<?php printTags('links', gettext('Tags: '), NULL, ''); ?>
 						</div><!-- right sidebar -->
 					</div><!-- sidebar -->
 				</div><!-- /container -->
 			</div>
 			<?php
-			npgFilters::apply('theme_body_close');
+			zp_apply_filter('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

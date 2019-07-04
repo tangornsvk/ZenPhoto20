@@ -4,22 +4,18 @@ if (!defined('WEBPATH'))
 ?>
 <!DOCTYPE html>
 <head>
-	<?php
-	npgFilters::apply('theme_head');
-
-	scriptLoader($_themeroot . '/style.css');
-
-	printRSSHeaderLink("Gallery", gettext('Gallery'));
-	printZDRoundedCornerJS();
-	?>
+	<?php zp_apply_filter('theme_head'); ?>
+	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
+	<?php printRSSHeaderLink("Gallery", gettext('Gallery RSS')); ?>
+<?php printZDRoundedCornerJS(); ?>
 </head>
 
 <body>
-	<?php npgFilters::apply('theme_body_open'); ?>
+<?php zp_apply_filter('theme_body_open'); ?>
 
 	<div id="main">
 
-		<?php include("header.php"); ?>
+<?php include("header.php"); ?>
 
 		<div id="content">
 
@@ -32,7 +28,7 @@ if (!defined('WEBPATH'))
 						if (!isset($ishomepage)) {
 							printPageTitle(" » ");
 						}
-						?></strong>
+					?></strong>
 				</h2>
 			</div>
 			<div id="content-left">
@@ -43,10 +39,15 @@ if (!defined('WEBPATH'))
 				printTags('links', gettext('<strong>Tags:</strong>') . ' ', 'taglist', ', ');
 				?>
 				<br style="clear:both;" /><br />
+				<?php
+				if (function_exists('printRating')) {
+					printRating();
+				}
+				?>
 
-				<?php if (function_exists('printCommentForm')) { ?>
+<?php if (function_exists('printCommentForm')) { ?>
 					<div id="comments">
-						<?php printCommentForm(); ?>
+	<?php printCommentForm(); ?>
 					</div>
 				<?php } ?>
 			</div><!-- content left-->
@@ -58,12 +59,12 @@ if (!defined('WEBPATH'))
 
 
 			<div id="footer">
-				<?php include("footer.php"); ?>
+	<?php include("footer.php"); ?>
 			</div>
 
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php npgFilters::apply('theme_body_close'); ?>
+<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

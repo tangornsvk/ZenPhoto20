@@ -5,18 +5,14 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-
-		<?php
-		npgFilters::apply('theme_head');
-
-		scriptLoader($_themeroot . '/zen.css');
-
-		if (class_exists('RSS'))
-			printRSSHeaderLink('Gallery', gettext('Gallery'));
-		?>
+		
+		<?php zp_apply_filter('theme_head'); ?>
+		
+		<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
+		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
 	</head>
 	<body class="sidebars">
-<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 		<div id="navigation"></div>
 		<div id="wrapper">
 			<div id="container">
@@ -30,7 +26,7 @@ if (!defined('WEBPATH'))
 				</div><!-- header -->
 				<div class="sidebar">
 					<div id="leftsidebar">
-<?php include("sidebar.php"); ?>
+						<?php include("sidebar.php"); ?>
 					</div>
 				</div>
 				<div id="center">
@@ -43,7 +39,7 @@ if (!defined('WEBPATH'))
 									<?php commonNewsLoop(false); ?>
 									<p style="clear: both;"></p>
 									<?php printCodeblock(2); ?>
-<?php footer(); ?>
+									<?php footer(); ?>
 								</div><!-- main -->
 								<span class="clear"></span>
 							</div><!-- left corner -->
@@ -66,7 +62,7 @@ if (!defined('WEBPATH'))
 			</div><!-- container -->
 		</div><!-- wrapper -->
 		<?php
-		npgFilters::apply('theme_body_close');
+		zp_apply_filter('theme_body_close');
 		?>
 	</body>
 </html>

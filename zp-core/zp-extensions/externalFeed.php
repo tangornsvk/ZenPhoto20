@@ -11,9 +11,9 @@
  * Feed types:
  *
  * Supports all RSS feed options plus individual Image, News, and Page requests:
- * <ol>
+ * <ul>
  * 	<li>?external=gallery
- * 		<ol>
+ * 		<ul>
  * 			<li>&album=<i>album</i> for an album</li>
  * 			<li>&album[]=<i>album</i>&album[]=>i>album</i>... for a list of albums</li>
  * 			<li>&album=<i>album</i>&image=<i>image</i> for an image</li>
@@ -21,38 +21,35 @@
  *
  * 				add &size=<i>size</i> to the image request to select a particular image size. (This
  * 				cannot be larger than the plugin's image size option.)
- * 		</ol>
+ * 		</ul>
  * 	</li>
  * 	<li>?external=news
- * 		<ol>
+ * 		<ul>
  * 			<li>&titlelink=<i>article</i> for an article</li>
  * 			<li>&titlelink[]=<i>article</i>&titlelink[]=<i>article</i>... for a list of articles</li>
- * 		</ol>
+ * 		</ul>
  * 	</li>
  * 	<li>?external=news
- * 		<ol>
+ * 		<ul>
  * 			<li>&titlelink=<i>page</i> for a page</li>
  * 			<li>&titlelink[]=<i>page</i>&titlelink[]=<i>page</i>... for a list of pages</li>
- * 	 </ol>
+ * 	 </ul>
  * 	</li>
- * </ol>
+ * </ul>
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/externalFeed
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  */
 // force UTF-8 Ø
 
-$plugin_is_filter = 910 | FEATURE_PLUGIN;
+$plugin_is_filter = 900 | FEATURE_PLUGIN | ADMIN_PLUGIN;
 $plugin_description = gettext('The <em>externalFeed</em> handler.');
 
+$plugin_author = "Stephen Billard (sbillard)";
+
 $option_interface = 'externalFeed_options';
-
-npgFilters::register('site_upgrade_xml', 'externalFeed_options::xmlfile');
-
-require_once(CORE_SERVERPATH . 'class-feed.php');
-require_once(CORE_SERVERPATH . 'lib-MimeTypes.php');
 
 class externalFeed_options {
 
@@ -154,12 +151,10 @@ class externalFeed_options {
 		return false;
 	}
 
-	static function xmlfile($filelist) {
-		$filelist['externalFeed-closed.xml'] = 'externalFeed';
-		return $filelist;
-	}
-
 }
+
+require_once(SERVERPATH . '/' . ZENFOLDER . '/class-feed.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/lib-MimeTypes.php');
 
 class ExternalFeed extends feed {
 
@@ -171,8 +166,8 @@ class ExternalFeed extends feed {
 	 *
 	 */
 	function __construct($options = NULL) {
-		global $_gallery, $_current_admin_obj, $_loggedin, $_gallery_page;
-		$_gallery_page = 'externalFeed.php';
+		global $_zp_gallery, $_zp_current_admin_obj, $_zp_loggedin, $_zp_gallery_page;
+		$_zp_gallery_page = 'externalFeed.php';
 		if (empty($options))
 			self::feed404();
 		$this->feedtype = $options['externalfeed'];
@@ -195,14 +190,14 @@ class ExternalFeed extends feed {
 		//channeltitle general
 		switch ($channeltitlemode) {
 			case 'gallery':
-				$this->channel_title = $_gallery->getBareTitle($this->locale);
+				$this->channel_title = $_zp_gallery->getBareTitle($this->locale);
 				break;
 			case 'website':
-				$this->channel_title = getBare($_gallery->getWebsiteTitle($this->locale));
+				$this->channel_title = getBare($_zp_gallery->getWebsiteTitle($this->locale));
 				break;
 			case 'both':
-				$website_title = $_gallery->getWebsiteTitle($this->locale);
-				$this->channel_title = $_gallery->getBareTitle($this->locale);
+				$website_title = $_zp_gallery->getWebsiteTitle($this->locale);
+				$this->channel_title = $_zp_gallery->getBareTitle($this->locale);
 				if (!empty($website_title)) {
 					$this->channel_title = $website_title . ' - ' . $this->channel_title;
 				}
@@ -235,7 +230,7 @@ class ExternalFeed extends feed {
 
 				$this->channel_title = html_encode($this->channel_title . ' ' . getBare($albumname));
 				$this->imagesize = $this->getImageSize();
-				require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/image_album_statistics.php');
+				require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/image_album_statistics.php');
 				break;
 
 			case 'news': //Zenpage News
@@ -261,8 +256,8 @@ class ExternalFeed extends feed {
 				$this->channel_title = html_encode($this->channel_title . $this->cattitle . $titleappendix);
 				$this->imagesize = $this->getImageSize();
 				$this->itemnumber = getOption("externalFeed_zenpage_items"); // # of Items displayed on the feed
-				require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/image_album_statistics.php');
-				require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/zenpage/template-functions.php');
+				require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/image_album_statistics.php');
+				require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/template-functions.php');
 
 				break;
 
@@ -288,7 +283,7 @@ class ExternalFeed extends feed {
 						break;
 				}
 				$this->channel_title = html_encode($this->channel_title . $titleappendix);
-				require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/zenpage/template-functions.php');
+				require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/template-functions.php');
 				break;
 
 			case 'comments': //Comments
@@ -325,7 +320,7 @@ class ExternalFeed extends feed {
 				}
 				$this->channel_title = html_encode($this->channel_title . $title . gettext(' (latest comments)'));
 				if (extensionEnabled('zenpage')) {
-					require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/zenpage/template-functions.php');
+					require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/template-functions.php');
 				}
 				break;
 
@@ -354,7 +349,7 @@ class ExternalFeed extends feed {
 			$title = $albumobj->getTitle($this->locale);
 
 			$filechangedate = filectime(ALBUM_FOLDER_SERVERPATH . internalToFilesystem($albumobj->name));
-			$latestimage = query_single_row("SELECT mtime FROM " . prefix('images') . " WHERE albumid = " . $albumobj->getID() . " AND `show`=1 ORDER BY id DESC");
+			$latestimage = query_single_row("SELECT mtime FROM " . prefix('images') . " WHERE albumid = " . $albumobj->getID() . " AND `show` = 1 ORDER BY id DESC");
 			if ($latestimage && $this->sortorder == 'latestupdated') {
 				$count = db_count('images', "WHERE albumid = " . $albumobj->getID() . " AND mtime = " . $latestimage['mtime']);
 			} else {
@@ -494,7 +489,7 @@ class ExternalFeed extends feed {
 	 *
 	 */
 	public function printFeed($feeditems = NULL) {
-		global $_gallery;
+		global $_zp_gallery;
 		if (is_null($feeditems)) {
 			$feeditems = $this->getitems();
 		}
@@ -539,7 +534,7 @@ class ExternalFeed extends feed {
 						?>
 						<item>
 							<title><![CDATA[<?php echo $item['title']; ?>]]></title>
-							<link><?php echo FULLHOSTPATH . WEBPATH . '/' . html_encode(ltrim($item['link'], '/')); ?></link>
+							<link><?php echo PROTOCOL . '://' . $_SERVER['HTTP_HOST'] . WEBPATH . '/' . html_encode(ltrim($item['link'], '/')); ?></link>
 							<description><![CDATA[<?php echo $item['desc']; ?>]]></description>
 							<?php
 							if (!empty($item['enclosure'])) {
@@ -565,8 +560,6 @@ class ExternalFeed extends feed {
 				</channel>
 			</external>
 			<?php
-		} else {
-			self::feed404();
 		}
 	}
 
@@ -581,10 +574,11 @@ if (!OFFSET_PATH) {
 		if (!$_GET['externalfeed']) {
 			$_GET['externalfeed'] = 'gallery';
 		}
-		$_gallery_page = 'rss.php';
+		//	load the theme plugins just incase
+		$_zp_gallery_page = 'rss.php';
 		$e = new ExternalFeed(sanitize($_GET));
 		$e->printFeed();
-		exit();
+		exitZP();
 	}
 }
 ?>

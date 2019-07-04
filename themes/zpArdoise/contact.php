@@ -19,5 +19,5 @@ if (extensionEnabled('contact_form')) {
 	include('inc_footer.php');
 
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 } ?>

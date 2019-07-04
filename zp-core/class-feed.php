@@ -60,7 +60,7 @@
  *
  * @package classes
  */
-require_once(CORE_SERVERPATH . 'template-functions.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
 
 class feed {
 
@@ -103,7 +103,7 @@ class feed {
 	protected function getCacheFilename() {
 		$filename = array();
 		foreach ($this->options as $key => $value) {
-			if (empty($value) || $key == 'albumsmode') { // supposed to be empty always
+			if (empty($value)) {
 				$filename[] = $key;
 			} else {
 				$filename[] = $value;
@@ -118,12 +118,12 @@ class feed {
 	 *
 	 */
 	protected function startCache() {
-		$caching = getOption($this->feed . "_cache") && !npg_loggedin();
+		$caching = getOption($this->feed . "_cache") && !zp_loggedin();
 		if ($caching) {
 			$cachefilepath = SERVERPATH . '/' . STATIC_CACHE_FOLDER . '/' . strtolower($this->feed) . '/' . internalToFilesystem($this->getCacheFilename());
 			if (file_exists($cachefilepath) AND time() - filemtime($cachefilepath) < getOption($this->feed . "_cache_expire")) {
 				echo file_get_contents($cachefilepath);
-				exit();
+				exitZP();
 			} else {
 				if (file_exists($cachefilepath)) {
 					@chmod($cachefilepath, 0777);
@@ -139,7 +139,7 @@ class feed {
 	 *
 	 */
 	protected function endCache() {
-		$caching = getOption($this->feed . "_cache") && !npg_loggedin();
+		$caching = getOption($this->feed . "_cache") && !zp_loggedin();
 		if ($caching) {
 			$cachefilepath = internalToFilesystem($this->getCacheFilename());
 			if (!empty($cachefilepath)) {
@@ -163,31 +163,47 @@ class feed {
 	 * @param string $cachefolder the sub-folder to clean
 	 */
 	function clearCache($cachefolder = NULL) {
-		npgFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER . '/' . strtolower($this->feed) . '/' . $cachefolder, true);
+		zpFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER . '/' . strtolower($this->feed) . '/' . $cachefolder, true);
 	}
 
 	function __construct($options) {
 		$this->options = $options;
-		$invalid_options = array();
-		$this->locale = $this->getLang();
+		if (isset($this->options['lang'])) {
+			$this->locale = $this->options['lang'];
+		} else {
+			$this->locale = getOption('locale');
+		}
 		$this->locale_xml = strtr($this->locale, '_', '-');
-		$this->sortdirection = $this->getSortdir();
-		$this->sortorder = $this->getSortorder();
+		if (isset($this->options['sortdir'])) {
+			$this->sortdirection = strtolower($this->options['sortdir']) != 'asc';
+		} else {
+			$this->sortdirection = true;
+		}
+		if (isset($this->options['sortorder'])) {
+			$this->sortorder = $this->options['sortorder'];
+		} else {
+			$this->sortorder = NULL;
+		}
 		switch ($this->feedtype) {
 			case 'comments':
-				$this->commentfeedtype = $this->getCommentFeedType();
-				$this->id = $this->getId();
-				$invalid_options = array('albumsmode', 'folder', 'albumname', 'category', 'size');
+				if (isset($this->options['type'])) {
+					$this->commentfeedtype = $this->options['type'];
+				} else {
+					$this->commentfeedtype = 'all';
+				}
+				if (isset($this->options['id'])) {
+					$this->id = (int) $this->options['id'];
+				}
 				break;
 			case 'gallery':
 				if (isset($this->options['albumsmode'])) {
 					$this->mode = 'albums';
 				}
 				if (isset($this->options['folder'])) {
-					$this->albumfolder = $this->getAlbum('folder');
+					$this->albumfolder = $this->options['folder'];
 					$this->collection = true;
 				} else if (isset($this->options['albumname'])) {
-					$this->albumfolder = $this->getAlbum('albumname');
+					$this->albumfolder = $this->options['albumname'];
 					$this->collection = false;
 				} else {
 					$this->collection = false;
@@ -199,15 +215,14 @@ class feed {
 						$this->sortorder = getOption($this->feed . "_sortorder");
 					}
 				}
-				$this->imagesize = $this->getImageSize();
-				$invalid_options = array('id', 'type', 'category');
 				break;
 			case 'news':
 				if ($this->sortorder == 'latest') {
 					$this->sortorder = NULL;
 				}
-				$this->catlink = $this->getCategory();
-				if (!empty($this->catlink)) {
+
+				if (isset($this->options['category'])) {
+					$this->catlink = $this->options['category'];
 					$catobj = new Category($this->catlink);
 					$this->cattitle = $catobj->getTitle();
 					$this->newsoption = 'category';
@@ -216,139 +231,17 @@ class feed {
 					$this->cattitle = '';
 					$this->newsoption = 'news';
 				}
-				$invalid_options = array('folder', 'albumname', 'albumsmode', 'type', 'id', 'size');
 				break;
 			case 'pages':
-				$invalid_options = array('folder', 'albumname', 'albumsmode', 'type', 'id', 'category', 'size');
 				break;
 			case 'null': //we just want the class instantiated
 				return;
 		}
-		$this->unsetOptions($invalid_options); // unset invalid options that this feed type does not support
 		if (isset($this->options['itemnumber'])) {
 			$this->itemnumber = (int) $this->options['itemnumber'];
 		} else {
 			$this->itemnumber = getOption($this->feed . '_items');
 		}
-	}
-
-	/**
-	 * Validates and gets the "lang" parameter option value
-	 *
-	 * @global array $_active_languages
-	 * @return string
-	 */
-	protected function getLang() {
-		if (isset($this->options['lang'])) {
-			$langs = i18n::generateLanguageList();
-			$valid = array_values($langs);
-			if (in_array($this->options['lang'], $valid)) {
-				return $this->options['lang'];
-			}
-		}
-		return getOption('locale');
-	}
-
-	/**
-	 * Validates and gets the "sortdir" parameter option value
-	 *
-	 * @return bool
-	 */
-	protected function getSortdir() {
-		$valid = array('desc', 'asc');
-		if (isset($this->options['sortdir']) && in_array($this->options['sortdir'], $valid)) {
-			return strtolower($this->options['sortdir']) != 'asc';
-		}
-		$this->options['sortdir'] = 'desc'; // make sure this is a valid default name
-		return TRUE;
-	}
-
-	/**
-	 * Validates and gets the "sortorder" parameter option value
-	 *
-	 * @return string
-	 */
-	protected function getSortorder() {
-		if (isset($this->options['sortorder'])) {
-			$valid = array('latest', 'latest-date', 'latest-mtime', 'latest-publishdate', 'popular', 'toprated', 'mostrated', 'random', 'id');
-			if (in_array($this->options['sortorder'], $valid)) {
-				$this->options['sortdir'] = $this->options['sortorder']; // make sure this is a valid default name
-				return $this->options['sortorder'];
-			} else {
-				$this->unsetOptions(array('sortorder'));
-			}
-		}
-		return NULL;
-	}
-
-	/**
-	 * Validates and gets the "type" parameter option value for comment feeds
-	 *
-	 * @return string
-	 */
-	protected function getCommentFeedType() {
-		$valid = false;
-		if (isset($this->options['type'])) {
-			if ($this->options['type'] == 'image' || $this->options['type'] == 'album') {
-				$this->options['type'] = $this->options['type'] . 's'; //	some old feeds have the singular
-			}
-			if (in_array($this->options['type'], array('albums', 'images', 'pages', 'news', 'all'))) {
-				return $this->options['type'];
-			}
-		}
-		return 'all';
-	}
-
-	/**
-	 * Validates and gets the "id" parameter option value for comments feeds of a specific item
-	 *
-	 * @return int
-	 */
-	protected function getID() {
-		if (isset($this->options['id'])) {
-			$type = $this->getCommentFeedType();
-			if ($type != 'all') {
-				$id = (int) $this->options['id'];
-				$result = query_single_row('SELECT `id` FROM ' . prefix($type) . ' WHERE id =' . $id);
-				if ($result) {
-					return $id;
-				}
-			}
-		}
-		$this->unsetOptions(array('id'));
-		return NULL;
-	}
-
-	/**
-	 * Validates and gets the "folder" or 'albumname" parameter option value
-	 * @param string $option "folder" or "albumname"
-	 * @return int
-	 */
-	protected function getAlbum($option) {
-		if (in_array($option, array('folder', 'albumname')) && isset($this->options[$option])) {
-			$albumobj = newAlbum($this->options[$option], true, true);
-			if ($albumobj->exists) {
-				return $this->options[$option];
-			}
-		}
-		$this->unsetOptions(array($option));
-		return NULL;
-	}
-
-	/**
-	 * Validates and gets the "category" parameter option value
-	 *
-	 * @return int
-	 */
-	protected function getCategory() {
-		if (isset($this->options['category']) && class_exists('Category')) {
-			$catobj = newCategory($this->options['category']);
-			if ($catobj->exists) {
-				return $this->options['category'];
-			}
-		}
-		$this->unsetOptions(array('category'));
-		return NULL;
 	}
 
 	protected function getChannelTitleExtra() {
@@ -416,24 +309,12 @@ class feed {
 	}
 
 	/**
-	 * Unsets certain option name indices from the $options property.
-	 * @param array $options Array of option (parameter) names to be unset
-	 */
-	protected function unsetOptions($options = null) {
-		if (!empty($options)) {
-			foreach ($options as $option) {
-				unset($this->options[$option]);
-			}
-		}
-	}
-
-	/**
 	 * Gets the feed items
 	 *
 	 * @return array
 	 */
 	public function getitems() {
-		global $_CMS;
+		global $_zp_CMS;
 		switch ($this->feedtype) {
 			case 'gallery':
 				if ($this->mode == "albums") {
@@ -466,7 +347,7 @@ class feed {
 				if ($this->sortorder) {
 					$items = getZenpageStatistic($this->itemnumber, 'pages', $this->sortorder, $this->sortdirection);
 				} else {
-					$items = $_CMS->getPages(NULL, false, $this->itemnumber);
+					$items = $_zp_CMS->getPages(NULL, false, $this->itemnumber);
 				}
 				break;
 			case 'comments':
@@ -474,16 +355,16 @@ class feed {
 					case 'gallery':
 						$items = getLatestComments($this->itemnumber, 'all');
 						break;
-					case 'albums':
+					case 'album':
 						$items = getLatestComments($this->itemnumber, 'album', $this->id);
 						break;
-					case 'images':
+					case 'image':
 						$items = getLatestComments($this->itemnumber, 'image', $this->id);
 						break;
 					case 'zenpage':
 						$type = 'all';
 					case 'news':
-					case 'pages':
+					case 'page':
 						if (function_exists('getLatestZenpageComments')) {
 							$items = getLatestZenpageComments($this->itemnumber, $type, $this->id);
 						}
@@ -504,8 +385,8 @@ class feed {
 		if (isset($items)) {
 			return $items;
 		}
-		if (DEBUG_FEED) {
-			debugLogBacktrace(gettext('Bad ' . $this->feed . ' feed:' . $this->feedtype . (isset($type) ? '»' . $type : '')), E_USER_WARNING);
+		if (TEST_RELEASE) {
+			zp_error(gettext('Bad ' . $this->feed . ' feed:' . $this->feedtype), E_USER_WARNING);
 		}
 		return NULL;
 	}
@@ -591,8 +472,8 @@ class feed {
 	}
 
 	static protected function feed404() {
-		include(CORE_SERVERPATH . '404.php');
-		exit();
+		include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
+		exitZP();
 	}
 
 }

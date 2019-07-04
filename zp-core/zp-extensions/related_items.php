@@ -3,15 +3,14 @@
  * Provides functionality to list (or get) objects related to the current object based on a search of the tags
  * the assigned to the current object.
  *
- * @author Malte Müller (acrylian)
- *
- * @package plugins/related_items
- * @pluginCategory theme
+ * @package plugins
+ * @subpackage theme
  */
 $plugin_description = gettext('Provides functionality to get the related items to an item based on a tag search.');
+$plugin_author = "Malte Müller (acrylian)";
 
 function getRelatedItems($type = 'news', $album = NULL) {
-	global $_gallery, $_current_album, $_current_image, $_gallery_page;
+	global $_zp_gallery, $_zp_current_album, $_zp_current_image, $_zp_gallery_page;
 	$tags = getTags();
 	if (!empty($tags)) { // if there are tags at all
 		$searchstring = '';
@@ -93,19 +92,19 @@ function getRelatedItems($type = 'news', $album = NULL) {
  * @param string $type "albums", "images", "news", "pages"
  */
 function createRelatedItemsResultArray($result, $type) {
-	global $_gallery, $_current_album, $_current_image, $_CMS_current_page, $_CMS_current_article, $_gallery_page;
-	switch ($_gallery_page) {
+	global $_zp_gallery, $_zp_current_album, $_zp_current_image, $_zp_current_page, $_zp_current_article, $_zp_gallery_page;
+	switch ($_zp_gallery_page) {
 		case 'album.php':
-			$current = $_current_album;
+			$current = $_zp_current_album;
 			break;
 		case 'image.php':
-			$current = $_current_image;
+			$current = $_zp_current_image;
 			break;
 		case 'news.php':
-			$current = $_CMS_current_article;
+			$current = $_zp_current_article;
 			break;
 		case 'pages.php':
-			$current = $_CMS_current_page;
+			$current = $_zp_current_page;
 			break;
 	}
 	$results = array();
@@ -150,15 +149,14 @@ function createRelatedItemsResultArray($result, $type) {
  * @param bool $thumb For $type = 'albums' or 'images' if a thumb should be shown (default size as set on the options)
  */
 function printRelatedItems($number = 5, $type = 'news', $specific = NULL, $excerpt = NULL, $thumb = false, $date = false) {
-	global $_gallery, $_current_album, $_current_image;
-	$labels = array('albums' => gettext('Albums'), 'images' => gettext('Images'), 'news' => NEWS_LABEL, 'pages' => gettext('Pages'));
-
+	global $_zp_gallery, $_zp_current_album, $_zp_current_image;
+	$label = array('albums' => gettext('Albums'), 'images' => gettext('Images'), 'news' => gettext('News'), 'pages' => gettext('Pages'));
 	$result = getRelatedItems($type, $specific);
 	$resultcount = count($result);
 	if ($resultcount != 0) {
 		?>
 		<h3 class="relateditems">
-			<?php printf(gettext('Related %s'), $labels[$type]); ?>
+			<?php printf(gettext('Related %s'), $type); ?>
 		</h3>
 		<ul id="relateditems">
 			<?php
@@ -168,28 +166,32 @@ function printRelatedItems($number = 5, $type = 'news', $specific = NULL, $excer
 				?>
 				<li class="<?php echo $item['type']; ?>">
 					<?php
-					$category = $labels[$item['type']];
+					$category = '';
 					switch ($item['type']) {
 						case 'albums':
 							$obj = newAlbum($item['name']);
 							$url = $obj->getLink();
 							$text = $obj->getDesc();
+							$category = gettext('Album');
 							break;
 						case 'images':
 							$alb = newAlbum($item['album']);
 							$obj = newImage($alb, $item['name']);
 							$url = $obj->getLink();
 							$text = $obj->getDesc();
+							$category = gettext('Image');
 							break;
 						case 'news':
 							$obj = newArticle($item['name']);
 							$url = $obj->getLink();
 							$text = $obj->getContent();
+							$category = gettext('News');
 							break;
 						case 'pages':
 							$obj = newPage($item['name']);
 							$url = $obj->getLink();
 							$text = $obj->getContent();
+							$category = gettext('Page');
 							break;
 					}
 					?>
@@ -206,19 +208,19 @@ function printRelatedItems($number = 5, $type = 'news', $specific = NULL, $excer
 						}
 						if ($thumburl) {
 							?>
-							<a href="<?php echo html_encode($url); ?>" title="<?php echo html_encode($obj->getTitle()); ?>" class="relateditems_thumb">
-								<img src="<?php echo html_encode($thumburl); ?>" alt="<?php echo html_encode($obj->getTitle()); ?>" />
+							<a href="<?php echo html_encode(pathurlencode($url)); ?>" title="<?php echo html_encode($obj->getTitle()); ?>" class="relateditems_thumb">
+								<img src="<?php echo html_encode(pathurlencode($thumburl)); ?>" alt="<?php echo html_encode($obj->getTitle()); ?>" />
 							</a>
 							<?php
 						}
 					}
 					?>
-					<h4><a href="<?php echo html_encode($url); ?>" title="<?php echo html_encode($obj->getTitle()); ?>"><?php echo html_encode($obj->getTitle()); ?></a>
+					<h4><a href="<?php echo html_encode(pathurlencode($url)); ?>" title="<?php echo html_encode($obj->getTitle()); ?>"><?php echo html_encode($obj->getTitle()); ?></a>
 						<?php
 						if ($date) {
 							?>
 							<span class="relateditems_date">
-								<?php echo formattedDate(DATE_FORMAT, strtotime($obj->getDateTime())); ?>
+								<?php echo zpFormattedDate(DATE_FORMAT, strtotime($obj->getDateTime())); ?>
 							</span>
 							<?php
 						}

@@ -12,14 +12,12 @@
  */
 require_once(dirname(dirname(__FILE__)) . '/functions.php');
 require_once(dirname(__FILE__) . '/setup-functions.php');
-npg_session_start();
+zp_session_start();
 if (sanitize($_POST['errors'])) {
-	$result = '<span class="logerror">' . gettext('Completed with errors') . '</span>';
+	$result = gettext('Completed with errors');
 } else {
 	$result = gettext('Completed');
 }
-setupLog($result, true);
-npgFilters::apply('log_setup', true, 'install', $result);
+zp_apply_filter('log_setup', true, 'install', $result);
 unset($_SESSION['SetupStarted']);
-exit();
 ?>

@@ -6,7 +6,7 @@
  * If it is not present, no theme options are displayed.
  */
 
-require_once(CORE_SERVERPATH . 'admin-functions.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/admin-functions.php');
 
 class ThemeOptions {
 
@@ -21,7 +21,7 @@ class ThemeOptions {
 		setThemeOptionDefault('thumb_crop_height', 150);
 		setThemeOptionDefault('image_size', 700);
 		setThemeOptionDefault('image_use_side', 'longest');
-		setThemeOptionDefault('gallery_index', TRUE);
+		setThemeOptionDefault('custom_index_page', 'gallery');
 
 		setThemeOptionDefault('use_image_logo_filename', 'banniere3.jpg');
 		setThemeOptionDefault('show_image_logo_on_image', false);
@@ -38,15 +38,20 @@ class ThemeOptions {
 		setThemeOptionDefault('use_colorbox_image', false);
 		setThemeOptionDefault('show_exif', true);
 
+		if (class_exists('colorbox')) {
+			colorbox::registerScripts(array('album', 'favorites', 'image', 'search', 'archive', 'contact', 'gallery', 'index', 'news', 'pages', 'password', 'regiser'));
+		}
+
+
 		if (class_exists('cacheManager')) {
 			$me = basename(dirname(__FILE__));
-			cacheManager::deleteCacheSizes($me);
-			cacheManager::addCacheSize($me, getThemeOption('thumb_size'), NULL, NULL, NULL, NULL, NULL, NULL, true);
+			cacheManager::deleteThemeCacheSizes($me);
+			cacheManager::addThemeCacheSize($me, getThemeOption('thumb_size'), NULL, NULL, getThemeOption('thumb_crop_width'), getThemeOption('thumb_crop_height'), NULL, NULL, true);
 			if (getOption('use_galleriffic')) {
-				cacheManager::addCacheSize($me, 85, NULL, NULL, 85, 85, NULL, NULL, true);
-				cacheManager::addCacheSize($me, 555, NULL, NULL, NULL, NULL, NULL, NULL, false);
+				cacheManager::addThemeCacheSize($me, 85, NULL, NULL, 85, 85, NULL, NULL, true);
+				cacheManager::addThemeCacheSize($me, 555, NULL, NULL, NULL, NULL, NULL, NULL, false);
 			}
-			cacheManager::addCacheSize($me, getThemeOption('image_size'), NULL, NULL, NULL, NULL, NULL, NULL, false);
+			cacheManager::addThemeCacheSize($me, getThemeOption('image_size'), NULL, NULL, NULL, NULL, NULL, NULL, false);
 		}
 	}
 
@@ -66,7 +71,7 @@ class ThemeOptions {
 				gettext('Show Tags') => array('order' => 7, 'key' => 'show_tag', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Check to show a tag cloud with all the tags of the gallery.')),
 				gettext('Show Image Statistic strip') => array('order' => 8, 'key' => 'image_statistic', 'type' => OPTION_TYPE_CUSTOM, 'desc' => gettext('Shows a strip of thumbnails on Gallery page, depending of the selected option. NOTE: For anything other than random, the image_statistic plugin must be activated.')),
 				gettext('Use Galleriffic script') => array('order' => 9, 'key' => 'use_galleriffic', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Check to use the Galleriffic script. Uncheck to use a standard display. This standard display is also displayed when javascript is disabled in the browser.')),
-				gettext('Galleriffic slideshow delay') => array('order' => 10, 'key' => 'galleriffic_delai', 'type' => OPTION_TYPE_TEXTBOX, 'desc' => gettext('If Galleriffic is used, enter the delay of the gallerific slideshow in ms (e.g. 3000).')),
+				gettext('Galleriffic slideshow delay') => array('order' => 10, 'key' => 'galleriffic_delai', 'type' => OPTION_TYPE_TEXTBOX, 'desc' => gettext('If Galleriffic is used, enter the delay of the gallerific slideshow in ms (eg 3000).')),
 				gettext('Use Colorbox in Album page') => array('order' => 11, 'key' => 'use_colorbox_album', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Check to display the full size image with Colorbox in album page, if galleriffic is used or not. NOTE : in that case, Image page will never be used.')),
 				gettext('Use Colorbox in Image page') => array('order' => 12, 'key' => 'use_colorbox_image', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Check to display the full size image with Colorbox in Image page.')),
 				gettext('Show image EXIF data') => array('order' => 13, 'key' => 'show_exif', 'type' => OPTION_TYPE_CHECKBOX, 'desc' => gettext('Show the main EXIF Data on Image page (Model, FocalLength, FNumber, ExposureTime, ISOSpeedRatings). Remember you have to check these EXIFs data on admin>image>information EXIF.'))

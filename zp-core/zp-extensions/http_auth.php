@@ -3,13 +3,13 @@
 /**
  *  Tries to authorize user based on Apache HTTP authentication credentials
  *
- * The <var>PHP_AUTH_USER</var> is mapped to a site user
+ * The <var>PHP_AUTH_USER</var> is mapped to a ZenPhoto20 user
  * the <var>PHP_AUTH_PW</var> must be in cleartext and match the user's password
  * (If the User validation is set to <i>trusted</i> the <var>PHP_AUTH_PW</var> password will be ignored and
  * need not be cleartext.)
  *
- * Note that the HTTP logins are outside of the site software so there is no security logging of
- * them. Nor can we "log off" the user. The normal logout links will not show for
+ * Note that the HTTP logins are outside of zenphoto so there is no security logging of
+ * them. Nor can zenphoto "log off" the user. The normal logout links will not show for
  * users logged in via this plugin.
  *
  * Apache configuration:
@@ -18,9 +18,9 @@
  * 		<i>path to apache executables</i> <var>htpasswd -cp</var> <i>path to apache folder</i> <var>passwords user1</var><br><br>
  * <var>htpasswd</var> will prompt you for the password. You can repeat the process for each additional user
  * or you can simply edit the <i>passwords</i> file with a text editor.<br><br>
- * Each <i>user/password</i> must match to a site <i>user/password</i> or access will be at a <i>guest</i>
- * level. If a user changes his site password someone must make the equivalent change in
- * the Apache password file for the user access to succeed. (However, see the <i>User validation</i>
+ * Each <i>user/password</i> must match to a ZenPhoto20 <i>user/password</i> or access to ZenPhoto20 will be at a <i>guest</i>
+ * level. If a user changes his password in zenphoto someone must make the equivalent change in
+ * the Apache password file for the zenphoto user access to succeed. (However, see the <i>User validation</i>
  * option.)</li>
  *
  * <li>Create a file named "groups" in your apache folder</li>
@@ -28,7 +28,7 @@
  * 		<var>zenphoto: stephen george frank</var>.
  * This creates a group named zenphoto with the list of users as members</li>
  *
- * <li>Add the following lines to your root .htaccess file after the initial comments and
+ * <li>Add the following lines to your ZenPhoto20 root .htaccess file after the initial comments and
  * before the rewrite rules:
  * 	<ul>
  * 		<li>AuthType Basic</li>
@@ -43,17 +43,16 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/http_auth
- * @pluginCategory users
+ * @package plugins
+ * @subpackage users
  */
 $plugin_is_filter = 5 | CLASS_PLUGIN;
-if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
-	$plugin_description = gettext('Checks for Apache HTTP authentication of authorized users.');
-}
+$plugin_description = gettext('Checks for Apache HTTP authentication of authorized users.');
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'http_auth';
 
-npgFilters::register('authorization_cookie', 'http_auth::check');
+zp_register_filter('authorization_cookie', 'http_auth::check');
 
 class http_auth {
 
@@ -74,9 +73,9 @@ class http_auth {
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		return array(gettext('User validation') => array('key' => 'http_auth_trust', 'type' => OPTION_TYPE_RADIO,
-						'buttons' => array(gettext('verify') => '0', gettext('trusted') => '1'),
-						'desc' => gettext('Set to <em>trusted</em> to presume the HTTP user is securely authorized. (This setting does not verify passwords against the site user.)')));
+		return array(gettext('User validation') => array('key'			 => 'http_auth_trust', 'type'		 => OPTION_TYPE_RADIO,
+										'buttons'	 => array(gettext('verify') => '0', gettext('trusted') => '1'),
+										'desc'		 => gettext('Set to <em>trusted</em> to presume the HTTP user is securely authorized. (This setting does not verify passwords against the zenphoto user.)')));
 	}
 
 	function handleOption($option, $currentValue) {
@@ -84,9 +83,9 @@ class http_auth {
 	}
 
 	static function check($authorized) {
-		global $_authority, $_current_admin_obj;
+		global $_zp_authority, $_zp_current_admin_obj;
 		if (!$authorized) {
-			// not logged in via normal handling
+			// not logged in via normal zenphoto handling
 			// PHP-CGI auth fixd
 			if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
 				$auth_params = explode(":", base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
@@ -105,14 +104,14 @@ class http_auth {
 				$user = $_SERVER['PHP_AUTH_USER'];
 				$pass = $_SERVER['PHP_AUTH_PW'];
 				if (getOption('http_auth_trust')) {
-					$userobj = $_authority->getAnAdmin(array('`user`=' => $user, '`valid`=' => 1));
+					$userobj = $_zp_authority->getAnAdmin(array('`user`=' => $user, '`valid`=' => 1));
 				} else {
-					$userobj = npg_Authority::checkLogon($user, $pass);
+					$userobj = Zenphoto_Authority::checkLogon($user, $pass);
 				}
 				if ($userobj) {
-					$_current_admin_obj = $userobj;
-					$_current_admin_obj->logout_link = false;
-					$authorized = $_current_admin_obj->getRights();
+					$_zp_current_admin_obj = $userobj;
+					$_zp_current_admin_obj->logout_link = false;
+					$authorized = $_zp_current_admin_obj->getRights();
 				}
 			}
 		}

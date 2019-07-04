@@ -4,12 +4,9 @@ if (!defined('WEBPATH'))
 ?>
 <!DOCTYPE html>
 <head>
-	<?php
-	npgFilters::apply('theme_head');
-	printZDRoundedCornerJS();
-
-	scriptLoader($_themeroot . '/style.css');
-	?>
+	<?php zp_apply_filter('theme_head'); ?>
+	<?php printZDRoundedCornerJS(); ?>
+	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
 	<script type="text/javascript">
 		// <!-- <![CDATA[
 		window.addEventListener('load', function () {
@@ -34,14 +31,14 @@ if (!defined('WEBPATH'))
 	<?php if (extensionEnabled('rss')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
 </head>
 <body>
-	<?php npgFilters::apply('theme_body_open'); ?>
+	<?php zp_apply_filter('theme_body_open'); ?>
 
 	<div style="margin-top: 16px;"><!-- somehow the thickbox.css kills the top margin here that all other pages have... -->
 	</div>
 	<div id="main">
 		<div id="header">
 			<h3 style="float:left; padding-left: 32px;">
-        <a href="<?php echo html_encode(getGalleryIndexURL()); ?>"><img src="<?php echo $_themeroot; ?>/images/banner.png"/></a>
+        <a href="<?php echo html_encode(getGalleryIndexURL()); ?>"><img src="<?php echo $_zp_themeroot; ?>/images/banner.png"/></a>
 			</h3>
 			<div class="imgnav" style="margin-top: 33px;">
 				<?php if (hasPrevImage()) { ?>
@@ -61,7 +58,7 @@ if (!defined('WEBPATH'))
 			<div id="breadcrumb">
 				<h2>
 					<?php if (extensionEnabled('zenpage')) { ?>
-						<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Index'); ?>"><?php echo gettext("Index"); ?></a>»
+						<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php gettext('Index'); ?>"><?php echo gettext("Index"); ?></a>»
 					<?php } ?>
 					<a href="<?php echo html_encode(getCustomPageURl('gallery')); ?>" title="<?php echo gettext('Gallery'); ?>"><?php echo gettext("Gallery") . " » "; ?></a><?php
 					printParentBreadcrumb(" » ", " » ", " » ");
@@ -84,15 +81,12 @@ if (!defined('WEBPATH'))
 
 				<div id="image">
 					<?php
-					$tburl = "";
-					$boxclass = "";
-					if (isImagePhoto()) {
-						if (getOption("Use_thickbox")) {
-							$boxclass = " class=\"thickbox\"";
-							$tburl = getUnprotectedImageURL();
-						} else {
-							$tburl = getFullImageURL();
-						}
+					if (getOption("Use_thickbox")) {
+						$boxclass = " class=\"thickbox\"";
+						$tburl = getUnprotectedImageURL();
+					} else {
+						$boxclass = "";
+						$tburl = getFullImageURL();
 					}
 					if (!empty($tburl)) {
 						?>
@@ -119,12 +113,12 @@ if (!defined('WEBPATH'))
 					<br style="clear:both;" /><br />
 					<?php
 					if (function_exists('printAddToFavorites')) {
-						printAddToFavorites($_current_image);
+						printAddToFavorites($_zp_current_image);
 						echo '<br/>';
 					}
 					?>
 					<?php
-					if (function_exists('printSlideShowLink') && isImagePhoto()) {
+					if (function_exists('printSlideShowLink')) {
 						echo '<span id="slideshowlink">';
 						printSlideShowLink(gettext('View Slideshow'));
 						echo '</span>';
@@ -146,7 +140,8 @@ if (!defined('WEBPATH'))
 						printRating();
 					}
 					?>
-					<?php simpleMap::printMap(); ?>
+					<?php if (function_exists('printGoogleMap')) printGoogleMap(); ?>
+
 				</div>
 				<?php if (function_exists('printCommentForm')) { ?>
 					<div id="comments">
@@ -168,6 +163,6 @@ if (!defined('WEBPATH'))
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php npgFilters::apply('theme_body_close'); ?>
+	<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

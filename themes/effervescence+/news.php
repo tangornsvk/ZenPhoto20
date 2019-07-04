@@ -8,13 +8,13 @@ if (class_exists('CMS')) {
 	<html>
 		<head>
 
-			<?php npgFilters::apply('theme_head'); ?>
+			<?php zp_apply_filter('theme_head'); ?>
 
 			<?php if (class_exists('RSS')) printRSSHeaderLink("News", "Zenpage news", ""); ?>
 		</head>
 
 		<body onload="blurAnchors()">
-			<?php npgFilters::apply('theme_body_open'); ?>
+			<?php zp_apply_filter('theme_body_open'); ?>
 			<!-- Wrap Header -->
 			<div id="header">
 				<div id="gallerytitle">
@@ -24,11 +24,11 @@ if (class_exists('CMS')) {
 						<?php
 						if (getOption('Allow_search')) {
 							if (is_NewsCategory()) {
-								$catlist = array('news' => array($_CMS_current_category->getTitlelink()), 'albums' => '0', 'images' => '0', 'pages' => '0');
-								printSearchForm(NULL, 'search', $_themeroot . '/images/search.png', gettext('Search within category'), NULL, NULL, $catlist);
+								$catlist = array('news' => array($_zp_current_category->getTitlelink()), 'albums' => '0', 'images' => '0', 'pages' => '0');
+								printSearchForm(NULL, 'search', $_zp_themeroot . '/images/search.png', gettext('Search within category'), NULL, NULL, $catlist);
 							} else {
 								$catlist = array('news' => '1', 'albums' => '0', 'images' => '0', 'pages' => '0');
-								printSearchForm(NULL, 'search', $_themeroot . '/images/search.png', gettext('Search'), NULL, NULL, $catlist);
+								printSearchForm(NULL, 'search', $_zp_themeroot . '/images/search.png', gettext('Search news'), NULL, NULL, $catlist);
 							}
 						}
 						printLogo();
@@ -91,16 +91,20 @@ if (class_exists('CMS')) {
 									}
 									if (!empty($cat)) {
 										echo ' | ';
-										printNewsCategories(", ", gettext("Categories: "), "newscategories");
 									}
 									?>
 								</span>
-								<br />
+								<?php
+								if (!empty($cat)) {
+									printNewsCategories(", ", gettext("Categories: "), "newscategories");
+								}
+								?>
 								<?php printCodeblock(1); ?>
 								<?php printNewsContent(); ?>
 								<?php printCodeblock(2); ?>
 							</div>
 							<?php
+							@call_user_func('printRating');
 							commonComment();
 						} else { // news article loop
 							commonNewsLoop(true);
@@ -118,13 +122,13 @@ if (class_exists('CMS')) {
 
 			<?php
 			printFooter();
-			npgFilters::apply('theme_body_close');
+			zp_apply_filter('theme_body_close');
 			?>
 
 		</body>
 	</html>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

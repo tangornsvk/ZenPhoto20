@@ -4,43 +4,51 @@
  */
 
 /* themes/effervescence+/themeoptions.php */
-gettext('All');
-gettext('Articles Rule');
+gettext('News Articles');
+gettext('All news');
+gettext('News Articles Rule');
 gettext('Gallery');
-//gettext('All');
-gettext('Albums');
+gettext('All Albums');
 gettext('Gallery Rule');
 gettext('Pages');
-//gettext('All');
+gettext('All pages');
 gettext('Pages Rule');
 gettext('Archive');
-//gettext('All');
+gettext('Gallery and News');
 gettext('Archive Rule');
 gettext('RSS');
-//gettext('Gallery');
-gettext('Both');
+gettext('Gallery');
+gettext('News');
+gettext('News and Gallery');
 
 /* themes/garland/themeoptions.php */
-//gettext('All');
-//gettext('Articles Rule');
-//gettext('Gallery');
-//gettext('All');
-//gettext('Gallery Rule');
-//gettext('Pages');
-//gettext('All');
-//gettext('Pages Rule');
-//gettext('RSS');
-//gettext('Gallery');
-//gettext('Both');
+gettext('News Articles');
+gettext('All news');
+gettext('News Articles Rule');
+gettext('Gallery');
+gettext('All Albums');
+gettext('Gallery Rule');
+gettext('Pages');
+gettext('All pages');
+gettext('Pages Rule');
 
 /* themes/zenpage/themeoptions.php */
-//gettext('All');
-//gettext('Articles Rule');
-//gettext('All');
-gettext('Album list');
-//gettext('Gallery Rule');
-//gettext('Pages');
-//gettext('All');
+gettext('News Articles');
+gettext('All news');
+gettext('Gallery');
+gettext('Gallery index');
+gettext('All Albums');
+gettext('Pages');
+gettext('All pages');
+
+/* themes/zpEnlighten/themeoptions.php */
+gettext('News Articles');
+gettext('All news');
+gettext('Gallery');
+gettext('Gallery index');
+gettext('All Albums');
+gettext('Pages');
+gettext('All pages');
 
 /* zp-core/setup/setup-option-defaults.php */
 gettext("What is your father’s middle name?");
@@ -49,8 +57,7 @@ gettext("Who was your favorite singer?");
 gettext("When did you first get a computer?");
 gettext("How much wood could a woodchuck chuck if a woodchuck could chuck wood?");
 gettext("What is the date of the Ides of March?");
-gettext('Check to acknowledge the site <a href="%s">usage policy</a>.');
-gettext('News');
+gettext('You have received this email because you registered with the user id %3$s on this site.' . "\n" . 'To complete your registration visit %1$s.');
 
 /* zp-core/zp-extensions/contact_form.php */
 gettext('<p>Fields with <strong>*</strong> are required. HTML or any other code is not allowed.</p>');
@@ -59,14 +66,9 @@ gettext('<p>Thanks for your message.</p>');
 gettext('Send another message.');
 gettext('<p>A copy of your e-mail will automatically be sent to the address you provided for your own records.</p>');
 
-/* zp-core/zp-extensions/cookieconsent.php */
-gettext('Agree');
-gettext('More info');
-gettext('This website uses cookies. By continuing to browse the site, you agree to our use of cookies.');
-
 /* zp-core/zp-extensions/favoritesHandler.php */
 gettext('My favorites');
-//gettext('My favorites');
+gettext('My favorites');
 gettext('The albums and images selected as favorites.');
 gettext('Add favorite');
 gettext('Remove favorite');
@@ -82,8 +84,6 @@ gettext('next thumbs »');
 /* zp-core/zp-extensions/register_user.php */
 gettext('Click here to register for this site.');
 gettext('Register');
-gettext('You have received this email because you registered with the user id %3$s on this site.' . "\n" . 'To complete your registration visit %1$s.');
-gettext('Your registration information has been accepted. An email has been sent to you to verify your email address.');
 
 /* zp-core/zp-extensions/zenpage.php */
 gettext('Read more');

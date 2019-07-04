@@ -2,13 +2,14 @@
 /**
  * user_groups plugin--tabs
  * @author Stephen Billard (sbillard)
- * @package plugins/user_groups
+ * @package plugins
+ * @subpackage users
  */
 define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 
-admin_securityChecks(ADMIN_RIGHTS, currentRelativeURL());
-define('GROUPS_PER_PAGE', max(1, getOption('groups_per_page')));
+admin_securityChecks(NULL, currentRelativeURL());
+define('USERS_PER_PAGE', max(1, getOption('users_per_page')));
 if (isset($_GET['subpage'])) {
 	$subpage = sanitize_numeric($_GET['subpage']);
 } else {
@@ -19,36 +20,33 @@ if (isset($_GET['subpage'])) {
 	}
 }
 
-$admins = $_authority->getAdministrators('all');
+$admins = $_zp_authority->getAdministrators('all');
 
 $adminordered = sortMultiArray($admins, 'user');
 
 if (isset($_GET['action'])) {
 	$action = sanitize($_GET['action']);
+	XSRFdefender($action);
 	$themeswitch = false;
 	switch ($action) {
 		case 'deletegroup':
-			XSRFdefender('deletegroup');
 			$groupname = trim(sanitize($_GET['group']));
-			$groupobj = npg_Authority::newAdministrator($groupname, 0);
+			$groupobj = Zenphoto_Authority::newAdministrator($groupname, 0);
 			$groupobj->remove();
 			// clear out existing user assignments
-			npg_Authority::updateAdminField('group', NULL, array('`valid`>=' => '1', '`group`=' => $groupname));
-			header("Location: " . getAdminLink(PLUGIN_FOLDER . '/user_groups/user_groups-tab.php') . '?page=admin&tab=groups&deleted&subpage=' . $subpage);
-			exit();
+			Zenphoto_Authority::updateAdminField('group', NULL, array('`valid`>=' => '1', '`group`=' => $groupname));
+			header("Location: " . FULLWEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/user_groups/user_groups-tab.php?page=admin&tab=groups&deleted&subpage=' . $subpage);
+			exitZP();
 		case 'savegroups':
-			XSRFdefender('savegroups');
 			if (isset($_POST['checkForPostTruncation'])) {
-				$newgroupid = @$_POST['newgroup'];
-				$grouplist = $_POST['user'];
-				foreach ($grouplist as $i => $groupelement) {
-					$groupname = trim(sanitize($groupelement['group']));
+				for ($i = 0; $i < $_POST['totalgroups']; $i++) {
+					$groupname = trim(sanitize($_POST[$i . '-group']));
 					if (!empty($groupname)) {
 						$rights = 0;
-						$group = npg_Authority::newAdministrator($groupname, 0);
-						if (isset($groupelement['initgroup']) && !empty($groupelement['initgroup'])) {
-							$initgroupname = trim(sanitize($groupelement['initgroup'], 3));
-							$initgroup = npg_Authority::newAdministrator($initgroupname, 0);
+						$group = Zenphoto_Authority::newAdministrator($groupname, 0);
+						if (isset($_POST[$i . '-initgroup']) && !empty($_POST[$i . '-initgroup'])) {
+							$initgroupname = trim(sanitize($_POST[$i . '-initgroup'], 3));
+							$initgroup = Zenphoto_Authority::newAdministrator($initgroupname, 0);
 							$rights = $initgroup->getRights();
 							$group->setObjects(processManagedObjects($group->getID(), $rights));
 							$group->setRights(NO_RIGHTS | $rights);
@@ -57,11 +55,10 @@ if (isset($_GET['action'])) {
 							$group->setObjects(processManagedObjects($i, $rights));
 							$group->setRights(NO_RIGHTS | $rights);
 						}
-						$group->setCredentials(trim(sanitize($groupelement['desc'], 3)));
-						$group->setName(trim(sanitize($groupelement['type'], 3)));
+						$group->set('other_credentials', trim(sanitize($_POST[$i . '-desc'], 3)));
+						$group->setName(trim(sanitize($_POST[$i . '-type'], 3)));
 						$group->setValid(0);
-						$group->setDesc(trim(sanitize($groupelement['desc'], 3)));
-						npgFilters::apply('save_admin_data', $group, $i, true);
+						zp_apply_filter('save_admin_custom_data', true, $group, $i, true);
 						$group->save();
 
 						if ($group->getName() == 'group') {
@@ -71,27 +68,22 @@ if (isset($_GET['action'])) {
 								if ($admin['valid']) {
 									$hisgroups = explode(',', $admin['group']);
 									if (in_array($groupname, $hisgroups)) {
-										$userobj = npg_Authority::newAdministrator($admin['user'], $admin['valid']);
-										user_groups::merge_rights($userobj, $hisgroups, user_groups::getPrimeObjects($userobj));
-										$success = $userobj->save();
-										if ($success === TRUE) {
-											npgFilters::apply('save_user_complete', '', $userobj, 'update');
-										}
+										$user = Zenphoto_Authority::newAdministrator($admin['user'], $admin['valid']);
+										user_groups::merge_rights($user, $hisgroups, user_groups::getPrimeObjects($user));
+										$user->save();
 									}
 								}
 							}
 							//user assignments: first clear out existing ones
-							npg_Authority::updateAdminField('group', NULL, array('`valid`>=' => '1', '`group`=' => $groupname));
-							if (isset($groupelement['userlist'])) {
-								//then add the ones marked
-								foreach ($groupelement['userlist'] as $list) {
-									$username = $list['checked'];
-									$userobj = $_authority->getAnAdmin(array('`user`=' => $username, '`valid`>=' => 1));
-									user_groups::merge_rights($userobj, array(1 => $groupname), user_groups::getPrimeObjects($userobj));
-									$success = $userobj->save();
-									if ($success === TRUE) {
-										npgFilters::apply('save_user_complete', '', $userobj, 'update');
-									}
+							Zenphoto_Authority::updateAdminField('group', NULL, array('`valid`>=' => '1', '`group`=' => $groupname));
+							//then add the ones marked
+							$target = 'user_' . $i . '-';
+							foreach ($_POST as $item => $username) {
+								if (strpos($item, $target) !== false) {
+									//$username = substr($item, strlen($target));
+									$user = $_zp_authority->getAnAdmin(array('`user`=' => $username, '`valid`>=' => 1));
+									user_groups::merge_rights($user, array(1 => $groupname), user_groups::getPrimeObjects($user));
+									$user->save();
 								}
 							}
 						}
@@ -101,37 +93,33 @@ if (isset($_GET['action'])) {
 			} else {
 				$notify = '&post_error';
 			}
-
-			header("Location: " . getAdminLink(PLUGIN_FOLDER . '/user_groups/user_groups-tab.php') . '?page=admin&tab=groups&subpage=' . $subpage . $notify);
-			exit();
+			header("Location: " . FULLWEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/user_groups/user_groups-tab.php?page=admin&tab=groups&subpage=' . $subpage . $notify);
+			exitZP();
 		case 'saveauserassignments':
-			XSRFdefender('saveauserassignments');
 			if (isset($_POST['checkForPostTruncation'])) {
-				$userlist = $_POST['user'];
-				foreach ($userlist as $i => $user) {
-					if (isset($user['group'])) {
-						$newgroups = sanitize($user['group']);
-						$username = trim(sanitize($user['userid'], 3));
-						$userobj = $_authority->getAnAdmin(array('`user`=' => $username, '`valid`>=' => 1));
+				for ($i = 0; $i < $_POST['totalusers']; $i++) {
+					if (isset($_POST[$i . 'group'])) {
+						$newgroups = sanitize($_POST[$i . 'group']);
+						$username = trim(sanitize($_POST[$i . '-user'], 3));
+						$userobj = $_zp_authority->getAnAdmin(array('`user`=' => $username, '`valid`>=' => 1));
 						user_groups::merge_rights($userobj, $newgroups, user_groups::getPrimeObjects($userobj));
-						$success = $userobj->save();
-						if ($success === TRUE) {
-							npgFilters::apply('save_user_complete', '', $userobj, 'update');
-						}
+						$userobj->save();
 					}
 				}
 				$notify = '&saved';
 			} else {
 				$notify = '&post_error';
 			}
-			header("Location: " . getAdminLink(PLUGIN_FOLDER . '/user_groups/user_groups-tab.php') . '?page=admin&tab=assignments&subpage=' . $subpage . $notify);
-			exit();
+			header("Location: " . FULLWEBPATH . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/user_groups/user_groups-tab.php?page=admin&tab=assignments&subpage=' . $subpage . $notify);
+			exitZP();
 	}
 }
 
 printAdminHeader('admin');
 $background = '';
-scriptLoader(CORE_SERVERPATH . 'js/sprintf.js');
+?>
+<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/sprintf.js"></script>
+<?php
 echo '</head>' . "\n";
 ?>
 
@@ -158,7 +146,7 @@ echo '</head>' . "\n";
 				echo '</div>';
 			}
 			$subtab = getCurrentTab();
-			npgFilters::apply('admin_note', 'admin', $subtab);
+			zp_apply_filter('admin_note', 'admin', $subtab);
 			?>
 			<h1>
 				<?php
@@ -175,7 +163,8 @@ echo '</head>' . "\n";
 				switch ($subtab) {
 					case 'groups':
 						$adminlist = $adminordered;
-						$list = $users = $groups = array();
+						$users = array();
+						$groups = array();
 						foreach ($adminlist as $user) {
 							if ($user['valid']) {
 								$users[] = $user['user'];
@@ -184,19 +173,14 @@ echo '</head>' . "\n";
 								$list[] = $user['user'];
 							}
 						}
-						$max = floor((count($list) - 1) / GROUPS_PER_PAGE);
+						$max = floor((count($list) - 1) / USERS_PER_PAGE);
 						if ($subpage > $max) {
 							$subpage = $max;
 						}
-						$rangeset = getPageSelector($list, GROUPS_PER_PAGE);
-						$groups = array_slice($groups, $subpage * GROUPS_PER_PAGE, GROUPS_PER_PAGE);
-						if (count($groups) == 1) {
-							$display = '';
-						} else {
-							$display = ' style="display:none"';
-						}
+						$rangeset = getPageSelector($list, USERS_PER_PAGE);
+						$groups = array_slice($groups, $subpage * USERS_PER_PAGE, USERS_PER_PAGE);
 						$albumlist = array();
-						foreach ($_gallery->getAlbums() as $folder) {
+						foreach ($_zp_gallery->getAlbums() as $folder) {
 							$alb = newAlbum($folder);
 							$name = $alb->getTitle();
 							$albumlist[$name] = $folder;
@@ -224,17 +208,11 @@ echo '</head>' . "\n";
 							<table class="bordered">
 								<tr>
 									<th>
-										<?php
-										if (count($groups) != 1) {
-											?>
-											<span style="font-weight: normal">
-												<a onclick="toggleExtraInfo('', 'user', true);"><?php echo gettext('Expand all'); ?></a>
-												|
-												<a onclick="toggleExtraInfo('', 'user', false);"><?php echo gettext('Collapse all'); ?></a>
-											</span>
-											<?php
-										}
-										?>
+										<span style="font-weight: normal">
+											<a onclick="toggleExtraInfo('', 'user', true);"><?php echo gettext('Expand all'); ?></a>
+											|
+											<a onclick="toggleExtraInfo('', 'user', false);"><?php echo gettext('Collapse all'); ?></a>
+										</span>
 									</th>
 									<th>
 										<?php printPageSelector($subpage, $rangeset, PLUGIN_FOLDER . '/user_groups/user_groups-tab.php', array('page' => 'users', 'tab' => 'groups')); ?>
@@ -242,24 +220,6 @@ echo '</head>' . "\n";
 								</tr>
 
 								<?php
-								$user_count = array();
-								foreach ($admins as $key => $user) {
-									if ($user['valid'] >= 1) {
-										if (!empty($user['group'])) {
-											$membership[$user['user']] = $belongs = explode(',', $user['group']);
-											foreach ($belongs as $group) {
-												if (!isset($user_count[$group])) {
-													$user_count[$group] = 1;
-												} else {
-													$user_count[$group] ++;
-												}
-											}
-										} else {
-											$membership[$user['user']] = array();
-										}
-									}
-								}
-
 								$id = 0;
 								$groupselector = $groups;
 								$groupselector[''] = array('id' => -1, 'user' => '', 'name' => 'group', 'rights' => ALL_RIGHTS ^ MANAGE_ALL_ALBUM_RIGHTS, 'valid' => 0, 'other_credentials' => '');
@@ -268,14 +228,12 @@ echo '</head>' . "\n";
 									$groupid = $user['id'];
 									$rights = $user['rights'];
 									$grouptype = $user['name'];
-									$desc = get_language_string($user['other_credentials']);
-									$groupobj = new npg_Administrator($groupname, 0);
+									$desc = $user['other_credentials'];
+									$groupobj = new Zenphoto_Administrator($groupname, 0);
 									if ($grouptype == 'group') {
 										$kind = gettext('group');
-										$count = ' (' . (int) @$user_count[$groupname] . ')';
 									} else {
 										$kind = gettext('template');
-										$count = '';
 									}
 									if ($background) {
 										$background = "";
@@ -290,19 +248,18 @@ echo '</head>' . "\n";
 												<?php
 												if (empty($groupname)) {
 													?>
-													<input type="hidden" name="newgroupid" value="<?php echo $id; ?>" />
 													<em>
 														<label>
-															<input type="radio" name="user[<?php echo $id; ?>][type]" value="group" checked="checked" onclick="javascrpt:$('#users<?php echo $id; ?>').toggle();
-																					toggleExtraInfo('<?php echo $id; ?>', 'user', true);" /><?php echo gettext('group'); ?>
+															<input type="radio" name="<?php echo $id; ?>-type" value="group" checked="checked" onclick="javascrpt:$('#users<?php echo $id; ?>').toggle();
+																	toggleExtraInfo('<?php echo $id; ?>', 'user', true);" /><?php echo gettext('group'); ?>
 														</label>
 														<label>
-															<input type="radio" name="user[<?php echo $id; ?>][type]" value="template" onclick="javascrpt:$('#users<?php echo $id; ?>').toggle();
-																					toggleExtraInfo('<?php echo $id; ?>', 'user', true);" /><?php echo gettext('template'); ?>
+															<input type="radio" name="<?php echo $id; ?>-type" value="template" onclick="javascrpt:$('#users<?php echo $id; ?>').toggle();
+																	toggleExtraInfo('<?php echo $id; ?>', 'user', true);" /><?php echo gettext('template'); ?>
 														</label>
 													</em>
 													<br />
-													<input type="text" size="35" id="group-<?php echo $id ?>" name="user[<?php echo $id ?>][group]" value=""
+													<input type="text" size="35" id="group-<?php echo $id ?>" name="<?php echo $id ?>-group" value=""
 																 onclick="toggleExtraInfo('<?php echo $id; ?>', 'user', true);" />
 																 <?php
 															 } else {
@@ -310,28 +267,28 @@ echo '</head>' . "\n";
 													<span class="userextrashow">
 														<em><?php echo $kind; ?></em>:
 														<a onclick="toggleExtraInfo('<?php echo $id; ?>', 'user', true);" title="<?php echo $groupname; ?>" >
-															<strong><?php echo $groupname; ?></strong> <?php echo $count; ?>
+															<strong><?php echo $groupname; ?></strong>
 														</a>
 													</span>
 													<span style="display:none;" class="userextrahide">
 														<em><?php echo $kind; ?></em>:
 														<a onclick="toggleExtraInfo('<?php echo $id; ?>', 'user', false);" title="<?php echo $groupname; ?>" >
-															<strong><?php echo $groupname; ?></strong> <?php echo $count; ?>
+															<strong><?php echo $groupname; ?></strong>
 														</a>
 													</span>
-													<input type="hidden" id="group-<?php echo $id ?>" name="user[<?php echo $id ?>][group]" value="<?php echo html_encode($groupname); ?>" />
-													<input type="hidden" name="user[<?php echo $id ?>][type]" value="<?php echo html_encode($grouptype); ?>" />
+													<input type="hidden" id="group-<?php echo $id ?>" name="<?php echo $id ?>-group" value="<?php echo html_encode($groupname); ?>" />
+													<input type="hidden" name="<?php echo $id ?>-type" value="<?php echo html_encode($grouptype); ?>" />
 													<?php
 												}
 												?>
-												<input type="hidden" name="user[<?php echo $id ?>][confirmed]" value="1" />
+												<input type="hidden" name="<?php echo $id ?>-confirmed" value="1" />
 											</div>
 											<div class="floatright">
 												<?php
 												if (!empty($groupname)) {
 													$msg = gettext('Are you sure you want to delete this group?');
 													?>
-													<a href="javascript:if(confirm(<?php echo "'" . $msg . "'"; ?>)) { launchScript('',['tab=groups', 'action=deletegroup','group=<?php echo addslashes($groupname); ?>','XSRFToken=<?php echo getXSRFToken('deletegroup') ?>']); }"
+													<a href="javascript:if(confirm(<?php echo "'" . $msg . "'"; ?>)) { launchScript('',['action=deletegroup','group=<?php echo addslashes($groupname); ?>','XSRFToken=<?php echo getXSRFToken('deletegroup') ?>']); }"
 														 title="<?php echo gettext('Delete this group.'); ?>" style="color: #c33;">
 															 <?php echo WASTEBASKET; ?>
 													</a>
@@ -340,15 +297,15 @@ echo '</head>' . "\n";
 												?>
 											</div>
 											<br class="clearall">
-											<div class="user_left userextrainfo"<?php echo $display; ?>>
+											<div class="user_left userextrainfo" style="display:none">
 												<?php
-												printAdminRightsTable($id, '  ', ' ', $rights);
+												printAdminRightsTable($id, '', '', $rights);
 
 												if (empty($groupname) && !empty($groups)) {
 													?>
 													<?php echo gettext('clone:'); ?>
 													<br />
-													<select name="user[<?php echo $id; ?>][initgroup]" onchange="javascript:$('#hint<?php echo $id; ?>').html(this.options[this.selectedIndex].title);">
+													<select name="<?php echo $id; ?>-initgroup" onchange="javascript:$('#hint<?php echo $id; ?>').html(this.options[this.selectedIndex].title);">
 														<option title=""></option>
 														<?php
 														foreach ($groups as $user) {
@@ -370,10 +327,10 @@ echo '</head>' . "\n";
 												?>
 
 											</div>
-											<div class="user_right userextrainfo" <?php echo $display; ?>>
+											<div class="user_right userextrainfo" style="display:none">
 												<strong><?php echo gettext('description:'); ?></strong>
 												<br />
-												<textarea name="user[<?php echo $id; ?>][desc]" cols="40" rows="4"><?php echo html_encode($desc); ?></textarea>
+												<textarea name="<?php echo $id; ?>-desc" cols="40" rows="4"><?php echo html_encode($desc); ?></textarea>
 
 												<br /><br />
 												<div id="users<?php echo $id; ?>" <?php if ($grouptype == 'template') echo ' style="display:none"' ?>>
@@ -383,71 +340,65 @@ echo '</head>' . "\n";
 														$members = array();
 														if (!empty($groupname)) {
 															foreach ($adminlist as $user) {
-																if ($user['valid']) {
-																	if (in_array($groupname, $membership[$user['user']])) {
-																		$members[] = $user['user'];
-																	}
+																if ($user['valid'] && $user['group'] == $groupname) {
+																	$members[] = $user['user'];
 																}
 															}
 														}
 														?>
 														<ul class="shortchecklist">
-															<?php generateUnorderedListFromArray($members, $members, 'user[' . $id . '][userlist]', false, true, false, NULL, NULL, 2); ?>
-															<?php generateUnorderedListFromArray(array(), array_diff($users, $members), 'user[' . $id . '][userlist]', false, true, false, NULL, NULL, 2); ?>
+															<?php generateUnorderedListFromArray($members, $members, 'user_' . $id . '-', false, true, false); ?>
+															<?php generateUnorderedListFromArray(array(), array_diff($users, $members), 'user_' . $id . '-', false, true, false); ?>
 														</ul>
 													</div>
 												</div>
-
 												<?php
-												printManagedObjects('albums', $albumlist, NULL, $groupobj, $id, $kind, array());
+												printManagedObjects('albums', $albumlist, '', $groupobj, $id, $kind, array());
 												if (extensionEnabled('zenpage')) {
 													$newslist = array();
-													$categories = $_CMS->getAllCategories(false);
+													$categories = $_zp_CMS->getAllCategories(false);
 													foreach ($categories as $category) {
 														$newslist[get_language_string($category['title'])] = $category['titlelink'];
 													}
-													printManagedObjects('news_categories', $newslist, NULL, $groupobj, $id, $kind, NULL);
+													printManagedObjects('news', $newslist, '', $groupobj, $id, $kind, NULL);
 													$pagelist = array();
-													$pages = $_CMS->getPages(false);
+													$pages = $_zp_CMS->getPages(false);
 													foreach ($pages as $page) {
 														if (!$page['parentid']) {
 															$pagelist[get_language_string($page['title'])] = $page['titlelink'];
 														}
 													}
-													printManagedObjects('pages', $pagelist, NULL, $groupobj, $id, $kind, NULL);
+													printManagedObjects('pages', $pagelist, '', $groupobj, $id, $kind, NULL);
 												}
 												?>
 
 											</div>
 											<br class="clearall">
-											<div class="userextrainfo" <?php echo $display; ?>>
+											<div class="userextrainfo" style="display:none">
 												<?php
-												$custom = npgFilters::apply('edit_admin_custom', '', $groupobj, $id, $background, true, '');
+												$custom = zp_apply_filter('edit_admin_custom_data', '', $groupobj, $id, $background, true, '');
 												if ($custom) {
 													echo stripTableRows($custom);
 												}
 												?>
 											</div>
+
+
 										</td>
+
 									</tr>
+
 									<?php
 									$id++;
-									$display = ' style="display:none"';
 								}
 								?>
 								<tr>
 									<th>
-										<?php
-										if (count($groups) != 1) {
-											?>
-											<span style="font-weight: normal">
-												<a onclick="toggleExtraInfo('', 'user', true);"><?php echo gettext('Expand all'); ?></a>
-												|
-												<a onclick="toggleExtraInfo('', 'user', false);"><?php echo gettext('Collapse all'); ?></a>
-											</span>
-											<?php
-										}
-										?>
+										<span style="font-weight: normal">
+											<a onclick="toggleExtraInfo('', 'user', true);"><?php echo gettext('Expand all'); ?></a>
+											|
+											<a onclick="toggleExtraInfo('', 'user', false);"><?php echo gettext('Collapse all'); ?></a>
+										</span>
 									</th>
 									<th>
 										<?php printPageSelector($subpage, $rangeset, PLUGIN_FOLDER . '/user_groups/user_groups-tab.php', array('page' => 'users', 'tab' => 'groups')); ?>
@@ -517,7 +468,7 @@ echo '</head>' . "\n";
 							echo gettext("Assign users to groups.");
 							?>
 						</p>
-						<form class="dirtylistening" onReset="setClean('saveAssignments_form');" id="saveAssignments_form" action="?tab=assignments&amp;action=saveauserassignments" method="post" autocomplete="off" >
+						<form class="dirtylistening" onReset="setClean('saveAssignments_form');" id="saveAssignments_form" action="?action=saveauserassignments" method="post" autocomplete="off" >
 							<?php XSRFToken('saveauserassignments'); ?>
 							<p class="buttons">
 								<button type="submit"><?php echo CHECKMARK_GREEN; ?> <?php echo gettext("Apply"); ?></strong></button>
@@ -537,12 +488,12 @@ echo '</head>' . "\n";
 								$id = 0;
 								foreach ($adminordered as $user) {
 									if ($user['valid']) {
-										$userobj = new npg_Administrator($user['user'], $user['valid']);
+										$userobj = new Zenphoto_Administrator($user['user'], $user['valid']);
 										$group = $user['group'];
 										?>
 										<tr>
 											<td width="20%" style="border-top: 1px solid #D1DBDF;" valign="top">
-												<input type="hidden" name="user[<?php echo $id; ?>][userid]" value="<?php echo $user['user']; ?>" />
+												<input type="hidden" name="<?php echo $id; ?>-user" value="<?php echo $user['user']; ?>" />
 												<?php echo $user['user']; ?>
 											</td>
 											<td style="border-top: 1px solid #D1DBDF;" valign="top" >
@@ -572,9 +523,10 @@ echo '</head>' . "\n";
 				}
 				?>
 			</div>
+
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
+	<?php printAdminFooter(); ?>
 </body>
 
 </html>

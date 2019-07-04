@@ -8,15 +8,16 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/themeEditor
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  */
 $plugin_is_filter = defaultExtension(900 | ADMIN_PLUGIN); // lowest priotiry so other instances will override
 $plugin_description = gettext('PHP based theme editor.');
+$plugin_author = "Stephen Billard (sbillard)";
 
-npgFilters::register('theme_editor', 'PHPThemeEdit');
+zp_register_filter('theme_editor', 'PHPThemeEdit');
 
 function phpThemeEdit($html, $theme) {
 	$html = "launchScript('" . PLUGIN_FOLDER . "/themeEditor/themes-editor.php', ['theme=" . urlencode($theme) . "'])";

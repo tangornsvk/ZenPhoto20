@@ -5,21 +5,18 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php npgFilters::apply('theme_head'); ?>
+		<?php zp_apply_filter('theme_head'); ?>
 
 
 
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-
-		<?php
-		scriptLoader($_themeroot . '/style.css');
-		jqm_loadScripts();
-		printZDSearchToggleJS();
-		?>
+		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" />
+		<?php jqm_loadScripts(); ?>
+		<?php printZDSearchToggleJS(); ?>
 	</head>
 
 	<body>
-		<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 		<div data-role="page" id="mainpage">
 
 			<?php jqm_printMainHeaderNav(); ?>
@@ -41,15 +38,15 @@ if (!defined('WEBPATH'))
 						$numpages = $numnews = 0;
 					}
 					if ($total == 0) {
-						$_current_search->clearSearchWords();
+						$_zp_current_search->clearSearchWords();
 					}
 					if (getOption('Allow_search')) {
-						$categorylist = $_current_search->getCategoryList();
+						$categorylist = $_zp_current_search->getCategoryList();
 						if (is_array($categorylist)) {
 							$catlist = array('news' => $categorylist, 'albums' => '0', 'images' => '0', 'pages' => '0');
 							printSearchForm(NULL, 'search', NULL, gettext('Search category'), NULL, NULL, $catlist);
 						} else {
-							$albumlist = $_current_search->getAlbumList();
+							$albumlist = $_zp_current_search->getAlbumList();
 							if (is_array($albumlist)) {
 								$album_list = array('albums' => $albumlist, 'pages' => '0', 'news' => '0');
 								printSearchForm(NULL, 'search', NULL, gettext('Search album'), NULL, NULL, $album_list);
@@ -75,7 +72,7 @@ if (!defined('WEBPATH'))
 						</h3>
 						<?php
 					}
-					if ($_current_page == 1) { //test of zenpage searches
+					if ($_zp_page == 1) { //test of zenpage searches
 						if ($numpages > 0) {
 							$number_to_show = 5;
 							$c = 0;
@@ -140,10 +137,9 @@ if (!defined('WEBPATH'))
 						<ul data-role="listview" data-inset="true">
 							<?php while (next_album()): ?>
 								<li>
-									<a href="<?php echo html_encode(getAlbumURL()); ?>" title="<?php
-									echo gettext('View album:');
-									printAnnotatedAlbumTitle();
-									?>">
+									<a href="<?php echo html_encode(getAlbumURL()); ?>" title="<?php echo gettext('View album:');
+						printAnnotatedAlbumTitle();
+								?>">
 		<?php printCustomAlbumThumbImage(getAnnotatedAlbumTitle(), null, 79, 79, 79, 79, NULL, null, NULL, NULL); ?>
 										<h3><?php printAlbumTitle(); ?><small> (<?php printAlbumDate(''); ?>)</small></h3>
 										<div class="albumdesc"><?php echo html_encodeTagged(shortenContent(getAlbumDesc(), 100, '(...)', false)); ?></div>
@@ -200,6 +196,6 @@ if (!defined('WEBPATH'))
 			<?php jqm_printBacktoTopLink(); ?>
 		<?php jqm_printFooterNav(); ?>
 		</div><!-- /page -->
-<?php npgFilters::apply('theme_body_close'); ?>
+<?php zp_apply_filter('theme_body_close'); ?>
 	</body>
 </html>

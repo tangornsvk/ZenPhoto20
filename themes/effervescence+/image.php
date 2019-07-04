@@ -7,9 +7,9 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 
-		<?php npgFilters::apply('theme_head'); ?>
+		<?php zp_apply_filter('theme_head'); ?>
 
-		<?php if (npgFilters::has_filter('theme_head', 'colorbox::css')) { ?>
+		<?php if (zp_has_filter('theme_head', 'colorbox::css')) { ?>
 			<script type="text/javascript">
 				// <!-- <![CDATA[
 				window.addEventListener('load', function () {
@@ -42,7 +42,7 @@ if (!defined('WEBPATH'))
 	</head>
 
 	<body onload="blurAnchors()">
-		<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 
 		<!-- Wrap Everything -->
 		<div id="main4">
@@ -56,9 +56,9 @@ if (!defined('WEBPATH'))
 						<div class="imgnav">
 							<div class="imgprevious">
 								<?php
-								global $_current_image;
+								global $_zp_current_image;
 								if (hasPrevImage()) {
-									$image = $_current_image->getPrevImage();
+									$image = $_zp_current_image->getPrevImage();
 									echo '<a href="' . html_encode(getPrevImageURL()) . '" title="' . html_encode($image->getTitle()) . '">« ' . gettext('prev') . '</a>';
 								} else {
 									echo '<div class="imgdisabledlink">« ' . gettext('prev') . '</div>';
@@ -68,7 +68,7 @@ if (!defined('WEBPATH'))
 							<div class="imgnext">
 								<?php
 								if (hasNextImage()) {
-									$image = $_current_image->getNextImage();
+									$image = $_zp_current_image->getNextImage();
 									echo '<a href="' . html_encode(getNextImageURL()) . '" title="' . html_encode($image->getTitle()) . '">' . gettext('next') . ' »</a>';
 								} else {
 									echo '<div class="imgdisabledlink">' . gettext('next') . ' »</div>';
@@ -137,7 +137,7 @@ if (!defined('WEBPATH'))
 						}
 						if (!empty($fullimage)) {
 							?>
-							<a href="<?php echo html_encode($fullimage); ?>" title="<?php printBareImageTitle(); ?>" class="thickbox">
+							<a href="<?php echo html_encode(pathurlencode($fullimage)); ?>" title="<?php printBareImageTitle(); ?>" class="thickbox">
 								<?php
 							}
 							printDefaultSizedImage(getImageTitle());
@@ -159,11 +159,11 @@ if (!defined('WEBPATH'))
 				<?php
 				@call_user_func('printRating');
 				If (function_exists('printAddToFavorites'))
-					printAddToFavorites($_current_image);
-				if (simpleMap::mapPlugin()) {
+					printAddToFavorites($_zp_current_image);
+				if (function_exists('printGoogleMap')) {
 					?>
 					<div id="map_link">
-						<?php simpleMap::printMap(); ?>
+						<?php printGoogleMap(); ?>
 					</div>
 					<br class="clearall">
 					<?php
@@ -180,7 +180,7 @@ if (!defined('WEBPATH'))
 		<?php
 		commonComment();
 		printFooter();
-		npgFilters::apply('theme_body_close');
+		zp_apply_filter('theme_body_close');
 		?>
 
 	</body>

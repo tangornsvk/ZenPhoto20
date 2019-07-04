@@ -33,17 +33,18 @@
  * allow your plugin to co-exist with other custom field extender plugins.
  *
  * @author Stephen Billard (sbillard)
- * @package plugins/customFieldExtender
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
  *
  */
 $plugin_is_filter = /* defaultExtension( */ 5 | CLASS_PLUGIN /* ) */; //	if you have such a plugin you probably want to use it
-if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
-	$plugin_description = gettext('Adds user defined fields to database tables');
-}
+$plugin_description = gettext('Adds user defined fields to database tables');
 
-if (file_exists(CORE_SERVERPATH . PLUGIN_FOLDER . '/common/fieldExtender.php')) {
-	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/common/fieldExtender.php');
+$plugin_author = "Stephen Billard (sbillard)";
+
+if (file_exists(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/common/fieldExtender.php')) {
+	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/common/fieldExtender.php');
 } else {
 	require_once(stripSuffix(__FILE__) . '/fieldExtender.php');
 }
@@ -131,8 +132,8 @@ class customFieldExtender extends fieldExtender {
 		return parent::_addToSearch($list, self::$fields);
 	}
 
-	static function adminSave($userobj, $i, $alter) {
-		return parent::_adminSave($userobj, $i, $alter, self::$fields);
+	static function adminSave($updated, $userobj, $i, $alter) {
+		parent::_adminSave($updated, $userobj, $i, $alter, self::$fields);
 	}
 
 	static function adminEdit($html, $userobj, $i, $background, $current) {
@@ -147,8 +148,8 @@ class customFieldExtender extends fieldExtender {
 		return parent::_mediaItemEdit($html, $object, $i, self::$fields);
 	}
 
-	static function cmsItemSave($object) {
-		return parent::_cmsItemSave($object, self::$fields);
+	static function cmsItemSave($custom, $object) {
+		return parent::_cmsItemSave($custom, $object, self::$fields);
 	}
 
 	static function cmsItemEdit($html, $object) {
@@ -196,11 +197,11 @@ class customFieldExtender extends fieldExtender {
 			return sanitize($_POST[$instance . '-' . $field['name']]);
 		} else {
 			$item = $obj->get($field['name']);
-			if (npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
+			if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
 				ob_start();
 				?>
-				<select name="<?php echo $instance . '-' . $field['name']; ?>" size='1'>
-					<?php echo admin_owner_list($item, UPLOAD_RIGHTS | ALBUM_RIGHTS); ?>
+				<select name="<?php echo $instance . '-' . $field['name']; ?>">
+					<?php echo admin_album_list($item); ?>
 				</select>
 				<?php
 				$item = ob_get_contents();
@@ -213,12 +214,9 @@ class customFieldExtender extends fieldExtender {
 }
 
 function customFieldExtender_enable($enabled) {
-	if ($enabled) {
-		$report = gettext('The database fields defined by the plugin will be added.');
-	} else {
-		$report = gettext('The database fields defined by the plugin will be <span style="color:red;font-weight:bold;">dropped</span>.');
+	if (!$enabled) {
+		requestSetup('customFieldExtender');
 	}
-	requestSetup('customFieldExtender', $report);
 }
 
 function getCustomField($field, $object = NULL, &$detail = NULL) {
@@ -240,6 +238,6 @@ function printCustomField($field, $label = NULL, $object = NULL) {
 if (OFFSET_PATH == 2) { // setup call: add the fields into the database
 	new customFieldExtender;
 } else {
-	$_plugin_differed_actions['customFieldExtender'] = 'customFieldExtender::register';
+	customFieldExtender::register();
 }
 ?>

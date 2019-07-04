@@ -1,17 +1,16 @@
 <?php
 
-/**
+/*
  * Handles sending the mailing list e-mails
  *
- * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
- * @package plugins/user_mailing_list
+ * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
 // UTF-8 Ø
 define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-require_once(CORE_SERVERPATH . 'reconfigure.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/reconfigure.php');
 
-admin_securityChecks(ADMIN_RIGHTS, currentRelativeURL());
+admin_securityChecks(NULL, currentRelativeURL());
 
 XSRFdefender('mailing_list');
 
@@ -25,7 +24,7 @@ if (isset($_POST['message'])) {
 	$message = sanitize($_POST['message']);
 }
 $toList = array();
-$admins = $_authority->getAdministrators();
+$admins = $_zp_authority->getAdministrators();
 $admincount = count($admins);
 foreach ($admins as $admin) {
 	if (isset($_POST["admin_" . $admin['id']])) {
@@ -36,9 +35,9 @@ foreach ($admins as $admin) {
 		}
 	}
 }
-$currentadminmail = $_current_admin_obj->getEmail();
+$currentadminmail = $_zp_current_admin_obj->getEmail();
 if (!empty($currentadminmail)) {
-	$name = $_current_admin_obj->getName();
+	$name = $_zp_current_admin_obj->getName();
 	if ($name) {
 		$toList[$name] = $currentadminmail;
 	} else {
@@ -54,9 +53,9 @@ foreach ($toList as $name => $email) {
 		$waitTime = getOption('user_mailing_list_pace');
 	}
 
-	$err_msg = npgFunctions::mail($subject, $message, array($name => $email), array(), array());
+	$err_msg = zp_mail($subject, $message, array($name => $email), array(), array());
 	if ($err_msg) {
-		debugLogVar([gettext('user_mailing_list error') =>  $err_msg]);
+		debugLogVar(gettext('user_mailing_list error'), $err_msg);
 	}
 }
 ?>

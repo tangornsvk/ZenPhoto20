@@ -2,10 +2,11 @@
 /**
  * This is the "files" upload tab
  *
- * @package plugins/macroList
+ * @package plugins
+ * @subpackage development
  */
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-admin_securityChecks(ADMIN_RIGHTS, $return = currentRelativeURL());
+admin_securityChecks(NULL, $return = currentRelativeURL());
 
 printAdminHeader('development', gettext('macros'));
 
@@ -20,7 +21,7 @@ echo "\n</head>";
 		<div id="content">
 			<div id="container">
 				<?php
-				npgFilters::apply('admin_note', 'development', '');
+				zp_apply_filter('admin_note', 'development', '');
 				?>
 				<h1>
 					<?php
@@ -37,7 +38,7 @@ echo "\n</head>";
 						<div>
 							<p><?php echo gettext('These Content macros can be used to insert items as described into <em>descriptions</em>, <em>zenpage content</em>, and <em>zenpage extra content</em>.</p> <p>Replace any parameters (<em>%d</em>) with the appropriate value.'); ?></p>
 							<p><?php echo gettext('Parameter types:'); ?></p>
-							<ol class="ulclean">
+							<ol>
 								<li><?php echo gettext('<em><strong>string</strong></em> may be enclosed in quotation marks when the macro is invoked. The quotes are stripped before the macro is processed.'); ?></li>
 								<li><?php echo gettext('<em><strong>int</strong></em> a number'); ?></li>
 								<li><?php echo gettext('<em><strong>bool</strong></em> <code>true</code> or <code>false</code>'); ?></li>
@@ -54,7 +55,8 @@ echo "\n</head>";
 				</div>
 			</div>
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
+	<?php printAdminFooter(); ?>
+
 </body>
 </html>

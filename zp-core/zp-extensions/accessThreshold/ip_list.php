@@ -4,13 +4,13 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @Copyright 2016 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2016 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/accessThreshold
+ * @package plugins
+ * @subpackage admin
  */
 
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-admin_securityChecks(DEBUG_RIGHTS, $return = currentRelativeURL());
 
 $ip = sanitize($_GET['selected_ip']);
 $recentIP = getSerializedArray(@file_get_contents(SERVERPATH . '/' . DATA_FOLDER . '/recentIP'));
@@ -32,7 +32,7 @@ if (isset($recentIP[$ip])) {
 <head>
 	<?php printStandardMeta(); ?>
 	<title><? echo $ip; ?></title>
-	<?php scriptLoader(CORE_SERVERPATH . 'admin.css'); ?>
+	<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.css?ZenPhoto20_<?PHP ECHO ZENPHOTO_VERSION; ?>" type="text/css" />
 	<style>
 		ul, ol {
 			list-style: none;

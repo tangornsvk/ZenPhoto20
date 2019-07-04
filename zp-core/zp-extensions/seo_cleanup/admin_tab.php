@@ -9,7 +9,8 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/seo_cleanup
+ * @package plugins
+ * @subpackage seo
  */
 define('OFFSET_PATH', 3);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
@@ -106,7 +107,7 @@ function checkFolder($album) {
 	return $count;
 }
 
-$_gallery->garbageCollect();
+$_zp_gallery->garbageCollect();
 
 printAdminHeader('admin', 'SEO cleaner');
 
@@ -120,7 +121,7 @@ if (isset($_GET['todo'])) {
 } else {
 	$count = 0;
 	$albumcount = 0;
-	$albums = $_gallery->getAlbums();
+	$albums = $_zp_gallery->getAlbums();
 }
 ?>
 <?php echo '</head>'; ?>
@@ -129,7 +130,7 @@ if (isset($_GET['todo'])) {
 	<div id="main">
 		<?php printTabs(); ?>
 		<div id="content">
-			<?php npgFilters::apply('admin_note', 'seo_cleanup', ''); ?>
+			<?php zp_apply_filter('admin_note', 'seo_cleanup', ''); ?>
 			<h1><?php echo gettext('Cleanup album and image names to be SEO friendly'); ?></h1>
 			<div class="tabbox">
 				<?php
@@ -138,7 +139,7 @@ if (isset($_GET['todo'])) {
 					$count = $count + cleanAlbum($obj);
 				}
 				if ($albumcount || $count) {
-					npgFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER, true);
+					zpFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER, true);
 					?>
 					<div class="notebox">
 						<p>
@@ -169,8 +170,8 @@ if (isset($_GET['todo'])) {
 				?>
 			</div>
 		</div><!-- content -->
-		<?php printAdminFooter(); ?>
 	</div><!-- main -->
+	<?php printAdminFooter(); ?>
 </body>
 <?php
 echo "</html>";

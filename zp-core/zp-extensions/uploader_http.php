@@ -6,35 +6,36 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/uploader_http
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  *
  */
 $plugin_is_filter = defaultExtension(30 | ADMIN_PLUGIN);
 $plugin_description = gettext('<em>http</em> image upload handler.');
+$plugin_author = 'Stephen Billard (sbillard)';
 
-npgFilters::register('admin_tabs', 'httpUploadHandler_admin_tabs');
-if (npg_loggedin(UPLOAD_RIGHTS)) {
-	npgFilters::register('upload_handlers', 'httpUploadHandler');
+zp_register_filter('admin_tabs', 'httpUploadHandler_admin_tabs');
+if (zp_loggedin(UPLOAD_RIGHTS)) {
+	zp_register_filter('upload_handlers', 'httpUploadHandler');
 }
 
 function httpUploadHandler($uploadHandlers) {
-	$uploadHandlers['http'] = CORE_SERVERPATH .  PLUGIN_FOLDER . '/uploader_http';
+	$uploadHandlers['http'] = SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/uploader_http';
 	return $uploadHandlers;
 }
 
 function httpUploadHandler_admin_tabs($tabs) {
-	if (npg_loggedin(UPLOAD_RIGHTS)) {
+	if (zp_loggedin(UPLOAD_RIGHTS)) {
 		$me = sprintf(gettext('images (%s)'), 'http');
+		$mylink = 'admin-upload.php?page=upload&tab=http&type=' . gettext('images');
 		if (is_null($tabs['upload'])) {
 			$tabs['upload'] = array('text' => gettext("upload"),
-					'link' => getAdminLink('admin-tabs/upload.php') . '?page=upload&tab=http&type=' . gettext('images'),
+					'link' => WEBPATH . "/" . ZENFOLDER . '/' . $mylink,
 					'subtabs' => NULL,
 					'default' => 'http'
 			);
 		}
-		$tabs['upload']['subtabs'][$me] = 'admin-tabs/upload.php?page=upload&tab=http&type=' . gettext('images');
-		;
+		$tabs['upload']['subtabs'][$me] = $mylink;
 	}
 	return $tabs;
 }

@@ -112,14 +112,14 @@
 			<?php if ((hasNextPage()) || (hasPrevPage())) printPageListWithNav("«", "»", false, true, 'pagination', null, true, 5); ?>
 			<?php
 			if (function_exists('printAddToFavorites')) {
-				printAddToFavorites($_current_album);
+				printAddToFavorites($_zp_current_album);
 			}
 			?>
 			<?php printPPSlideShowLink(gettext('Slideshow')); ?>
 			<?php if ($zpskel_social) include ('inc-social.php'); ?>
-			<?php if (simpleMap::mapPlugin()) { ?>
+			<?php if ((function_exists('printGoogleMap'))) { ?>
 				<div id="map">
-					<?php simplemap::printMap(); ?>
+					<?php printGoogleMap(); ?>
 				</div>
 			<?php } ?>
 		</div>

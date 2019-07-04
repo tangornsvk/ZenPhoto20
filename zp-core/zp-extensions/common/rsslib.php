@@ -1,17 +1,18 @@
 <?php
 
 /**
- * @package plugins/RSS
+ * @package plugins
+ * @subpackage zenphoto_news
  */
 /*
   RSS Extractor and Displayer
   (c) 2007-2009  Scriptol.com - License Mozilla 1.1.
   rsslib.php
 
-  Modified for by s. billard
+  Modified for zenphoto by s. billard
   removed unused functions
   made more resilient
-  Modifications copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+  Modifications copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
 
   Requirements:
   - PHP 5.

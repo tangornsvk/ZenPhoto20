@@ -4,9 +4,9 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package core/tagFromSearch
+ * @package core
  *
- * @Copyright 2015 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2015 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
  */
 // force UTF-8 Ø
@@ -14,7 +14,7 @@
 define('OFFSET_PATH', 3);
 
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-require_once(CORE_SERVERPATH . 'template-functions.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
 
 admin_securityChecks(TAGS_RIGHTS, $return = currentRelativeURL());
 
@@ -239,7 +239,9 @@ echo "\n</head>";
 				</form>
 			</div>
 		</div>
-		<?php printAdminFooter(); ?>
 	</div>
+	<?php
+	printAdminFooter();
+	?>
 </body>
 <?php echo "\n</html>"; ?>

@@ -8,13 +8,13 @@ if (class_exists('CMS')) {
 	<html>
 		<head>
 
-			<?php npgFilters::apply('theme_head'); ?>
+			<?php zp_apply_filter('theme_head'); ?>
 
 			<?php if (class_exists('RSS')) printRSSHeaderLink("Pages", "Zenpage news", ""); ?>
 		</head>
 
 		<body onload="blurAnchors()">
-			<?php npgFilters::apply('theme_body_open'); ?>
+			<?php zp_apply_filter('theme_body_open'); ?>
 
 			<!-- Wrap Header -->
 			<div id="header">
@@ -63,6 +63,7 @@ if (class_exists('CMS')) {
 						</div>
 
 						<?php
+						@call_user_func('printRating');
 						commonComment();
 						?>
 
@@ -77,13 +78,13 @@ if (class_exists('CMS')) {
 
 			<?php
 			printFooter();
-			npgFilters::apply('theme_body_close');
+			zp_apply_filter('theme_body_close');
 			?>
 
 		</body>
 	</html>
 	<?php
 } else {
-	include(CORE_SERVERPATH . '404.php');
+	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
 }
 ?>

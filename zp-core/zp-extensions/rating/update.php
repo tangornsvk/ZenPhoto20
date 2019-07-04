@@ -3,43 +3,16 @@
 /**
  * rating plugin updater - Updates the rating in the database
  * @author Stephen Billard (sbillard)
- * @package plugins/rating
+ * @package plugins
  */
-define('OFFSET_PATH', 4);
-require_once(dirname(dirname(dirname(__FILE__))) . '/functions.php');
+if (isset($_POST['id']) && isset($_POST['table'])) {
+	define('OFFSET_PATH', 4);
+	require_once(dirname(dirname(dirname(__FILE__))) . '/template-functions.php');
 
-if (isset($_GET['action']) && $_GET['action'] == 'clear_rating') {
-	if (!npg_loggedin(ADMIN_RIGHTS)) {
-		// prevent nefarious access to this page.
-		header('Location: ' . getAdminLink('admin.php') . '?from=' . currentRelativeURL());
-		exit();
-	}
-
-	require_once(CORE_SERVERPATH . 'admin-functions.php');
-	if (session_id() == '') {
-		// force session cookie to be secure when in https
-		if (secureServer()) {
-			$CookieInfo = session_get_cookie_params();
-			session_set_cookie_params($CookieInfo['lifetime'], $CookieInfo['path'], $CookieInfo['domain'], TRUE);
-		}
-		npg_session_start();
-	}
-	XSRFdefender('clear_rating');
-	query('UPDATE ' . prefix('images') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-	query('UPDATE ' . prefix('albums') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-	query('UPDATE ' . prefix('news') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-	query('UPDATE ' . prefix('pages') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-	header('Location: ' . getAdminLink('admin.php') . '?action=external&msg=' . gettext('All ratings have been set to <em>unrated</em>.'));
-	exit();
-}
-
-if (extensionEnabled('rating') && isset($_POST['id']) && isset($_POST['table'])) {
-	require_once(CORE_SERVERPATH . 'template-functions.php');
-	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/rating.php');
 	$id = sanitize_numeric($_POST['id']);
 	$table = sanitize($_POST['table'], 3);
 	$dbtable = prefix($table);
-	$ip = getUserID();
+	$ip = jquery_rating::id();
 	$unique = '_' . $table . '_' . $id;
 	if (isset($_POST['star_rating-value' . $unique])) {
 		$rating = ceil(sanitize_numeric($_POST['star_rating-value' . $unique]) / max(1, getOption('rating_split_stars')));

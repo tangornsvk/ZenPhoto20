@@ -4,20 +4,20 @@
 if (!defined('WEBPATH'))
 	die();
 
-$map = simpleMap::mapPlugin();
+$map = function_exists('printGoogleMap');
 ?>
 <!DOCTYPE html>
 <html>
 	<head>
 
-		<?php npgFilters::apply('theme_head'); ?>
+		<?php zp_apply_filter('theme_head'); ?>
 
-		<?php $handler->theme_head($_themeroot); ?>
+		<?php $handler->theme_head($_zp_themeroot); ?>
 	</head>
 
 	<body onload="blurAnchors()">
-		<?php npgFilters::apply('theme_body_open'); ?>
-		<?php $handler->theme_bodyopen($_themeroot); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php $handler->theme_bodyopen($_zp_themeroot); ?>
 
 		<!-- Wrap Header -->
 		<div id="header">
@@ -49,8 +49,8 @@ $map = simpleMap::mapPlugin();
 					</div><!-- albnext -->
 					<?php
 					if (getOption('Allow_search')) {
-						$album_list = array('albums' => array($_current_album->name), 'pages' => '0', 'news' => '0');
-						printSearchForm(NULL, 'search', $_themeroot . '/images/search.png', gettext('Search within album'), NULL, NULL, $album_list);
+						$album_list = array('albums' => array($_zp_current_album->name), 'pages' => '0', 'news' => '0');
+						printSearchForm(NULL, 'search', $_zp_themeroot . '/images/search.png', gettext('Search within album'), NULL, NULL, $album_list);
 					}
 					?>
 				</div> <!-- header -->
@@ -161,7 +161,7 @@ $map = simpleMap::mapPlugin();
 				} else {
 					?>
 					<div id="main">
-						<?php if (function_exists('printAddToFavorites')) printAddToFavorites($_current_album); ?>
+						<?php if (function_exists('printAddToFavorites')) printAddToFavorites($_zp_current_album); ?>
 						<?php @call_user_func('printRating'); ?>
 					</div>
 					<?php
@@ -185,7 +185,7 @@ $map = simpleMap::mapPlugin();
 
 		<?php
 		printFooter();
-		npgFilters::apply('theme_body_close');
+		zp_apply_filter('theme_body_close');
 		?>
 
 	</body>

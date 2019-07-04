@@ -1,13 +1,13 @@
 <?php
 // force UTF-8 Ø
 
-rem_context(NPG_ALBUM | NPG_IMAGE);
+rem_context(ZP_ALBUM | ZP_IMAGE);
 $archivlinktext = gettext('Gallery');
 if (extensionEnabled('zenpage')) {
-	if ($news = hasNews()) {
-		$archivlinktext = gettext('Both');
+	if ($news = getNumNews(true)) {
+		$archivlinktext = gettext('Gallery and News');
 	}
-	$pages = hasPages();
+	$pages = getNumPages(true);
 } else {
 	$news = $pages = NULL;
 }
@@ -24,8 +24,8 @@ if (function_exists('printCustomMenu') && ($menu = getOption('effervescence_menu
 	if ($news) {
 		?>
 		<div class="menu">
-			<h3><?php echo NEWS_LABEL; ?></h3>
-			<?php printAllNewsCategories(gettext("All"), true, "", "menu-active", true, "submenu", "menu-active"); ?>
+			<h3><?php echo gettext("News articles"); ?></h3>
+			<?php printAllNewsCategories(gettext("All news"), true, "", "menu-active", true, "submenu", "menu-active"); ?>
 			<div class="menu_rule"></div>
 		</div>
 		<?php
@@ -37,7 +37,7 @@ if (function_exists('printCustomMenu') && ($menu = getOption('effervescence_menu
 		<div class="menu">
 			<?php
 			if (extensionEnabled('zenpage')) {
-				if ($_gallery_page == 'index.php' || $_gallery_page != 'gallery.php') {
+				if ($_zp_gallery_page == 'index.php' || $_zp_gallery_page != 'gallery.php') {
 					?>
 					<h3>
 						<a href="<?php echo html_encode(getCustomPageURL('gallery')); ?>" title="<?php echo gettext('Album index'); ?>"><?php echo gettext("Gallery"); ?></a>
@@ -82,35 +82,24 @@ if (function_exists('printCustomMenu') && ($menu = getOption('effervescence_menu
 	?>
 
 	<div class="menu">
-		<h3>
+		<h3><?php echo gettext("Archive"); ?></h3>
+		<ul>
 			<?php
-			if ($_gallery_page == "archive.php") {
+			if ($_zp_gallery_page == "archive.php") {
 				?>
-				<?php echo gettext("Archive"); ?>
+				<li class='menu-active'>
+					<?php echo gettext("Gallery and News"); ?>
+				</li>
 				<?php
 			} else {
 				?>
-				<?php printCustomPageURL(gettext("Archive"), "archive"); ?>
+				<li>
+					<?php printCustomPageURL(gettext("Gallery and News"), "archive"); ?>
+				</li>
 				<?php
 			}
 			?>
-		</h3>
-		<?php
-		if (extensionEnabled('daily-summary')) {
-			?>
-			<h3>
-				<?php
-				if ($_gallery_page == "summary.php") {
-					echo gettext("Daily summary");
-				} else {
-					printDailySummaryLink(gettext('Daily summary'), '', '', '');
-				}
-				?>
-			</h3>
-			<?php
-		}
-		?>
-
+		</ul>
 		<div class="menu_rule"></div>
 	</div>
 
@@ -124,7 +113,7 @@ if (function_exists('printCustomMenu') && ($menu = getOption('effervescence_menu
 				if (class_exists('RSS')) {
 					printRSSLink('Gallery', '<li>', gettext('Gallery'), '</li>');
 					if ($news) {
-						printRSSLink("News", "<li>", NEWS_LABEL, '</li>');
+						printRSSLink("News", "<li>", gettext("News"), '</li>');
 					}
 				}
 				?>

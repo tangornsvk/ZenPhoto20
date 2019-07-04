@@ -12,16 +12,17 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugin/cookieInvalidator
- * @pluginCategory development
+ * @package plugin
+ * @subpackage development
+ * @category package
+ * @category ZenPhoto20Tools
  */
-
 $plugin_is_filter = 99 | CLASS_PLUGIN;
-if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
-	$plugin_description = gettext('Invalidates all cookies that were created earlier than the invalidate action.');
-}
-npgFilters::register('admin_utilities_buttons', 'cookieInvalidator::button');
-$_admin_button_actions[] = 'cookieInvalidator::setBase';
+$plugin_description = gettext('Invalidates all cookies that were created earlier than the invalidate action.');
+$plugin_author = "Stephen Billard (sbillard)";
+
+zp_register_filter('admin_utilities_buttons', 'cookieInvalidator::button');
+$_zp_button_actions[] = 'cookieInvalidator::setBase';
 
 class cookieInvalidator {
 
@@ -33,7 +34,7 @@ class cookieInvalidator {
 				'enable' => true,
 				'button_text' => gettext('Invalidate cookies'),
 				'formname' => 'cookieInvalidator',
-				'action' => getAdminLink('admin.php') . '?action=cookieInvalidator::setBase',
+				'action' => FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?action=cookieInvalidator::setBase',
 				'icon' => CROSS_MARK_RED,
 				'title' => sprintf(gettext('Cookies prior to %s are invalid'), date('Y-m-d H:i:s', $base)),
 				'alt' => '',
@@ -44,20 +45,20 @@ class cookieInvalidator {
 	}
 
 	static function invalidate($cookies) {
-		global $_loggedin, $_current_admin_obj;
-		if (getNPGCookie('cookieInvalidator') != ($newBase = getOption('cookieInvalidator_base'))) {
+		global $_zp_loggedin, $_zp_current_admin_obj;
+		if (zp_getCookie('cookieInvalidator') != ($newBase = getOption('cookieInvalidator_base'))) {
 			foreach ($cookies as $cookie => $value) {
-				clearNPGCookie($cookie);
+				zp_clearCookie($cookie);
 			}
-			setNPGCookie('cookieInvalidator', $newBase);
-			$_current_admin_obj = $_loggedin = NULL;
+			zp_setCookie('cookieInvalidator', $newBase);
+			$_zp_current_admin_obj = $_zp_loggedin = NULL;
 		}
 	}
 
 	static function setBase() {
 		setOption('cookieInvalidator_base', time());
-		header('Location: ' . getAdminLink('admin.php'));
-		exit();
+		header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php');
+		exitZP();
 	}
 
 }

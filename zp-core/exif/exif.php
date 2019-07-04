@@ -1,156 +1,153 @@
 <?php
 
-/**
- * Exifer 1.7
- *
- * Extracts EXIF information from digital photos.
- *
- * Originally created by:
- * Copyright © 2005 Jake Olefsky
- * http:// www.offsky.com/software/exif/index.php
- * jake@olefsky.com
- *
- * This program is free software; you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. http:// www.gnu.org/copyleft/gpl.html
- *
- * SUMMARY:
- * This script will correctly parse all of the EXIF data included in images taken
- * with digital cameras.  It will read the IDF0, IDF1, SubIDF and InteroperabilityIFD
- * fields as well as parsing some of the MakerNote fields that vary depending on
- * camera make and model.  This script parses more tags than the internal PHP exif
- * implementation and it will correctly identify and decode what all the values mean.
- * This version will correctly parse the MakerNote field for Nikon, Olympus, and Canon
- * digital cameras.  Others will follow.
- *
- * TESTED WITH:
- * - Nikon CoolPix 700
- * - Nikon CoolPix E3200
- * - Nikon CoolPix 4500
- * - Nikon CoolPix 950
- * - Nikon Coolpix 5700
- * - Canon PowerShot S200
- * - Canon PowerShot S110
- * - Olympus C2040Z
- * - Olympus C960
- * - Olumpus E-300
- * - Olympus E-410
- * - Olympus E-500
- * - Olympus E-510
- * - Olympus E-3
- * - Canon Ixus
- * - Canon EOS 300D
- * - Canon Digital Rebel
- * - Canon EOS 10D
- * - Canon PowerShot G2
- * - FujiFilm DX 10
- * - FujiFilm MX-1200
- * - FujiFilm FinePix2400
- * - FujiFilm FinePix2600
- * - FujiFilm FinePix S602
- * - FujiFilm FinePix40i
- * - Sony D700
- * - Sony Cybershot
- * - Kodak DC210
- * - Kodak DC240
- * - Kodak DC4800
- * - Kodak DX3215
- * - Ricoh RDC-5300
- * - Sanyo VPC-G250
- * - Sanyo VPC-SX550
- * - Epson 3100z
- *
- * VERSION HISTORY:
- *
- * 1.0    September 23, 2002
- * - First Public Release
- *
- * 1.1    January 25, 2003
- *
- * - Gracefully handled the error case where you pass an empty string to this library
- * - Fixed an inconsistency in the Olympus Camera parsing module
- * - Added support for parsing the MakerNote of Canon images.
- * - Modified how the imagefile is opened so it works for windows machines.
- * - Correctly parses the FocalPlaneResolutionUnit and PhotometricInterpretation fields
- * - Negative rational numbers are properly displayed
- * - Strange old cameras that use Motorola endineness are now properly supported
- * - Tested with several more cameras
- *
- * Potential Problem: Negative Shorts and Negative Longs may not be correctly displayed, but I
- * have not yet found an example of negative shorts or longs being used.
- *
- * 1.2    March 30, 2003
- *
- * - Fixed an error that was displayed if you edited your image with WinXP's image viewer
- * - Fixed a bug that caused some images saved from 3rd party software to not parse correctly
- * - Changed the ExposureTime tag to display in fractional seconds rather than decimal
- * - Updated the ShutterSpeedValue tag to have the units of 'sec'
- * - Added support for parsing the MakeNote of FujiFilm images
- * - Added support for parsing the MakeNote of Sanyo images
- * - Fixed a bug with parsing some Olympus MakerNote tags
- * - Tested with several more cameras
- *
- * 1.3    June 15, 2003
- *
- * - Fixed Canon MakerNote support for some models
- *   (Canon has very difficult and inconsistent MakerNote syntax)
- * - Negative signed shorts and negative signed longs are properly displayed
- * - Several more tags are defined
- * - More information in my comments about what each tag is
- * - Parses and Displays GPS information if available
- * - Tested with several more cameras
- *
- * 1.4    September 14, 2003
- *
- * - This software is now licensed under the GNU General Public License
- * - Exposure time is now correctly displayed when the numerator is 10
- * - Fixed the calculation and display of ShutterSpeedValue, ApertureValue and MaxApertureValue
- * - Fixed a bug with the GPS code
- * - Tested with several more cameras
- *
- * 	1.5    February 18, 2005
- *
- * - It now gracefully deals with a passed in file that cannot be found.
- * - Fixed a GPS bug for the parsing of Altitude and other signed rational numbers
- * - Defined more values for Canon cameras.
- * - Added 'bulb' detection for ShutterSpeed
- * -  Made script loading a little faster and less memory intensive.
- * - Bug fixes
- * - Better error reporting
- * - Graceful failure for files with corrupt exif info.
- * - QuickTime (including iPhoto) messes up the Makernote tag for certain photos (no workaround yet)
- * - Now reads exif information when the jpeg markers are out of order
- * - Gives raw data output for IPTC, COM and APP2 fields which are sometimes set by other applications
- * - Improvements to Nikon Makernote parsing
- *
- * 1.6    March 25th, 2007 [Zenphoto]
- *
- * - Adopted into the Zenphoto gallery project, at http://www.zenphoto.org
- * - Fixed a bug where strings had trailing null bytes.
- * - Formatted selected strings better.
- * - Added calculation of 35mm-equivalent focal length when possible.
- * - Cleaned up code for readability and efficiency.
- *
- * 1.7    April 11th, 2008 [Zenphoto]
- *
- * - Fixed bug with newer Olympus cameras where number of fields was miscalculated leading to bad performance.
- * - More logical fraction calculation for shutter speed.
- *
- * 2009: For all further changes, see the Zenphoto change logs.
- *
+/*
+  Exifer 1.7
+  Extracts EXIF information from digital photos.
+
+  Originally created by:
+  Copyright © 2005 Jake Olefsky
+  http:// www.offsky.com/software/exif/index.php
+  jake@olefsky.com
+
+  This program is free software; you can redistribute it and/or modify it under the terms of
+  the GNU General Public License as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+  See the GNU General Public License for more details. http:// www.gnu.org/copyleft/gpl.html
+
+  SUMMARY:
+  This script will correctly parse all of the EXIF data included in images taken
+  with digital cameras.  It will read the IDF0, IDF1, SubIDF and InteroperabilityIFD
+  fields as well as parsing some of the MakerNote fields that vary depending on
+  camera make and model.  This script parses more tags than the internal PHP exif
+  implementation and it will correctly identify and decode what all the values mean.
+
+  This version will correctly parse the MakerNote field for Nikon, Olympus, and Canon
+  digital cameras.  Others will follow.
+
+  TESTED WITH:
+  Nikon CoolPix 700
+  Nikon CoolPix E3200
+  Nikon CoolPix 4500
+  Nikon CoolPix 950
+  Nikon Coolpix 5700
+  Canon PowerShot S200
+  Canon PowerShot S110
+  Olympus C2040Z
+  Olympus C960
+  Olumpus E-300
+  Olympus E-410
+  Olympus E-500
+  Olympus E-510
+  Olympus E-3
+  Canon Ixus
+  Canon EOS 300D
+  Canon Digital Rebel
+  Canon EOS 10D
+  Canon PowerShot G2
+  FujiFilm DX 10
+  FujiFilm MX-1200
+  FujiFilm FinePix2400
+  FujiFilm FinePix2600
+  FujiFilm FinePix S602
+  FujiFilm FinePix40i
+  Sony D700
+  Sony Cybershot
+  Kodak DC210
+  Kodak DC240
+  Kodak DC4800
+  Kodak DX3215
+  Ricoh RDC-5300
+  Sanyo VPC-G250
+  Sanyo VPC-SX550
+  Epson 3100z
+
+
+  VERSION HISTORY:
+
+  1.0    September 23, 2002
+
+  + First Public Release
+
+  1.1    January 25, 2003
+
+  + Gracefully handled the error case where you pass an empty string to this library
+  + Fixed an inconsistency in the Olympus Camera parsing module
+  + Added support for parsing the MakerNote of Canon images.
+  + Modified how the imagefile is opened so it works for windows machines.
+  + Correctly parses the FocalPlaneResolutionUnit and PhotometricInterpretation fields
+  + Negative rational numbers are properly displayed
+  + Strange old cameras that use Motorola endineness are now properly supported
+  + Tested with several more cameras
+
+  Potential Problem: Negative Shorts and Negative Longs may not be correctly displayed, but I
+  have not yet found an example of negative shorts or longs being used.
+
+  1.2    March 30, 2003
+
+  + Fixed an error that was displayed if you edited your image with WinXP's image viewer
+  + Fixed a bug that caused some images saved from 3rd party software to not parse correctly
+  + Changed the ExposureTime tag to display in fractional seconds rather than decimal
+  + Updated the ShutterSpeedValue tag to have the units of 'sec'
+  + Added support for parsing the MakeNote of FujiFilm images
+  + Added support for parsing the MakeNote of Sanyo images
+  + Fixed a bug with parsing some Olympus MakerNote tags
+  + Tested with several more cameras
+
+  1.3    June 15, 2003
+
+  + Fixed Canon MakerNote support for some models
+  (Canon has very difficult and inconsistent MakerNote syntax)
+  + Negative signed shorts and negative signed longs are properly displayed
+  + Several more tags are defined
+  + More information in my comments about what each tag is
+  + Parses and Displays GPS information if available
+  + Tested with several more cameras
+
+  1.4    September 14, 2003
+
+  + This software is now licensed under the GNU General Public License
+  + Exposure time is now correctly displayed when the numerator is 10
+  + Fixed the calculation and display of ShutterSpeedValue, ApertureValue and MaxApertureValue
+  + Fixed a bug with the GPS code
+  + Tested with several more cameras
+
+  1.5    February 18, 2005
+
+  + It now gracefully deals with a passed in file that cannot be found.
+  + Fixed a GPS bug for the parsing of Altitude and other signed rational numbers
+  + Defined more values for Canon cameras.
+  + Added 'bulb' detection for ShutterSpeed
+  + Made script loading a little faster and less memory intensive.
+  + Bug fixes
+  + Better error reporting
+  + Graceful failure for files with corrupt exif info.
+  + QuickTime (including iPhoto) messes up the Makernote tag for certain photos (no workaround yet)
+  + Now reads exif information when the jpeg markers are out of order
+  + Gives raw data output for IPTC, COM and APP2 fields which are sometimes set by other applications
+  + Improvements to Nikon Makernote parsing
+
+  1.6    March 25th, 2007 [Zenphoto]
+
+  + Fixed a bug where strings had trailing null bytes.
+  + Formatted selected strings better.
+  + Added calculation of 35mm-equivalent focal length when possible.
+  + Cleaned up code for readability and efficiency.
+
+  1.7    April 11th, 2008 [Zenphoto]
+
+  + Fixed bug with newer Olympus cameras where number of fields was miscalculated leading to bad performance.
+  + More logical fraction calculation for shutter speed.
+
+
  */
 
-/**
- * Converts from Intel to Motorola endien.  Just reverses the bytes (assumes hex is passed in)
- *
- * @staticvar array $cache
- * @param type $intel
- * @return array
- */
+//================================================================================================
+// Converts from Intel to Motorola endien.  Just reverses the bytes (assumes hex is passed in)
+//================================================================================================
+
 function intel2Moto($intel) {
 	static $cache = array();
 	if (isset($cache[$intel])) {
@@ -168,12 +165,9 @@ function intel2Moto($intel) {
 	return $cache[$intel];
 }
 
-/**
- * Looks up the name of the tag
- *
- * @param string $tag
- * @return string
- */
+//================================================================================================
+// Looks up the name of the tag
+//================================================================================================
 function lookup_tag($tag) {
 	switch ($tag) {
 		// used by IFD0 'Camera Tags'
@@ -459,13 +453,9 @@ function lookup_tag($tag) {
 	return $tag;
 }
 
-/**
- * Looks up the datatype
- *
- * @param type $type
- * @param type $size
- * @return string
- */
+//================================================================================================
+// Looks up the datatype
+//================================================================================================
 function lookup_type(&$type, &$size) {
 	switch ($type) {
 		case '0001': $type = 'UBYTE';
@@ -511,24 +501,16 @@ function lookup_type(&$type, &$size) {
 	return $type;
 }
 
-/**
- * truncates unreasonable read data requests.
- *
- * @param type $bytesofdata
- * @return type
- */
+//================================================================================================
+// truncates unreasonable read data requests.
+//================================================================================================
 function validSize($bytesofdata) {
 	return min(8191, max(0, $bytesofdata));
 }
 
-/**
- * processes a irrational number
- *
- * @param type $data
- * @param type $type
- * @param type $intel
- * @return string
- */
+//================================================================================================
+// processes a irrational number
+//================================================================================================
 function unRational($data, $type, $intel) {
 	$data = bin2hex($data);
 	if ($intel == 1) {
@@ -551,14 +533,9 @@ function unRational($data, $type, $intel) {
 	return $data;
 }
 
-/**
- * processes a rational number
- *
- * @param type $data
- * @param type $type
- * @param type $intel
- * @return type
- */
+//================================================================================================
+// processes a rational number
+//================================================================================================
 function rational($data, $type, $intel) {
 	if (($type == 'USHORT' || $type == 'SSHORT')) {
 		$data = substr($data, 0, 2);
@@ -575,15 +552,9 @@ function rational($data, $type, $intel) {
 	return $data;
 }
 
-/**
- * Formats Data for the data type
- *
- * @param type $type
- * @param type $tag
- * @param type $intel
- * @param type $data
- * @return type
- */
+//================================================================================================
+// Formats Data for the data type
+//================================================================================================
 function formatData($type, $tag, $intel, $data) {
 	switch ($type) {
 		case 'ASCII':
@@ -676,10 +647,6 @@ function formatData($type, $tag, $intel, $data) {
 						case 2: $data = '!inch!';
 							break;
 						case 3: $data = '!centimeter!';
-							break;
-						case 4: $data = '!Millimeter';
-							break;
-						case 5: $data = '!Micrometer';
 							break;
 					}
 					break;
@@ -795,6 +762,7 @@ function formatData($type, $tag, $intel, $data) {
 					break;
 				case '9209': // Flash
 					switch ($data) {
+
 
 						case 0:
 						case 16:
@@ -927,8 +895,9 @@ function formatData($type, $tag, $intel, $data) {
 				case '9000': // ExifVersion
 				case 'a000': // FlashPixVersion
 				case '0002': // InteroperabilityVersion
-					if (is_numeric($data) && is_int($data + 0)) {
-						$data = $data / 100;
+					$d = filter_var($data, FILTER_SANITIZE_NUMBER_INT);
+					if ($d !== false) {
+						$data = $d / 100;
 					}
 					$data = '!version!' . ' ' . $data;
 					break;
@@ -967,12 +936,6 @@ function formatData($type, $tag, $intel, $data) {
 	return $data;
 }
 
-/**
- * Formats the exposure data for display
- *
- * @param type $data
- * @return string
- */
 function formatExposure($data) {
 	if (strpos($data, '/') === false) {
 		if ($data >= 1) {
@@ -985,17 +948,9 @@ function formatExposure($data) {
 	}
 }
 
-/**
- * Reads one standard IFD entry
- *
- * @param type $result
- * @param type $in
- * @param type $seek
- * @param type $intel
- * @param type $ifd_name
- * @param type $globalOffset
- * @return type
- */
+//================================================================================================
+// Reads one standard IFD entry
+//================================================================================================
 function read_entry(&$result, $in, $seek, $intel, $ifd_name, $globalOffset) {
 
 	if (feof($in)) { // test to make sure we can still read.
@@ -1105,23 +1060,18 @@ function read_entry(&$result, $in, $seek, $intel, $ifd_name, $globalOffset) {
 	}
 }
 
-/**
- * Pass in a file and this reads the EXIF data
- *
- * Usefull resources
- *
- * - http:// www.ba.wakwak.com/~tsuruzoh/Computer/Digicams/exif-e.html
- * - http:// www.w3.org/Graphics/JPEG/jfif.txt
- * - http:// exif.org/
- * - http:// www.ozhiker.com/electronics/pjmt/library/list_contents.php4
- * - http:// www.ozhiker.com/electronics/pjmt/jpeg_info/makernotes.html
- * - http:// pel.sourceforge.net/
- * - http:// us2.php.net/manual/en/function.exif-read-data.php
- *
- * @param string $path
- * @param int $verbose
- * @return int
- */
+//================================================================================================
+// Pass in a file and this reads the EXIF data
+//
+// Usefull resources
+// http:// www.ba.wakwak.com/~tsuruzoh/Computer/Digicams/exif-e.html
+// http:// www.w3.org/Graphics/JPEG/jfif.txt
+// http:// exif.org/
+// http:// www.ozhiker.com/electronics/pjmt/library/list_contents.php4
+// http:// www.ozhiker.com/electronics/pjmt/jpeg_info/makernotes.html
+// http:// pel.sourceforge.net/
+// http:// us2.php.net/manual/en/function.exif-read-data.php
+//================================================================================================
 function read_exif_data_raw($path, $verbose) {
 
 	if ($path == '' || $path == 'none')
@@ -1294,6 +1244,10 @@ function read_exif_data_raw($path, $verbose) {
 
 
 
+
+
+
+
 // add 12 to the offset to account for TIFF header
 	if ($result['ValidJpeg'] == 1) {
 		$globalOffset+=12;
@@ -1438,14 +1392,15 @@ function read_exif_data_raw($path, $verbose) {
 	return $result;
 }
 
-/**
- * Converts a floating point number into a simple fraction.
- *
+//=========================================================
+// Converts a floating point number into a simple fraction.
+//=========================================================
+/*
  * This function has been ammended to work better with actual
  * camera data. In particular, the tolarance computation is
  * completely changed.
  *
- * Changes are Copyright 2015 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Changes are Copyright 2015 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
 function convertToFraction($v) {
 	if ($v == 0) {
@@ -1469,57 +1424,34 @@ function convertToFraction($v) {
 	}
 }
 
-/**
- * Calculates the 35mm-equivalent focal length from the reported sensor resolution
- * @author Tristan Harward (trisweb)
- *
- * @param array $result
- *
- * @return int
- */
+//================================================================================================
+// Calculates the 35mm-equivalent focal length from the reported sensor resolution, by Tristan Harward.
+//================================================================================================
 function get35mmEquivFocalLength(&$result) {
 	if (isset($result['SubIFD']['ExifImageWidth'])) {
 		$width = filter_var($result['SubIFD']['ExifImageWidth'], FILTER_SANITIZE_NUMBER_INT);
 	} else {
 		$width = 0;
 	}
-	if (isset($result['SubIFD']['ExifImageHeight'])) {
-		$height = $result['SubIFD']['ExifImageHeight'];
-	} else {
-		$height = 0;
-	}
 	if (isset($result['SubIFD']['FocalPlaneResolutionUnit'])) {
 		$units = $result['SubIFD']['FocalPlaneResolutionUnit'];
 	} else {
 		$units = '';
 	}
-
+	$unitfactor = 1;
 	switch ($units) {
-		case 'Inch' :
-			$unitfactor = 25.4;
+		case 'Inch' : $unitfactor = 25.4;
 			break;
-		case 'Centimeter' :
-			$unitfactor = 10;
+		case 'Centimeter' : $unitfactor = 10;
 			break;
-		case 'Millimeter' :
-			$unitfactor = 1;
+		case 'No Unit' : $unitfactor = 25.4;
 			break;
-		case 'Micrometer' :
-			$unitfactor = 0.001;
-			break;
-		default :
-			$unitfactor = 25.4;
-			break;
+		default : $unitfactor = 25.4;
 	}
 	if (isset($result['SubIFD']['FocalPlaneXResolution'])) {
 		$xres = filter_var($result['SubIFD']['FocalPlaneXResolution'], FILTER_SANITIZE_NUMBER_INT);
 	} else {
 		$xres = '';
-	}
-	if (isset($result['SubIFD']['FocalPlaneYResolution'])) {
-		$yres = $result['SubIFD']['FocalPlaneYResolution'];
-	} else {
-		$yres = '';
 	}
 	if (isset($result['SubIFD']['FocalLength'])) {
 		$fl = filter_var($result['SubIFD']['FocalLength'], FILTER_SANITIZE_NUMBER_INT);
@@ -1527,13 +1459,14 @@ function get35mmEquivFocalLength(&$result) {
 		$fl = 0;
 	}
 
-	if (!empty($width) && !empty($height) && !empty($xres) && !empty($yres) && !empty($fl)) {
-		// Calculate CCD diagonal using Pythagoras' theorem (a² + b² = c²)
-		$diagccd = sqrt(pow(((intval($width) * $unitfactor) / $xres), 2) + pow(((intval($height) * $unitfactor) / $yres), 2));
-		$diag35mm = 43.266615305567871517430655209646; // √ 36² + 24² (35mm diagonal using Pythagoras' theorem)
-		$cropfactor = $diag35mm / $diagccd;
-		$equivfl = intval($fl) * $cropfactor;
+	if (!empty($units) && !empty($xres) && !empty($fl) && !empty($width)) {
+
+
+		$ccdwidth = ($width * $unitfactor) / $xres;
+		$equivfl = $fl / $ccdwidth * 36 + 0.5;
 		return $equivfl;
 	}
 	return null;
 }
+
+?>

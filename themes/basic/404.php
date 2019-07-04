@@ -8,15 +8,13 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 
-		<?php
-		npgFilters::apply('theme_head');
+		<?php zp_apply_filter('theme_head'); ?>
 
-		scriptLoader($zenCSS);
-		scriptLoader(dirname(dirname($zenCSS)) . '/common.css');
-		?>
+		<link rel="stylesheet" href="<?php echo pathurlencode($zenCSS); ?>" type="text/css" />
+		<link rel="stylesheet" href="<?php echo pathurlencode(dirname(dirname($zenCSS))); ?>/common.css" type="text/css" />
 	</head>
 	<body>
-		<?php npgFilters::apply('theme_body_open'); ?>
+		<?php zp_apply_filter('theme_body_open'); ?>
 		<div id="main">
 			<div id="gallerytitle">
 				<h2>
@@ -33,7 +31,7 @@ if (!defined('WEBPATH'))
 			<?php printSoftwareLink(); ?>
 		</div>
 		<?php
-		npgFilters::apply('theme_body_close');
+		zp_apply_filter('theme_body_close');
 		?>
 	</body>
 </html>

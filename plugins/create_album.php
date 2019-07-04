@@ -10,27 +10,30 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/create_album
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
+ * @category ZenPhoto20Tools
  */
 $plugin_is_filter = 9 | ADMIN_PLUGIN;
 $plugin_description = gettext('Allow a user to create a root level album when he does not otherwise have rights to do so.');
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'create_album';
 
-npgFilters::register('admin_head', 'create_album::JS');
-npgFilters::register('edit_admin_custom', 'create_album::edit', 1);
-npgFilters::register('save_admin_data', 'create_album::save');
-npgFilters::register('save_user_complete', 'create_album::save_user');
-npgFilters::register('upload_root_ui', 'create_album::upload_root_ui');
-npgFilters::register('admin_upload_process', 'create_album::admin_upload_process');
-npgFilters::register('plugin_tabs', 'create_album::tab');
+zp_register_filter('admin_head', 'create_album::JS');
+zp_register_filter('edit_admin_custom_data', 'create_album::edit', 1);
+zp_register_filter('save_admin_custom_data', 'create_album::save');
+zp_register_filter('save_user', 'create_album::save_user');
+zp_register_filter('upload_root_ui', 'create_album::upload_root_ui');
+zp_register_filter('admin_upload_process', 'create_album::admin_upload_process');
+zp_register_filter('plugin_tabs', 'create_album::tab');
 
 $__creatAlbumList = getSerializedArray(getOption('create_album_userlist'));
 
 
 //	create the html before anything is output
-if ($albpublish = $_gallery->getAlbumPublish()) {
+if ($albpublish = $_zp_gallery->getAlbumPublish()) {
 	$publishchecked = ' checked="checked"';
 } else {
 	$publishchecked = '';
@@ -43,8 +46,7 @@ ob_start();
 		<input id="newalbumcheckbox" type="checkbox" name="createalbum" />
 		<?php echo gettext('Create an album') ?>
 	</div>
-	<div id="albumtext" style="margin-top: 5px;">
-		<?php echo gettext("titled:"); ?>
+	<div id="albumtext" style="margin-top: 5px;"><?php echo gettext("titled:"); ?>
 		<input id="albumtitle" size="42" type="text" name="albumtitle"
 					 onkeyup="updateFolder(this, 'folderdisplay', 'autogen', '<?php echo addslashes(gettext('That name is already used.')); ?>', '<?php echo addslashes(gettext('This upload has to have a folder. Type a title or folder name to continue...')); ?>');" />
 
@@ -54,15 +56,11 @@ ob_start();
 			<span id="foldererror" style="display: none; color: #D66;"></span>
 			<input type="checkbox" name="autogenfolder" id="autogen" checked="checked"
 						 onclick="toggleAutogen('folderdisplay', 'albumtitle', this);" />
-			<label for="autogen">
-				<?php echo gettext("Auto-generate"); ?>
-			</label>
+			<label for="autogen"><?php echo gettext("Auto-generate"); ?></label>
 		</div>
 		<div id="publishtext">
 			<input type="checkbox" name="publishalbum" id="publishalbum" value="1" <?php echo $publishchecked; ?> />
-			<label for="publishalbum">
-				<?php echo gettext("Publish the album so everyone can see it."); ?>
-			</label>
+			<label for="publishalbum"><?php echo gettext("Publish the album so everyone can see it."); ?></label>
 		</div>
 	</div>
 </div>
@@ -77,13 +75,13 @@ class create_album {
 	 * class instantiation function
 	 */
 	function __construct() {
-		global $_authority, $__creatAlbumList;
+		global $_zp_authority, $__creatAlbumList;
 		$newlist = getOption('create_album_userlist');
 
 		if (OFFSET_PATH == 2) {
 			setOptionDefault('create_album_default', 1);
 			$default = getOption('create_album_default');
-			$admins = $_authority->getAdministrators();
+			$admins = $_zp_authority->getAdministrators();
 
 			if (is_null($newlist)) { //	migrate old options
 				$oldset = getOptionsLike('create_album_admin_');
@@ -111,6 +109,8 @@ class create_album {
 						}
 						purgeOption($option);
 					}
+
+					var_dump($__creatAlbumList);
 				}
 				setOptionDefault('create_album_userlist', serialize($__creatAlbumList));
 			}
@@ -122,8 +122,8 @@ class create_album {
 	 * Option definitions
 	 */
 	function getOptionsSupported() {
-		global $_authority;
-		$admins = $_authority->getAdministrators();
+		global $_zp_authority;
+		$admins = $_zp_authority->getAdministrators();
 		$list = array();
 		foreach ($admins as $admin) {
 			$rights = $admin['rights'];
@@ -149,9 +149,9 @@ class create_album {
 	 * HTML Header JS
 	 */
 	static function JS() {
-		global $_admin_tab, $_admin_subtab, $_gallery;
-		if ($_admin_tab == 'admin' && $_admin_subtab == 'users') {
-			$albums = $_gallery->getAlbums(0);
+		global $_zp_admin_tab, $_zp_admin_subtab, $_zp_gallery;
+		if ($_zp_admin_tab == 'admin' && $_zp_admin_subtab == 'users') {
+			$albums = $_zp_gallery->getAlbums(0);
 			?>
 			<script type="text/javascript">
 				// <!-- <![CDATA[
@@ -210,9 +210,10 @@ class create_album {
 	 * @param $id
 	 * @param $background
 	 * @param $current
+	 * @param $local_alterrights
 	 */
-	static function edit($html, $userobj, $id, $background, $current) {
-		global $_current_admin_obj, $_gallery, $__creatAlbumList, $_create_album_html;
+	static function edit($html, $userobj, $id, $background, $current, $local_alterrights) {
+		global $_zp_current_admin_obj, $_zp_gallery, $__creatAlbumList, $_create_album_html;
 		if (!$userobj->getValid())
 			return $html;
 		$rights = $userobj->getRights();
@@ -221,7 +222,7 @@ class create_album {
 		if (is_null($enabled)) {
 			$enabled = getOption('create_album_default');
 		}
-		if ($enabled && ($user == $_current_admin_obj->getUser()) && ($rights & (ALBUM_RIGHTS | UPLOAD_RIGHTS | MANAGE_ALL_ALBUM_RIGHTS | ADMIN_RIGHTS)) == (ALBUM_RIGHTS | UPLOAD_RIGHTS)) {
+		if ($enabled && ($user == $_zp_current_admin_obj->getUser()) && ($rights & (ALBUM_RIGHTS | UPLOAD_RIGHTS | MANAGE_ALL_ALBUM_RIGHTS | ADMIN_RIGHTS)) == (ALBUM_RIGHTS | UPLOAD_RIGHTS)) {
 			$html .= $_create_album_html;
 		}
 		return $html;
@@ -230,11 +231,12 @@ class create_album {
 	/**
 	 *
 	 * Admin Save handler
+	 * @param $updated
 	 * @param $userobj
 	 * @param $i
 	 * @param $alter
 	 */
-	static function save($userobj, $i, $alter) {
+	static function save($updated, $userobj, $i, $alter) {
 		global $_create_album_errors;
 		if (isset($_POST['createalbum']) && $userobj->getValid()) {
 			if (isset($_POST['folderdisplay'])) {
@@ -262,6 +264,7 @@ class create_album {
 							}
 							$album->save();
 							$userobj->setObjects(array_merge($userobj->getObjects(), array('data' => $alb, 'name' => $title, 'edit' => MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_UPLOAD | MANAGED_OBJECT_RIGHTS_VIEW)));
+							$userobj->save();
 						} else {
 							$_create_album_errors[$user] = sprintf(gettext('Unable to create %s.'), $alb);
 						}
@@ -269,7 +272,7 @@ class create_album {
 				}
 			}
 		}
-		return $userobj;
+		return $updated;
 	}
 
 	/**
@@ -303,16 +306,23 @@ class create_album {
 	}
 
 	static function upload_root_ui($allow) {
-		global $_current_admin_obj, $__creatAlbumList;
+		global $_zp_current_admin_obj, $__creatAlbumList;
 		if (!$allow) {
-			$rights = $_current_admin_obj->getRights();
-			$allow = in_array($_current_admin_obj->getUser(), $__creatAlbumList);
+			$rights = $_zp_current_admin_obj->getRights();
+			$allow = in_array($_zp_current_admin_obj->getUser(), $__creatAlbumList);
+			/*
+			  if (is_null($enabled)) { // a new user
+			  if (($rights & (ALBUM_RIGHTS | UPLOAD_RIGHTS | MANAGE_ALL_ALBUM_RIGHTS | ADMIN_RIGHTS)) == (ALBUM_RIGHTS | UPLOAD_RIGHTS)) {
+			  return getOption('create_album_default');
+			  }
+			  }
+			 */
 		}
 		return $allow;
 	}
 
 	static function admin_upload_process($folder) {
-		global $_current_admin_obj;
+		global $_zp_current_admin_obj;
 		if (self::upload_root_ui(true)) { //	user has permission to create a root album
 			$leaves = explode('/', $folder);
 			if (count($leaves) == 1) { //	// and it is a root album
@@ -321,18 +331,8 @@ class create_album {
 					mkdir_recursive($targetPath, FOLDER_MOD);
 					$album = newAlbum($folder);
 					$album->save();
-					if (!npg_loggedin(ADMIN_RIGHTS)) {
-						// add the album to his managed objects
-						$objects = $_current_admin_obj->getObjects();
-						$objects[] = array(
-								'data' => $folder,
-								'name' => $album->getTitle(),
-								'type' => 'albums',
-								'edit' => MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_UPLOAD | MANAGED_OBJECT_RIGHTS_VIEW
-						);
-						$_current_admin_obj->setObjects($objects);
-						$_current_admin_obj->save();
-					}
+					$userobj->setObjects(array_merge($userobj->getObjects(), array('data' => $folder, 'name' => $album->getTitle(), 'edit' => MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_UPLOAD | MANAGED_OBJECT_RIGHTS_VIEW)));
+					$userobj->save();
 				}
 			}
 		}

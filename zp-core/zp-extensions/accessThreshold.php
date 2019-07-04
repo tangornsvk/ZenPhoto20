@@ -7,19 +7,20 @@
  * A mask is used to control the scope of the data collection. For a IPv4 addresses
  * 	255.255.255.255 will resolve to the Host.
  *  255.255.255.0 will resolve to the Sub-net (data for all hosts in the Sub-net are grouped.)
- *  255.255.0.0 will resolve to the Network (data for the Network is grouped.)
+ *  255.255.0.0 will resolve to the Network (data for the Newtork is grouped.)
  *
  * Access data is not acted upon until there is at least 10 access attempts. This insures
  * that flooding is not prematurely indicated.
  *
  * @author Stephen Billard (sbillard)
- * @Copyright 2016 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * @Copyright 2016 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  *
- * @package plugins/accessThreshold
- * @pluginCategory admin
+ * @package plugins
+ * @subpackage admin
  */
 $plugin_is_filter = 990 | FEATURE_PLUGIN;
 $plugin_description = gettext("Tools to block denial of service attacks.");
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'accessThreshold';
 
@@ -99,12 +100,18 @@ class accessThreshold {
 	}
 
 	static function admin_tabs($tabs) {
-		global $_current_admin_obj;
-		if ((npg_loggedin(ADMIN_RIGHTS) && $_current_admin_obj->getID())) {
-			$subtabs = $tabs['admin']['subtabs'];
+		global $_zp_current_admin_obj;
+		if ((zp_loggedin(ADMIN_RIGHTS) && $_zp_current_admin_obj->getID())) {
+			if (isset($tabs['admin']['subtabs'])) {
+				$subtabs = $tabs['admin']['subtabs'];
+			} else {
+				$subtabs = array(
+						gettext('users') => 'admin-users.php?page=admin&tab=users'
+				);
+			}
 			$subtabs[gettext("access")] = PLUGIN_FOLDER . '/accessThreshold/admin_tab.php?page=admin&tab=access';
 			$tabs['admin']['text'] = gettext("admin");
-			$tabs['admin']['link'] = getAdminLink('admin-tabs/users.php') . '?page=admin&tab=users';
+			$tabs['admin']['link'] = WEBPATH . "/" . ZENFOLDER . '/admin-users.php?page=admin&tab=users';
 			$tabs['admin']['subtabs'] = $subtabs;
 		}
 		return $tabs;
@@ -127,10 +134,10 @@ class accessThreshold {
 }
 
 if (OFFSET_PATH) {
-	npgFilters::register('admin_tabs', 'accessThreshold::admin_tabs', -100);
+	zp_register_filter('admin_tabs', 'accessThreshold::admin_tabs', -100);
 } else {
 	if (getUserIP() != getOption('accessThreshold_Owner')) {
-		$mu = new npgMutex('aT');
+		$mu = new zpMutex('aT');
 		$mu->lock();
 		$recentIP = getSerializedArray(@file_get_contents(SERVERPATH . '/' . DATA_FOLDER . '/recentIP'));
 		if (array_key_exists('config', $recentIP)) {
@@ -163,10 +170,10 @@ if (OFFSET_PATH) {
 			if (@$recentIP[$ip]['blocked']) {
 				file_put_contents(SERVERPATH . '/' . DATA_FOLDER . '/recentIP', serialize($recentIP));
 				$mu->unlock();
-				exit();
+				exitZP();
 			} else {
 				$recentIP[$ip]['accessed'][] = array('time' => $__time, 'ip' => $full_ip);
-				$__locale = i18n::getUserLocale();
+				$__locale = getUserLocale();
 				if (isset($recentIP[$ip]['locales'][$__locale])) {
 					$recentIP[$ip]['locales'][$__locale]['ip'][$full_ip] = $__time;
 				} else {

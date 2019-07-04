@@ -6,52 +6,50 @@
 $optionRights = OPTIONS_RIGHTS;
 
 function saveOptions() {
-	global $_gallery;
+	global $_zp_gallery;
+
 	$notify = $returntab = NULL;
-	$_gallery->setAlbumPublish((int) isset($_POST['album_default']));
-	$_gallery->setImagePublish((int) isset($_POST['image_default']));
+	$_zp_gallery->setAlbumPublish((int) isset($_POST['album_default']));
+	$_zp_gallery->setImagePublish((int) isset($_POST['image_default']));
+
 	setOption('AlbumThumbSelect', sanitize_numeric($_POST['thumbselector']));
-	$_gallery->setThumbSelectImages((int) isset($_POST['thumb_select_images']));
-	$_gallery->setSecondLevelThumbs((int) isset($_POST['multilevel_thumb_select_images']));
-	$_gallery->setTitle(process_language_string_save('gallery_title', 2));
-	$_gallery->setDesc(process_language_string_save('Gallery_description', EDITOR_SANITIZE_LEVEL));
-	$_gallery->setWebsiteTitle(process_language_string_save('website_title', 2));
-	$_gallery->setLogonWelcome(process_language_string_save('logon_welcome', EDITOR_SANITIZE_LEVEL));
-	$_gallery->setSiteLogo(sanitize_path($_POST['sitelogoimage']));
-	$_gallery->setSiteLogoTitle(process_language_string_save('sitelogotitle', EDITOR_SANITIZE_LEVEL));
+	$_zp_gallery->setThumbSelectImages((int) isset($_POST['thumb_select_images']));
+	$_zp_gallery->setSecondLevelThumbs((int) isset($_POST['multilevel_thumb_select_images']));
+	$_zp_gallery->setTitle(process_language_string_save('gallery_title', 2));
+	$_zp_gallery->setDesc(process_language_string_save('Gallery_description', EDITOR_SANITIZE_LEVEL));
+	$_zp_gallery->setWebsiteTitle(process_language_string_save('website_title', 2));
 	$web = sanitize($_POST['website_url'], 3);
-	$_gallery->setWebsiteURL($web);
-	$_gallery->setAlbumUseImagedate((int) isset($_POST['album_use_new_image_date']));
+	$_zp_gallery->setWebsiteURL($web);
+	$_zp_gallery->setAlbumUseImagedate((int) isset($_POST['album_use_new_image_date']));
 	$st = strtolower(sanitize($_POST['gallery_sorttype'], 3));
-	if ($st == 'custom') {
+	if ($st == 'custom')
 		$st = strtolower(sanitize($_POST['customalbumsort'], 3));
-	}
-	$_gallery->setSortType($st);
+	$_zp_gallery->setSortType($st);
 	if (($st == 'manual') || ($st == 'random')) {
-		$_gallery->setSortDirection(false);
+		$_zp_gallery->setSortDirection(false);
 	} else {
-		$_gallery->setSortDirection(isset($_POST['gallery_sortdirection']));
+		$_zp_gallery->setSortDirection(isset($_POST['gallery_sortdirection']));
 	}
 	foreach ($_POST as $item => $value) {
 		if (strpos($item, 'gallery-page_') === 0) {
 			$encoded = substr($item, 13);
 			$item = sanitize(postIndexDecode($encoded));
-			$_gallery->setUnprotectedPage($item, (int) isset($_POST['gallery_page_unprotected_' . $encoded]));
+			$_zp_gallery->setUnprotectedPage($item, (int) isset($_POST['gallery_page_unprotected_' . $encoded]));
 		}
 	}
-	$_gallery->setSecurity(sanitize($_POST['gallery_security'], 3));
-	$notify = processCredentials($_gallery);
-	if (npg_loggedin(CODEBLOCK_RIGHTS)) {
-		processCodeblockSave(0, $_gallery);
+	$_zp_gallery->setSecurity(sanitize($_POST['gallery_security'], 3));
+	$notify = processCredentials($_zp_gallery);
+	if (zp_loggedin(CODEBLOCK_RIGHTS)) {
+		processCodeblockSave(0, $_zp_gallery);
 	}
-	$_gallery->save();
+	$_zp_gallery->save();
 	$returntab = "&tab=gallery";
 
 	return array($returntab, $notify, NULL, NULL, NULL);
 }
 
 function getOptionContent() {
-	global $_gallery, $_albumthumb_selector, $_sortby;
+	global $_zp_gallery, $_zp_albumthumb_selector, $_zp_sortby;
 
 	codeblocktabsJS();
 	?>
@@ -76,7 +74,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Gallery title"); ?></td>
 					<td class="option_value">
-						<?php print_language_string_list($_gallery->getTitle('all'), 'gallery_title', false, null, '', '100%'); ?>
+						<?php print_language_string_list($_zp_gallery->getTitle('all'), 'gallery_title', false, null, '', '100%'); ?>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -90,7 +88,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Gallery description"); ?></td>
 					<td class="option_value">
-						<?php print_language_string_list($_gallery->getDesc('all'), 'Gallery_description', true, NULL, 'texteditor', '100%'); ?>
+						<?php print_language_string_list($_zp_gallery->getDesc('all'), 'Gallery_description', true, NULL, 'texteditor', '100%'); ?>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -102,58 +100,10 @@ function getOptionContent() {
 					</td>
 				</tr>
 				<tr>
-					<td class="option_name"><?php echo gettext("Branding logo"); ?></td>
-					<td class="option_value">
-						<?php
-						$sitelogo = ltrim(str_replace(WEBPATH, '', $_gallery->getSiteLogo()), '/');
-						if ($sitelogo == CORE_FOLDER . '/images/admin-logo.png') {
-							$sitelogo = '';
-						}
-						?>
-						<input type="text" style="width:100%;" name="sitelogoimage" value="<?php echo $sitelogo; ?>"   onchange="$('#sitelogotitle').show();"/>
-						<?php
-						if ($sitelogo && !file_exists(SERVERPATH . '/' . $sitelogo)) {
-							?>
-							<br />
-							<span style="color: red"><?php echo gettext('The image cannot be found.'); ?></span>
-							<?php
-						}
-						?>
-					</td>
-					<td class="option_desc">
-						<span class="option_info">
-							<?php echo INFORMATION_BLUE; ?>
-							<div class="option_desc_hidden">
-								<?php echo sprintf(gettext('A relative link to a logo image (e.g. <code>%1$s/custom_logo.png</code> for an image you have uploaded to your <em>%1$s</em> folder.) If this is set, your image will replace the netPhotoGraphics logo. For best results the image should be 78 pixels high.'), UPLOAD_FOLDER); ?>
-							</div>
-						</span>
-					</td>
-				</tr>
-				<tr id="sitelogotitle"<?php if (empty($sitelogo)) echo ' style="display: none;"'; ?>>
-					<td class="option_name"><?php echo gettext("Branding logo title"); ?></td>
-					<td class="option_value">
-						<?php print_language_string_list($_gallery->getSiteLogoTitle('all'), 'sitelogotitle', false, null, '', '100%'); ?>
-					</td>
-					<td class="option_desc">
-						<span class="option_info">
-							<?php echo INFORMATION_BLUE; ?>
-							<div class="option_desc_hidden">
-								<?php echo gettext("Enter the title text for your branding logo."); ?>
-							</div>
-						</span>
-					</td>
-				</tr>
-				<tr>
 					<td class="option_name"><?php echo gettext('Gallery type'); ?></td>
 					<td class="option_value">
-						<label>
-							<input type="radio" name="gallery_security" value="public" alt="<?php echo gettext('public'); ?>"<?php if (GALLERY_SECURITY == 'public') echo ' checked="checked"' ?> onclick="$('.public_gallery').show();" />
-							<?php echo gettext('public'); ?>
-						</label>
-						<label>
-							<input type="radio" name="gallery_security" value="private" alt="<?php echo gettext('private'); ?>"<?php if (GALLERY_SECURITY != 'public') echo 'checked="checked"' ?> onclick="$('.public_gallery').hide();" />
-							<?php echo gettext('private'); ?>
-						</label>
+						<label><input type="radio" name="gallery_security" value="public" alt="<?php echo gettext('public'); ?>"<?php if (GALLERY_SECURITY == 'public') echo ' checked="checked"' ?> onclick="$('.public_gallery').show();" /><?php echo gettext('public'); ?></label>
+						<label><input type="radio" name="gallery_security" value="private" alt="<?php echo gettext('private'); ?>"<?php if (GALLERY_SECURITY != 'public') echo 'checked="checked"' ?> onclick="$('.public_gallery').hide();" /><?php echo gettext('private'); ?></label>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -175,7 +125,7 @@ function getOptionContent() {
 						</td>
 						<td class="option_value">
 							<?php
-							$x = $_gallery->getPassword();
+							$x = $_zp_gallery->getPassword();
 							if (empty($x)) {
 								?>
 								<?php echo LOCK_OPEN; ?>
@@ -213,7 +163,7 @@ function getOptionContent() {
 										 size="<?php echo TEXT_INPUT_SIZE; ?>"
 										 onkeydown="passwordClear('');"
 										 id="user_name"  name="user"
-										 value="<?php echo html_encode($_gallery->getUser()); ?>" />
+										 value="<?php echo html_encode($_zp_gallery->getUser()); ?>" />
 						</td>
 						<td class="option_desc">
 							<span class="option_info">
@@ -276,7 +226,7 @@ function getOptionContent() {
 							<?php echo gettext("Gallery password hint"); ?>
 						</td>
 						<td class="option_value">
-							<?php print_language_string_list($_gallery->getPasswordHint('all'), 'hint', false, NULL, 'hint'); ?>
+							<?php print_language_string_list($_zp_gallery->getPasswordHint('all'), 'hint', false, NULL, 'hint'); ?>
 						</td>
 						<td class="option_desc">
 							<span class="option_info">
@@ -291,25 +241,11 @@ function getOptionContent() {
 				}
 				?>
 				<tr>
-					<td class="option_name"><?php echo gettext('Logon welcome'); ?></td>
-					<td class="option_value">
-						<?php print_language_string_list($_gallery->getLogonWelcome('all'), 'logon_welcome', false, null, '', '100%'); ?>
-					</td>
-					<td class="option_desc">
-						<span class="option_info">
-							<?php echo INFORMATION_BLUE; ?>
-							<div class="option_desc_hidden">
-								<?php echo gettext('If you place a message here it will be shown on the login form above the password pad box.'); ?>
-							</div>
-						</span>
-					</td>
-				</tr>
-				<tr>
 					<td class="option_name"><?php echo gettext('Unprotected pages'); ?></td>
 					<td class="option_value">
 						<?php
 						$curdir = getcwd();
-						$root = SERVERPATH . '/' . THEMEFOLDER . '/' . $_gallery->getCurrentTheme() . '/';
+						$root = SERVERPATH . '/' . THEMEFOLDER . '/' . $_zp_gallery->getCurrentTheme() . '/';
 						chdir($root);
 						$filelist = safe_glob('*.php');
 						$list = array();
@@ -318,14 +254,14 @@ function getOptionContent() {
 							$list[$file] = str_replace('.php', '', $file);
 						}
 						chdir($curdir);
-						$list = array_diff($list, standardScripts(array()));
+						$list = array_diff($list, standardScripts());
 						$list['index.php'] = 'index';
 						$current = array();
 						foreach ($list as $page) {
 							?>
 							<input type="hidden" name="gallery-page_<?php echo postIndexEncode($page); ?>" value="0" />
 							<?php
-							if ($_gallery->isUnprotectedPage($page)) {
+							if ($_zp_gallery->isUnprotectedPage($page)) {
 								$current[] = $page;
 							}
 						}
@@ -346,7 +282,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Website title"); ?></td>
 					<td class="option_value">
-						<?php print_language_string_list($_gallery->getWebsiteTitle('all'), 'website_title', false, null, '', '100%'); ?>
+						<?php print_language_string_list($_zp_gallery->getWebsiteTitle('all'), 'website_title', false, null, '', '100%'); ?>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -360,7 +296,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Website url"); ?></td>
 					<td class="option_value"><input type="text" name="website_url" style="width:100%;"
-																					value="<?php echo html_encode($_gallery->getWebsiteURL()); ?>" /></td>
+																					value="<?php echo html_encode($_zp_gallery->getWebsiteURL()); ?>" /></td>
 					<td class="option_desc">
 						<span class="option_info">
 							<?php echo INFORMATION_BLUE; ?>
@@ -375,7 +311,7 @@ function getOptionContent() {
 					<td class="option_value">
 						<?php
 						$selections = array();
-						foreach ($_albumthumb_selector as $key => $selection) {
+						foreach ($_zp_albumthumb_selector as $key => $selection) {
 							$selections[$selection['desc']] = $key;
 						}
 						?>
@@ -398,7 +334,7 @@ function getOptionContent() {
 					<td class="option_name"><?php echo gettext("Sort gallery by"); ?></td>
 					<td class="option_value">
 						<?php
-						$sort = $_sortby;
+						$sort = $_zp_sortby;
 						$sort[gettext('Manual')] = 'manual';
 						$sort[gettext('Custom')] = 'custom';
 						/*
@@ -406,42 +342,51 @@ function getOptionContent() {
 
 						  $sort[gettext('Random')] = 'random';
 						 */
-						$cvt = $cv = strtolower($_gallery->getSortType());
+						$cvt = $cv = strtolower($_zp_gallery->getSortType());
 						ksort($sort, SORT_LOCALE_STRING);
 						$flip = array_flip($sort);
 						if (isset($flip[$cv])) {
-							$dspc = 'style="margin-top:5px;display:none"';
+							$dspc = 'none';
 						} else {
-							$dspc = 'style="margin-top:5px;"';
+							$dspc = 'block';
 						}
 						if (($cv == 'manual') || ($cv == 'random') || ($cv == '')) {
 							$dspd = 'none';
 						} else {
-							$dspd = 'inline-block';
-						}
-						if (array_search($cv, $sort) === false) {
-							$cv = 'custom';
+							$dspd = 'block';
 						}
 						?>
-						<select id="gallerysortselect" name="gallery_sorttype" onchange="update_direction(this, 'gallery_sortdirection', 'customTextBox2')">
-							<?php
-							generateListFromArray(array($cv), $sort, false, true);
-							?>
-						</select>
-						<span id="gallery_sortdirection" style="display:<?php echo $dspd; ?>">
-							<label>
-								<input type="checkbox" name="gallery_sortdirection"	value="1" <?php checked('1', $_gallery->getSortDirection()); ?> />
-								<?php echo gettext("descending"); ?>
-							</label>
-						</span>
-
-						<div id="customTextBox2" class="customText" <?php echo $dspc; ?>>
-							<?php echo gettext('custom fields') ?>
-							<span class="tagSuggestContainer">
-								<input id="customalbumsort" name="customalbumsort" type="text" value="<?php echo html_encode($cvt); ?>" />
-							</span>
-						</div>
-
+						<table>
+							<tr>
+								<td>
+									<select id="gallerysortselect" name="gallery_sorttype" onchange="update_direction(this, 'gallery_sortdirection', 'customTextBox2')">
+										<?php
+										if (array_search($cv, $sort) === false)
+											$cv = 'custom';
+										generateListFromArray(array($cv), $sort, false, true);
+										?>
+									</select>
+								</td>
+								<td>
+									<span id="gallery_sortdirection" style="display:<?php echo $dspd; ?>">
+										<label>
+											<input type="checkbox" name="gallery_sortdirection"	value="1" <?php checked('1', $_zp_gallery->getSortDirection()); ?> />
+											<?php echo gettext("descending"); ?>
+										</label>
+									</span>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="100%">
+									<span id="customTextBox2" class="customText" style="display:<?php echo $dspc; ?>">
+										<?php echo gettext('custom fields') ?>
+										<span class="tagSuggestContainer">
+											<input id="customalbumsort" name="customalbumsort" type="text" value="<?php echo html_encode($cvt); ?>" />
+										</span>
+									</span>
+								</td>
+							</tr>
+						</table>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -458,30 +403,30 @@ function getOptionContent() {
 					<td class="option_name"><?php echo gettext("Gallery behavior"); ?></td>
 					<td class="option_value">
 						<label>
-							<input type="checkbox" name="album_default"	value="1"<?php if ($_gallery->getAlbumPublish()) echo ' checked="checked"'; ?> />
+							<input type="checkbox" name="album_default"	value="1"<?php if ($_zp_gallery->getAlbumPublish()) echo ' checked="checked"'; ?> />
 							<?php echo gettext("publish albums by default"); ?>
 						</label>
 						<br />
 						<label>
-							<input type="checkbox" name="image_default"	value="1"<?php if ($_gallery->getImagePublish()) echo ' checked="checked"'; ?> />
+							<input type="checkbox" name="image_default"	value="1"<?php if ($_zp_gallery->getImagePublish()) echo ' checked="checked"'; ?> />
 							<?php echo gettext("publish images by default"); ?>
 						</label>
 						<br />
 						<label>
 							<input type="checkbox" name="album_use_new_image_date" id="album_use_new_image_date"
-										 value="1" <?php checked('1', $_gallery->getAlbumUseImagedate()); ?> />
+										 value="1" <?php checked('1', $_zp_gallery->getAlbumUseImagedate()); ?> />
 										 <?php echo gettext("use latest image date as album date"); ?>
 						</label>
 						<br />
 						<label>
 							<input type="checkbox" name="thumb_select_images" id="thumb_select_images"
-										 value="1" <?php checked('1', $_gallery->getThumbSelectImages()); ?> />
+										 value="1" <?php checked('1', $_zp_gallery->getThumbSelectImages()); ?> />
 										 <?php echo gettext("visual thumb selection"); ?>
 						</label>
 						<br />
 						<label>
 							<input type="checkbox" name="multilevel_thumb_select_images" id="thumb_select_images"
-										 value="1" <?php checked('1', $_gallery->getSecondLevelThumbs()); ?> />
+										 value="1" <?php checked('1', $_zp_gallery->getSecondLevelThumbs()); ?> />
 										 <?php echo gettext("show subalbum thumbs"); ?>
 						</label>
 					</td>
@@ -513,7 +458,7 @@ function getOptionContent() {
 				<tr valign="top">
 					<td class="topalign-nopadding"><br /><?php echo gettext("Codeblocks"); ?></td>
 					<td>
-						<?php printCodeblockEdit($_gallery, 0); ?>
+						<?php printCodeblockEdit($_zp_gallery, 0); ?>
 					</td>
 					<td>
 					</td>

@@ -1,11 +1,11 @@
 <?php
 
+require_once(SERVERPATH . "/" . ZENFOLDER . "/admin-functions.php");
 require_once(dirname(__FILE__) . '/functions.php');
 
 class ThemeOptions {
 
-	function __construct($setDefaultOptions) {
-
+	function __construct() {
 		$me = basename(dirname(__FILE__));
 		setThemeOptionDefault('Allow_search', true);
 		setThemeOptionDefault('Allow_cloud', true);
@@ -25,36 +25,30 @@ class ThemeOptions {
 		setThemeOptionDefault('garland_transition', 'slide-hori');
 		setThemeOptionDefault('garland_caption_location', 'image');
 		setThemeOptionDefault('garland_menu', '');
+		if (class_exists('colorbox')) {
+			colorbox::registerScripts(array('album', 'favorites', 'image', 'search'));
+		}
 		if (class_exists('cacheManager')) {
 			$me = basename(dirname(__FILE__));
-			cacheManager::deleteCacheSizes($me);
-			cacheManager::addCacheSize($me, 520, NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL);
-			cacheManager::addCacheSize($me, 85, NULL, NULL, getThemeOption('thumb_crop_width'), getThemeOption('thumb_crop_height'), NULL, NULL, true, NULL, NULL, NULL);
+			cacheManager::deleteThemeCacheSizes($me);
+			cacheManager::addThemeCacheSize($me, 520, NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL);
+			cacheManager::addThemeCacheSize($me, 85, NULL, NULL, getThemeOption('thumb_crop_width'), getThemeOption('thumb_crop_height'), NULL, NULL, true, NULL, NULL, NULL);
 		}
-		if (function_exists('menuExists') && !menuExists('garland')) {
+		if (function_exists('createMenuIfNotExists')) {
 			$menuitems = array(
-					array('type' => 'menulabel', 'title' => getOption('zenpage_news_label'), 'link' => '', 'show' => 1, 'nesting' => 0),
-					array('type' => 'menufunction', 'title' => getAllTranslations('All'),
-							'link' => 'printAllNewsCategories("All",TRUE,"","menu-active",false,"inner_ul",false,"list",false,getOption("menu_manager_truncate_string"));',
+					array('type' => 'menulabel', 'title' => getAllTranslations('News Articles'), 'link' => '', 'show' => 1, 'nesting' => 0),
+					array('type' => 'menufunction', 'title' => getAllTranslations('All news'),
+							'link' => 'printAllNewsCategories("All news",TRUE,"","menu-active",false,"inner_ul",false,"list",false,getOption("menu_manager_truncate_string"));',
 							'show' => 1, 'include_li' => 0, 'nesting' => 1),
-					array('type' => 'html', 'title' => getAllTranslations('Articles Rule'), 'link' => '<li class="menu_rule menu_menulabel"></li>', 'show' => 1, 'include_li' => 0, 'nesting' => 0),
-					array('type' => 'albumindex', 'title' => getAllTranslations('Gallery'), 'link' => NULL, 'show' => 1, 'nesting' => 0),
-					array('type' => 'menufunction', 'title' => getAllTranslations('All'), 'link' => 'printAlbumMenuList("list",NULL,"","menu-active","inner_ul","menu-active","",false,false,false,false,getOption("menu_manager_truncate_string"));', 'show' => 1, 'include_li' => 0, 'nesting' => 1),
+					array('type' => 'html', 'title' => getAllTranslations('News Articles Rule'), 'link' => '<li class="menu_rule menu_menulabel"></li>', 'show' => 1, 'include_li' => 0, 'nesting' => 0),
+					array('type' => 'custompage', 'title' => getAllTranslations('Gallery'), 'link' => 'gallery', 'show' => 1, 'nesting' => 0),
+					array('type' => 'menufunction', 'title' => getAllTranslations('All Albums'), 'link' => 'printAlbumMenuList("list",NULL,"","menu-active","inner_ul","menu-active","",false,false,false,false,getOption("menu_manager_truncate_string"));', 'show' => 1, 'include_li' => 0, 'nesting' => 1),
 					array('type' => 'html', 'title' => getAllTranslations('Gallery Rule'), 'link' => '<li class="menu_rule menu_menulabel"></li>', 'show' => 1, 'include_li' => 0, 'nesting' => 0),
 					array('type' => 'menulabel', 'title' => getAllTranslations('Pages'), 'link' => '', 'show' => 1, 'nesting' => 0),
-					array('type' => 'menufunction', 'title' => getAllTranslations('All'), 'link' => 'printPageMenu("list","","menu-active","inner_ul","menu-active","",0,false,getOption("menu_manager_truncate_string"));', 'show' => 1, 'include_li' => 0, 'nesting' => 1, getOption("menu_manager_truncate_string")),
+					array('type' => 'menufunction', 'title' => getAllTranslations('All pages'), 'link' => 'printPageMenu("list","","menu-active","inner_ul","menu-active","",0,false,getOption("menu_manager_truncate_string"));', 'show' => 1, 'include_li' => 0, 'nesting' => 1, getOption("menu_manager_truncate_string")),
 					array('type' => 'html', 'title' => getAllTranslations('Pages Rule'), 'link' => '<li class="menu_rule menu_menulabel"></li>', 'show' => 1, 'include_li' => 0, 'nesting' => 0),
 			);
-			if (class_exists('RSS')) {
-				$rssItems = array(
-						array('type' => 'menulabel', 'title' => getAllTranslations('RSS'), 'link' => '', 'show' => 1, 'nesting' => 0),
-						array('type' => 'dynamiclink', 'title' => getAllTranslations('Gallery'), 'link' => "html_encode(getRSSLink(''))", 'show' => 1, 'nesting' => 1),
-						array('type' => 'dynamiclink', 'title' => getOption('zenpage_news_label'), 'link' => "html_encode(getRSSLink('news'))", 'show' => 1, 'nesting' => 1),
-						array('type' => 'dynamiclink', 'title' => getAllTranslations('Both'), 'link' => "html_encode(getRSSLink('news')).'&amp;withimages'", 'show' => 1, 'nesting' => 1),
-				);
-				$menuitems = array_merge($menuitems, $rssItems);
-			}
-			createMenu($menuitems, 'garland');
+			createMenuIfNotExists($menuitems, 'garland');
 		}
 	}
 
@@ -78,8 +72,8 @@ class ThemeOptions {
 				gettext('Custom menu') => array('key' => 'garland_menu', 'type' => OPTION_TYPE_CUSTOM, 'desc' => gettext('Set this to the <em>menu_manager</em> menu you wish to use.') . $note)
 		);
 		if (extensionEnabled('zenpage')) {
-			global $_CMS;
-			$pages = $_CMS->getPages(false);
+			global $_zp_CMS;
+			$pages = $_zp_CMS->getPages(false);
 
 			$list = array();
 			foreach ($pages as $page) {

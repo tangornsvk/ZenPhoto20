@@ -25,7 +25,7 @@ class external_auth {
 	 * The check() method should return "false" if there is no valid visitor or an array of
 	 * User information if there is one.
 	 *
-	 * If there is a valid user, the user name is checked against site users. If such user exists
+	 * If there is a valid user, the user name is checked against zenphoto users. If such user exists
 	 * he will be automatically logged in. If no user by that userid exists a transient user will be
 	 * created and logged in. User details are filled in from the user information in the passed array.
 	 *
@@ -48,18 +48,18 @@ class external_auth {
 	 * @param BIT $authorized
 	 */
 	function check($authorized) {
-		global $_authority, $_current_admin_obj;
-		if (!$authorized) { // not logged in via normal handling
+		global $_zp_authority, $_zp_current_admin_obj;
+		if (!$authorized) { // not logged in via normal zenphoto handling
 			if ($result = $this->user()) {
 				$user = $result['user'];
 				$searchfor = array('`user`=' => $user, '`valid`=' => 1);
-				$userobj = $_authority->getAnAdmin($searchfor);
+				$userobj = $_zp_authority->getAnAdmin($searchfor);
 				if (!$userobj) {
 					unset($result['id']);
 					unset($result['user']);
 					$authority = '';
 					//	create a transient user
-					$userobj = new npg_Administrator('', 1);
+					$userobj = new Zenphoto_Administrator('', 1);
 					$userobj->setUser($user);
 					$userobj->setRights(NO_RIGHTS); //	just incase none get set
 					//	Flag as external credentials for completeness
@@ -75,12 +75,12 @@ class external_auth {
 								unset($result['authority']);
 								break;
 							case 'groups':
-								//	find the corresponding netPhotoGraphics group (if it exists)
+								//	find the corresponding zenphoto group (if it exists)
 								$rights = NO_RIGHTS;
 								$objects = array();
 								$groups = $value;
 								foreach ($groups as $key => $group) {
-									$groupobj = $_authority->getAnAdmin(array('`user`=' => $group, '`valid`=' => 0));
+									$groupobj = $_zp_authority->getAnAdmin(array('`user`=' => $group, '`valid`=' => 0));
 									if ($groupobj) {
 										$member = true;
 										$rights = $groupobj->getRights() | $rights;
@@ -100,9 +100,9 @@ class external_auth {
 								break;
 							case 'defaultgroup':
 								if (!$member && isset($result['defaultgroup'])) {
-									//	No netPhotoGraphics group, use the default group
+									//	No zenphoto group, use the default group
 									$group = $result['defaultgroup'];
-									$groupobj = $_authority->getAnAdmin(array('`user`=' => $group, '`valid`=' => 0));
+									$groupobj = $_zp_authority->getAnAdmin(array('`user`=' => $group, '`valid`=' => 0));
 									if ($groupobj) {
 										$rights = $groupobj->getRights();
 										$objects = $groupobj->getObjects();
@@ -133,8 +133,8 @@ class external_auth {
 				if (isset($result['logout_link'])) {
 					$userobj->logout_link = $result['logout_link'];
 				}
-				$_current_admin_obj = $userobj;
-				$authorized = $_current_admin_obj->getRights();
+				$_zp_current_admin_obj = $userobj;
+				$authorized = $_zp_current_admin_obj->getRights();
 			}
 		}
 		return $authorized;

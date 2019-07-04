@@ -7,11 +7,11 @@
  * Note: The optional counter prints the total number of the tag used, not just for the select items (as clicking on it will return all anyway.)
  *
  * @author Malte Müller (acrylian)
- *
- * @package plugins/tag_extras
- * @pluginCategory theme
+ * @package plugins
+ * @subpackage theme
  */
-$plugin_description = gettext("Provides functions to print a tag cloud of all tags from an object.");
+$plugin_description = gettext("Provides functions to print a tag cloud of all tags from a zenphoto object.");
+$plugin_author = "Malte Müller (acrylian)";
 
 /**
  * Prints a tag cloud list of the tags in one album and optionally its subalbums. Returns FALSE if no value.
@@ -22,14 +22,10 @@ $plugin_description = gettext("Provides functions to print a tag cloud of all ta
  * @return array
  */
 function getAllTagsFromAlbum($albumname, $subalbums = false, $mode = 'images') {
-	global $_gallery;
-	$imageWhere = $tagWhere = $tags = FALSE;
-	if (npg_loggedin(TAGS_RIGHTS)) {
-		$private = '';
-	} else {
-		$private = ' AND (t.private=0)';
-	}
-
+	global $_zp_gallery;
+	$passwordcheck = '';
+	$imageWhere = '';
+	$tagWhere = "";
 	if (empty($albumname)) {
 		return FALSE;
 	}
@@ -37,7 +33,7 @@ function getAllTagsFromAlbum($albumname, $subalbums = false, $mode = 'images') {
 	if (!$albumobj->exists) {
 		return FALSE;
 	}
-	if (npg_loggedin()) {
+	if (zp_loggedin()) {
 		$albumWhere = "WHERE `dynamic`=0";
 	} else {
 		$albumscheck = query_full_array("SELECT * FROM " . prefix('albums') . " ORDER BY title");
@@ -86,7 +82,7 @@ function getAllTagsFromAlbum($albumname, $subalbums = false, $mode = 'images') {
 			if (empty($tagWhere)) {
 				return FALSE;
 			} else {
-				$tags = query_full_array("SELECT DISTINCT t.name, t.id, (SELECT DISTINCT COUNT(*) FROM " . prefix('obj_to_tag') . " WHERE tagid = t.id AND type = 'images') AS count FROM  " . prefix('obj_to_tag') . " AS o," . prefix('tags') . " AS t" . $tagWhere . $private . " ORDER BY t.name");
+				$tags = query_full_array("SELECT DISTINCT t.name, t.id, (SELECT DISTINCT COUNT(*) FROM " . prefix('obj_to_tag') . " WHERE tagid = t.id AND type = 'images') AS count FROM  " . prefix('obj_to_tag') . " AS o," . prefix('tags') . " AS t" . $tagWhere . " ORDER BY t.name");
 			}
 			break;
 		case "albums":
@@ -118,7 +114,7 @@ function getAllTagsFromAlbum($albumname, $subalbums = false, $mode = 'images') {
  *
  */
 function getAllTagsFromZenpage($mode = 'news') {
-	global $_gallery, $_CMS;
+	global $_zp_gallery, $_zp_CMS;
 	if (!extensionEnabled('zenpage')) {
 		return FALSE;
 	}
@@ -128,13 +124,13 @@ function getAllTagsFromZenpage($mode = 'news') {
 	$tagWhere = "";
 	switch ($mode) {
 		case 'news':
-			if (npg_loggedin(ZENPAGE_NEWS_RIGHTS | ALL_NEWS_RIGHTS)) {
+			if (zp_loggedin(ZENPAGE_NEWS_RIGHTS | ALL_NEWS_RIGHTS)) {
 				$published = 'all';
 			} else {
 				$published = 'published';
 			}
 			$type = 'news';
-			$items = $_CMS->getArticles(false, $published);
+			$items = $_zp_CMS->getArticles(false, $published);
 			foreach ($items as $item) {
 				$obj = newArticle($item['titlelink']);
 				if ($obj->checkAccess()) {
@@ -143,9 +139,9 @@ function getAllTagsFromZenpage($mode = 'news') {
 			}
 			break;
 		case 'pages':
-			$published = !npg_loggedin(ZENPAGE_NEWS_RIGHTS | ALL_NEWS_RIGHTS);
+			$published = !zp_loggedin(ZENPAGE_NEWS_RIGHTS | ALL_NEWS_RIGHTS);
 			$type = 'pages';
-			$items = $_CMS->getPages($published);
+			$items = $_zp_CMS->getPages($published);
 			foreach ($items as $item) {
 				$obj = newPage($item['titlelink']);
 				if ($obj->checkAccess()) {
@@ -169,7 +165,7 @@ function getAllTagsFromZenpage($mode = 'news') {
 	if (empty($tagWhere)) {
 		return FALSE;
 	} else {
-		$tags = query_full_array("SELECT DISTINCT t.name, t.id, (SELECT DISTINCT COUNT(*) FROM " . prefix('obj_to_tag') . " WHERE tagid = t.id AND o.type = '" . $type . "') AS count FROM " . prefix('obj_to_tag') . " AS o," . prefix('tags') . " AS t" . $tagWhere . $private . " ORDER BY t.name");
+		$tags = query_full_array("SELECT DISTINCT t.name, t.id, (SELECT DISTINCT COUNT(*) FROM " . prefix('obj_to_tag') . " WHERE tagid = t.id AND o.type = '" . $type . "') AS count FROM " . prefix('obj_to_tag') . " AS o," . prefix('tags') . " AS t" . $tagWhere . " ORDER BY t.name");
 	}
 	return $tags;
 }

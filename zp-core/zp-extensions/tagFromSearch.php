@@ -10,13 +10,14 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/tagFromSearch
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
  *
- * @Copyright 2015 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
+ * Copyright 2015 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
  */
 $plugin_is_filter = 9 | FEATURE_PLUGIN;
 $plugin_description = gettext('Facilitates assigning unique tags to related objects.');
+$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'tagFromSearch';
 
@@ -24,25 +25,26 @@ class tagFromSearch {
 
 	function getOptionsSupported() {
 
-		$options = array(gettext('Tags only searches') => array('key' => 'tagFromSearch_tagOnly', 'type' => OPTION_TYPE_CHECKBOX,
-						'desc' => gettext('Restrict viewer searches to the <code>tags</code> field unless they have <em>Tags rights</em>.'))
+		$options = array(gettext('Tags only searches') => array('key'	 => 'tagFromSearch_tagOnly', 'type' => OPTION_TYPE_CHECKBOX,
+										'desc' => gettext('Restrict viewer searches to the <code>tags</code> field unless they have <em>Tags rights</em>.'))
 		);
 		return $options;
 	}
 
-	static function toolbox() {
-		global $_current_search;
-		if (npg_loggedin(TAGS_RIGHTS)) {
+	static function toolbox($zf) {
+		global $_zp_current_search;
+		if (zp_loggedin(TAGS_RIGHTS)) {
 			?>
 			<li>
-				<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/tagFromSearch/tag.php') . '?' . substr($_current_search->getSearchParams(), 1); ?>" title="<?php echo gettext('Tag items found by the search'); ?>" ><?php echo gettext('Tag items'); ?></a>
+				<a href="<?php echo $zf . '/' . PLUGIN_FOLDER . '/tagFromSearch/tag.php?' . substr($_zp_current_search->getSearchParams(), 1); ?>" title="<?php echo gettext('Tag items found by the search'); ?>" ><?php echo gettext('Tag items'); ?></a>
 			</li>
 			<?php
 		}
+		return $zf;
 	}
 
 	static function head() {
-		if (!npg_loggedin(TAGS_RIGHTS)) {
+		if (!zp_loggedin(TAGS_RIGHTS)) {
 			if (getOption('tagFromSearch_tagOnly'))
 				setOption('search_fields', 'tags', false);
 		}
@@ -50,6 +52,6 @@ class tagFromSearch {
 
 }
 
-npgFilters::register('feature_plugin_load', 'tagFromSearch::head');
-npgFilters::register('admin_toolbox_search', 'tagFromSearch::toolbox');
+zp_register_filter('feature_plugin_load', 'tagFromSearch::head');
+zp_register_filter('admin_toolbox_search', 'tagFromSearch::toolbox');
 ?>

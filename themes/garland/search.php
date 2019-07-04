@@ -7,14 +7,11 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 		<?php
-		npgFilters::apply('theme_head');
-		$handler->theme_head($_themeroot);
-
-		scriptLoader($_themeroot . '/zen.css');
-
-		if (class_exists('RSS'))
-			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		zp_apply_filter('theme_head');
 		?>
+		<?php $handler->theme_head($_zp_themeroot); ?>
+		<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
+		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
 		<script type="text/javascript">
 			// <!-- <![CDATA[
 			function toggleExtraElements(category, show) {
@@ -33,8 +30,8 @@ if (!defined('WEBPATH'))
 	</head>
 	<body class="sidebars">
 		<?php
-		npgFilters::apply('theme_body_open');
-		$handler->theme_bodyopen($_themeroot);
+		zp_apply_filter('theme_body_open');
+		$handler->theme_bodyopen($_zp_themeroot);
 		$numimages = getNumImages();
 		$numalbums = getNumAlbums();
 		$total = $numimages + $numalbums;
@@ -55,7 +52,7 @@ if (!defined('WEBPATH'))
 			$searchwords .= $searchdate;
 		}
 		if (!$total) {
-			$_current_search->clearSearchWords();
+			$_zp_current_search->clearSearchWords();
 		}
 		?>
 		<div id="navigation"></div>
@@ -72,7 +69,7 @@ if (!defined('WEBPATH'))
 				<!-- header -->
 				<div class="sidebar">
 					<div id="leftsidebar">
-<?php include("sidebar.php"); ?>
+						<?php include("sidebar.php"); ?>
 					</div>
 				</div>
 				<div id="center">
@@ -82,7 +79,7 @@ if (!defined('WEBPATH'))
 								<!-- begin content -->
 								<div class="main section" id="main">
 									<h2 id="gallerytitle">
-<?php printHomeLink('', ' » '); ?>
+										<?php printHomeLink('', ' » '); ?>
 										<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Gallery Index'); ?>"><?php echo html_encode(getGalleryTitle()); ?></a> » <?php printSearchBreadcrumb(' » '); ?>
 									</h2>
 
@@ -97,11 +94,11 @@ if (!defined('WEBPATH'))
 										<?php
 									} else {
 										echo "<p>" . gettext('Sorry, no matches for your search.') . "</p>";
-										$_current_search->setSearchParams('words=');
+										$_zp_current_search->setSearchParams('words=');
 									}
 									?>
 									<?php
-									if ($zenpage && $_current_page == 1) { //test of zenpage searches
+									if ($zenpage && $_zp_page == 1) { //test of zenpage searches
 										define('TRUNCATE_LENGTH', 80);
 										define('SHOW_ITEMS', 5);
 										?>
@@ -128,8 +125,8 @@ if (!defined('WEBPATH'))
 															$c++;
 															?>
 															<li<?php if ($c > SHOW_ITEMS) echo ' class="pages_extrashow" style="display:none;"'; ?>>
-			<?php printPageURL(); ?>
-																<p style="text-indent:1em;"><?php echo exerpt($_CMS_current_page->getContent()); ?></p>
+																<?php printPageURL(); ?>
+																<p style="text-indent:1em;"><?php echo exerpt($_zp_current_page->getContent()); ?></p>
 															</li>
 															<?php
 														}
@@ -161,8 +158,8 @@ if (!defined('WEBPATH'))
 															$c++;
 															?>
 															<li<?php if ($c > SHOW_ITEMS) echo ' class="news_extrashow" style="display:none;"'; ?>>
-			<?php printNewsURL(); ?>
-																<p style="text-indent:1em;"><?php echo exerpt($_CMS_current_article->getContent()); ?></p>
+																<?php printNewsURL(); ?>
+																<p style="text-indent:1em;"><?php echo exerpt($_zp_current_article->getContent()); ?></p>
 															</li>
 															<?php
 														}
@@ -202,12 +199,12 @@ if (!defined('WEBPATH'))
 											?>
 											<div class="album">
 												<a class="albumthumb" href="<?php echo getAlbumURL(); ?>" title="<?php printf(gettext('View album:  %s'), html_encode(getBareAlbumTitle())); ?>">
-	<?php printCustomAlbumThumbImage(getAlbumTitle(), 85, NULL, NULL, 85, 85); ?>
+													<?php printCustomAlbumThumbImage(getAlbumTitle(), 85, NULL, NULL, 85, 85); ?>
 												</a>
 												<div class="albumdesc">
 													<h3>
 														<a href="<?php echo getAlbumURL(); ?>" title="<?php printf(gettext('View album:  %s'), html_encode(getBareAlbumTitle())); ?>">
-	<?php printAlbumTitle(); ?>
+															<?php printAlbumTitle(); ?>
 														</a>
 													</h3>
 													<br />
@@ -241,7 +238,7 @@ if (!defined('WEBPATH'))
 					<span class="clear"></span>
 				</div>
 				<?php
-				npgFilters::apply('theme_body_close');
+				zp_apply_filter('theme_body_close');
 				?>
 				</body>
 				</html>

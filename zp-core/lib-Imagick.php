@@ -18,20 +18,20 @@ $_imagick_version_pass = version_compare($_imagick_version, IMAGICK_REQUIRED_VER
 $_imagemagick_version = '';
 $_imagemagick_version_pass = false;
 
-$_imagick_present = extension_loaded('imagick') && $_imagick_version_pass;
+$_zp_imagick_present = extension_loaded('imagick') && $_imagick_version_pass;
 
-if ($_imagick_present) {
+if ($_zp_imagick_present) {
 	@$_imagemagick_version = Imagick::getVersion();
 	preg_match('/\d+(\.\d+)*/', $_imagemagick_version['versionString'], $matches);
 
 	$_imagemagick_version['versionNumber'] = $matches[0];
 	$_imagemagick_version_pass = version_compare($_imagemagick_version['versionNumber'], IMAGEMAGICK_REQUIRED_VERSION, '>=');
 
-	$_imagick_present &= $_imagick_version_pass;
+	$_zp_imagick_present &= $_imagick_version_pass;
 	unset($matches);
 }
 
-$_graphics_optionhandlers += array('lib_Imagick_Options' => new lib_Imagick_Options());
+$_zp_graphics_optionhandlers += array('lib_Imagick_Options' => new lib_Imagick_Options());
 
 /**
  * Option class for lib-Imagick
@@ -60,7 +60,7 @@ class lib_Imagick_Options {
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		global $_imagick_present, $_graphics_optionhandlers;
+		global $_zp_imagick_present, $_zp_graphics_optionhandlers;
 		if ($disabled = $this->canLoadMsg()) {
 			setOption('use_imagick', 0, true);
 		}
@@ -130,7 +130,7 @@ class lib_Imagick_Options {
 /**
  * Image manipulation functions using the Imagick library
  */
-if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) {
+if ($_zp_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) {
 	$_lib_Imagick_info = array();
 	$_lib_Imagick_info['Library'] = 'Imagick';
 	$_lib_Imagick_info['Library_desc'] = sprintf(gettext('PHP Imagick library <em>%s</em>') . '<br /><em>%s</em>', $_imagick_version, $_imagemagick_version['versionString']);
@@ -140,7 +140,6 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 			'GIF' => 'gif', 'GIF87' => 'gif',
 			'JPG' => 'jpg', 'JPEG' => 'jpg',
 			'PNG' => 'png', 'PNG8' => 'png', 'PNG24' => 'png', 'PNG32' => 'png',
-			'WEBP' => 'webp',
 			'TIFF' => 'jpg', 'TIFF64' => 'jpg'
 	);
 
@@ -174,7 +173,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param string $imgfile the full path and filename of the image to load
 	 * @return Imagick
 	 */
-	function gl_imageGet($imgfile) {
+	function zp_imageGet($imgfile) {
 		global $_lib_Imagick_info;
 
 		if (array_key_exists(strtoupper(getSuffix($imgfile)), $_lib_Imagick_info)) {
@@ -209,7 +208,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $qual
 	 * @return bool
 	 */
-	function gl_imageOutputt($im, $type, $filename = NULL, $qual = 75) {
+	function zp_imageOutput($im, $type, $filename = NULL, $qual = 75) {
 		$interlace = getOption('image_interlace');
 		$qual = max(min($qual, 100), 0);
 
@@ -264,18 +263,13 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 *
 	 * @param int $w the width of the image
 	 * @param int $h the height of the image
-	 * @param bool $truecolor True to create a true color image, false for usage with palette images like gifs
 	 * @return Imagick
 	 */
-	function gl_createImage($w, $h, $truecolor = true) {
+	function zp_createImage($w, $h) {
 		$im = new Imagick();
 		$im->newImage($w, $h, 'none');
-		if ($truecolor) {
-			$im->setImageType(Imagick::IMGTYPE_TRUECOLORMATTE);
-		} else {
-			$imagetype = $im->getImageType();
-			$im->setImageType($imagetype);
-		}
+		$im->setImageType(Imagick::IMGTYPE_TRUECOLORMATTE);
+
 		return $im;
 	}
 
@@ -288,7 +282,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param color $color
 	 * @return bool
 	 */
-	function gl_imageFill($image, $x, $y, $color) {
+	function zp_imageFill($image, $x, $y, $color) {
 		$target = $image->getImagePixelColor($x, $y);
 
 		return $image->floodFillPaintImage($color, 1, $target, $x, $y, false);
@@ -301,21 +295,8 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param color $color
 	 * @return bool
 	 */
-	function gl_imageColorTransparent($image, $color) {
+	function zp_imageColorTransparent($image, $color) {
 		return $image->transparentPaintImage($color, 0.0, 1, false);
-	}
-
-	/**
-	 * removes metadata (except ICC profile) from an image.
-	 * @param object $img
-	 */
-	function gl_stripMetadata($img) {
-		$profiles = $img->getImageProfiles("icc", true);
-		$img->stripImage();
-		if (!empty($profiles)) {
-			$img->profileImage("icc", $profiles['icc']);
-		}
-		return $img;
 	}
 
 	/**
@@ -331,7 +312,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $h height
 	 * @return bool
 	 */
-	function gl_copyCanvas($imgCanvas, $img, $dest_x, $dest_y, $src_x, $src_y, $w, $h) {
+	function zp_copyCanvas($imgCanvas, $img, $dest_x, $dest_y, $src_x, $src_y, $w, $h) {
 		$img->cropImage($w, $h, $src_x, $src_y);
 
 		$result = true;
@@ -360,7 +341,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $src_h
 	 * @return bool
 	 */
-	function gl_resampleImage($dst_image, $src_image, $dst_x, $dst_y, $src_x, $src_y, $dst_w, $dst_h, $src_w, $src_h) {
+	function zp_resampleImage($dst_image, $src_image, $dst_x, $dst_y, $src_x, $src_y, $dst_w, $dst_h, $src_w, $src_h) {
 		foreach ($src_image->getImageProfiles() as $name => $profile) {
 			$dst_image->profileImage($name, $profile);
 		}
@@ -383,7 +364,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 			$result &= $dst_image->compositeImage($frame, Imagick::COMPOSITE_OVER, $dst_x, $dst_y);
 
 			if ($dst_image->getNumberImages() < $src_image->getNumberImages()) {
-				$result &= $dst_image->addImage(gl_createImage($dst_image->getImageWidth(), $dst_image->getImageHeight()));
+				$result &= $dst_image->addImage(zp_createImage($dst_image->getImageWidth(), $dst_image->getImageHeight()));
 			}
 
 			if (!$result) {
@@ -403,7 +384,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $threshold the color difference threshold required for sharpening
 	 * @return Imagick
 	 */
-	function gl_imageUnsharpMask($img, $amount, $radius, $threshold) {
+	function zp_imageUnsharpMask($img, $amount, $radius, $threshold) {
 		$img->unsharpMaskImage($radius, 0.1, $amount, $threshold);
 
 		return $img;
@@ -417,21 +398,10 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $h
 	 * @return Imagick
 	 */
-	function gl_imageResizeAlpha($src, $w, $h) {
+	function zp_imageResizeAlpha($src, $w, $h) {
 		$src->scaleImage($w, $h);
-		return $src;
-	}
 
-	/**
-	 * Uses gl_imageResizeAlpha() internally as Imagick does not make a difference
-	 *
-	 * @param type $src
-	 * @param type $w
-	 * @param type $h
-	 * @return type
-	 */
-	function Gl_imageResizeTransparent($src, $w, $h) {
-		return gl_imageResizeAlpha($src, $w, $h);
+		return $src;
 	}
 
 	/**
@@ -439,7 +409,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 *
 	 * @return bool
 	 */
-	function gl_imageCanRotate() {
+	function zp_imageCanRotate() {
 		return true;
 	}
 
@@ -450,7 +420,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $rotate
 	 * @return Imagick
 	 */
-	function gl_rotateImage($im, $rotate) {
+	function zp_rotateImage($im, $rotate) {
 		$im->rotateImage('none', $rotate);
 		return $im;
 	}
@@ -462,7 +432,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param array $imageinfo
 	 * @return array
 	 */
-	function gl_imageDims($filename) {
+	function zp_imageDims($filename) {
 		$ping = new Imagick();
 
 		if ($ping->pingImage(imgSrcURI($filename))) {
@@ -478,7 +448,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param string $filename
 	 * @return string
 	 */
-	function gl_imageIPTC($filename) {
+	function zp_imageIPTC($filename) {
 		$ping = new Imagick();
 
 		if ($ping->pingImage(imgSrcURI($filename))) {
@@ -498,7 +468,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param Imagick $im
 	 * @return int
 	 */
-	function gl_imageWidth($im) {
+	function zp_imageWidth($im) {
 		return $im->getImageWidth();
 	}
 
@@ -508,7 +478,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param Imagick $im
 	 * @return int
 	 */
-	function gl_imageHeight($im) {
+	function zp_imageHeight($im) {
 		return $im->getImageHeight();
 	}
 
@@ -526,7 +496,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $pct
 	 * @return bool
 	 */
-	function gl_imageMerge($dst_im, $src_im, $dst_x, $dst_y, $src_x, $src_y, $src_w, $src_h, $pct) {
+	function zp_imageMerge($dst_im, $src_im, $dst_x, $dst_y, $src_x, $src_y, $src_w, $src_h, $pct) {
 		$src_im->cropImage($src_w, $src_h, $src_x, $src_y);
 		$src_im->setImageOpacity($pct / 100);
 
@@ -539,7 +509,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param Imagick $image The image to grayscale
 	 * @return Imagick
 	 */
-	function gl_imageGray($image) {
+	function zp_imageGray($image) {
 		$image->setType(Imagick::IMGTYPE_GRAYSCALE);
 		$image->setImageColorspace(Imagick::COLORSPACE_GRAY);
 		$image->setImageProperty('exif:ColorSpace', Imagick::IMGTYPE_GRAYSCALE);
@@ -553,7 +523,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param Imagick $im
 	 * @return bool
 	 */
-	function gl_imageKill($im) {
+	function zp_imageKill($im) {
 		return $im->destroy();
 	}
 
@@ -566,7 +536,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param int $blue
 	 * @return ImagickPixel
 	 */
-	function gl_colorAllocate($image, $red, $green, $blue) {
+	function zp_colorAllocate($image, $red, $green, $blue) {
 		return new ImagickPixel("rgb($red, $green, $blue)");
 	}
 
@@ -581,7 +551,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param ImagickPixel $color
 	 * @return bool
 	 */
-	function gl_writeString($image, $font, $x, $y, $string, $color, $angle = 0) {
+	function zp_writeString($image, $font, $x, $y, $string, $color, $angle = 0) {
 		$font->setStrokeColor($color);
 
 		return $image->annotateImage($font, $x, $y + $image->getImageHeight() / 2, $angle, $string);
@@ -598,7 +568,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param ImagickPixel $color
 	 * @return bool
 	 */
-	function gl_drawRectangle($image, $x1, $y1, $x2, $y2, $color) {
+	function zp_drawRectangle($image, $x1, $y1, $x2, $y2, $color) {
 		return $image->borderImage($color, 1, 1);
 	}
 
@@ -607,7 +577,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 *
 	 * @return array
 	 */
-	function gl_graphicsLibInfo() {
+	function zp_graphicsLibInfo() {
 		global $_lib_Imagick_info;
 
 		return $_lib_Imagick_info;
@@ -618,14 +588,14 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 *
 	 * @return array
 	 */
-	function gl_getFonts() {
+	function zp_getFonts() {
 		global $_imagick_fontlist;
 
 		if (!is_array($_imagick_fontlist)) {
 			@$_imagick_fontlist = Imagick::queryFonts();
 			$_imagick_fontlist = array('system' => '') + array_combine($_imagick_fontlist, $_imagick_fontlist);
 
-			$paths = array(SERVERPATH . '/' . USER_PLUGIN_FOLDER . '/imagick_fonts', CORE_SERVERPATH . 'FreeSerif');
+			$paths = array(SERVERPATH . '/' . USER_PLUGIN_FOLDER . '/imagick_fonts', SERVERPATH . '/' . ZENFOLDER . '/FreeSerif');
 			foreach ($paths as $basefile) {
 				if (is_dir($basefile)) {
 					chdir($basefile);
@@ -649,7 +619,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param string $font
 	 * @return ImagickDraw
 	 */
-	function gl_imageLoadFont($font = NULL, $size = 18) {
+	function zp_imageLoadFont($font = NULL, $size = 18) {
 		$draw = new ImagickDraw();
 
 		if (!empty($font)) {
@@ -667,7 +637,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param ImagickDraw $font
 	 * @return int
 	 */
-	function gl_imageFontWidth($font) {
+	function zp_imageFontWidth($font) {
 		$temp = new Imagick();
 		$metrics = $temp->queryFontMetrics($font, "The quick brown fox jumps over the lazy dog");
 		$temp->destroy();
@@ -681,7 +651,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param ImagickDraw $font
 	 * @return int
 	 */
-	function gl_imageFontHeight($font) {
+	function zp_imageFontHeight($font) {
 		$temp = new Imagick();
 		$metrics = $temp->queryFontMetrics($font, "The quick brown fox jumps over the lazy dog");
 		$temp->destroy();
@@ -695,7 +665,7 @@ if ($_imagick_present && (getOption('use_imagick') || !extension_loaded('gd'))) 
 	 * @param $string
 	 * @return Imagick
 	 */
-	function gl_imageFromString($string) {
+	function zp_imageFromString($string) {
 		$im = new Imagick();
 
 		$maxHeight = getOption('magick_max_height');

@@ -10,14 +10,14 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/class-AnyFile
- * @pluginCategory media
+ * @package plugins
+ * @subpackage media
  *
  */
 $plugin_is_filter = 990 | CLASS_PLUGIN;
-if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
-	$plugin_description = gettext('Provides a means for handling arbitrary file types. (No rendering provided!)');
-}
+$plugin_description = gettext('Provides a means for handling arbitrary file types. (No rendering provided!)');
+$plugin_author = "Stephen Billard (sbillard)";
+
 
 foreach (get_AnyFile_suffixes() as $suffix) {
 	Gallery::addImageHandler($suffix, 'AnyFile');
@@ -36,12 +36,12 @@ class AnyFile_Options {
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		return array(gettext('Watermark default images') => array('key' => 'AnyFile_watermark_default_images', 'type' => OPTION_TYPE_CHECKBOX,
-						'desc' => gettext('Check to place watermark image on default thumbnail images.')),
-				gettext('Handled files') => array('key' => 'AnyFile_file_list', 'type' => OPTION_TYPE_CUSTOM,
-						'desc' => gettext('File suffixes to be handled.')),
-				gettext('Add file suffix') => array('key' => 'AnyFile_file_new', 'type' => OPTION_TYPE_TEXTBOX,
-						'desc' => gettext('Add a file suffix to be handled by the plugin'))
+		return array(gettext('Watermark default images')	 => array('key'	 => 'AnyFile_watermark_default_images', 'type' => OPTION_TYPE_CHECKBOX,
+										'desc' => gettext('Check to place watermark image on default thumbnail images.')),
+						gettext('Handled files')						 => array('key'	 => 'AnyFile_file_list', 'type' => OPTION_TYPE_CUSTOM,
+										'desc' => gettext('File suffixes to be handled.')),
+						gettext('Add file suffix')					 => array('key'	 => 'AnyFile_file_new', 'type' => OPTION_TYPE_TEXTBOX,
+										'desc' => gettext('Add a file suffix to be handled by the plugin'))
 		);
 	}
 
@@ -73,6 +73,7 @@ class AnyFile_Options {
 }
 
 function get_AnyFile_suffixes() {
+	$mysetoptions = array();
 	return getSerializedArray(getOption('AnyFileSuffixList'));
 }
 
@@ -103,17 +104,17 @@ class AnyFile extends TextObject {
 	 * @return s
 	 */
 	function getThumbImageFile($path = NULL) {
-		global $_gallery;
+		global $_zp_gallery;
 		if (is_null($path)) {
 			$path = SERVERPATH;
 		}
 		if (is_null($this->objectsThumb)) {
 			$img = '/' . getSuffix($this->filename) . 'Default.png';
-			$imgfile = $path . '/' . THEMEFOLDER . '/' . internalToFilesystem($_gallery->getCurrentTheme()) . '/images/' . $img;
+			$imgfile = $path . '/' . THEMEFOLDER . '/' . internalToFilesystem($_zp_gallery->getCurrentTheme()) . '/images/' . $img;
 			if (!file_exists($imgfile)) {
 				$imgfile = $path . "/" . USER_PLUGIN_FOLDER . '/' . substr(basename(__FILE__), 0, -4) . $img;
 				if (!file_exists($imgfile)) {
-					$imgfile = $path . "/" . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/' . substr(basename(__FILE__), 0, -4) . '/anyFileDefault.png';
+					$imgfile = $path . "/" . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . substr(basename(__FILE__), 0, -4) . '/anyFileDefault.png';
 				}
 			}
 		} else {
@@ -139,7 +140,7 @@ class AnyFile extends TextObject {
 		 * just return the thumbnail as we do not know how to
 		 * render the file.
 		 */
-		return '<img src="' . html_encode($this->getThumb()) . '">';
+		return '<img src="' . html_encode(pathurlencode($this->getThumb())) . '">';
 	}
 
 }

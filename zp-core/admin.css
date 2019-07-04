@@ -17,10 +17,7 @@
 /* Basics
 ------------------------------ */
 
-
 * {
-	margin: 0;
-  padding: 0;
 	line-height: 19px;
 }
 
@@ -68,41 +65,31 @@ em {
 #footer {
 	clear: both;
 	color: #597580;
+	font-size: 85%;
 	margin-top: 8px;
 	margin-right: 30px;
-	margin-bottom: 5px;
+	margin-bottom: 0px;
 	margin-left: 0px;
-	padding-top: 10px;
+	padding-top: 30px;
 	padding-bottom: 15px;
 	padding-right: 50px;
-	padding-left: 16em;
+	text-align: right;
 }
 
-#footer_left {
-	display: inline-block;
-	float: left;
-}
-
-#footer_right {
-	display: inline-block;
-	float: right;
-	font-size: 8pt;
-}
-
-#footer_right a {
+#footer a {
 	color: #4D76CF;
 	text-decoration: none;
 	border-bottom: 1px dotted #597580;
 }
 
-#footer_right a:hover {
+#footer a:hover {
 	color: #FF8A00;
 	text-decoration: none;
 	border-bottom: 1px solid #FF8A00;
 }
 
 #admin_head {
-	margin-top: 8px;
+	margin-top: 10px;
 }
 
 #logo img {
@@ -116,9 +103,10 @@ em {
 
 #links {
 	padding-right: 2em;
-	padding-top: 4em;
+	padding-top: 1em;
 	float: right;
 	font-size: 100%;
+
 }
 
 #links a {
@@ -190,24 +178,12 @@ p {
 	padding-right: 8px;
 }
 
-sup, sub {
-  vertical-align: baseline;
-  position: relative;
-  top: -0.4em;
-}
-sub {
-  top: 0.4em;
-}
-
 code {
 	font-family: Courier, Monaco, monospace;
 	font-size: 1.1em;
 	color: #00816A;
 }
 
-.fullwidth {
-	width: 100%;
-}
 /* Menu
 ------------------------------ */
 
@@ -219,7 +195,7 @@ code {
 	margin-top: 10px;
 	position: absolute;
 	overflow: visible;
-	z-index: 50000;
+	z-index: 500000;
   width: 13em;
   background: #fafafa;
 	zoom: 1;
@@ -354,8 +330,8 @@ code {
 	color: black;
 }
 
-.navigation ul li a.nav-alert,
-.navigation ul ul li a.nav-alert{
+.navigation ul li a.alert,
+.navigation ul ul li a.alert{
 	background-color: lightgoldenrodyellow !important;
 }
 
@@ -364,21 +340,20 @@ code {
 	background-color: lightblue !important;
 }
 
-.navigation ul li.has-sub > ul,
 .navigation > ul > li a:hover,
 .navigation > ul > li:hover a {
-	background-color: #e6e6e6 !important;
+	background: #e6e6e6 !important;
 	color: black;
 }
 
 .navigation ul ul a:hover,
 .navigation ul ul li:hover > a {
-	background-color: lightskyblue !important;
+	background: lightskyblue !important;
 	color: black;
 }
 
 .navigation a.active:hover {
-	background-color: lightskyblue !important;
+	background: lightskyblue !important;
 	color: black;
 }
 
@@ -434,11 +409,6 @@ code {
   border-radius: 3px 0 0 3px;
 }
 
-.navigation_small_text {
-	font-size: 70%;
-	color: #999;
-}
-
 /* Messages
 ------------------------------ */
 .border {
@@ -469,9 +439,6 @@ code {
 	color: #DD6666;
 	font-weight: bold;
 }
-.logerror{
-	background-color: #FDD;
-}
 
 .errorbox {
 	padding: 10px 15px 10px 15px;
@@ -496,9 +463,6 @@ code {
 
 /* Warning Messages
 ------------------------------ */
-.logwarning {
-	background-color: #fcf676;
-}
 .warningbox {
 	padding: 5px 10px 5px 10px;
 	background-color: #fcf676;
@@ -523,19 +487,6 @@ code {
 
 /* box for important notes
 ------------------------------ */
-.lognotice {
-	background-color: #FFEFB7;
-}
-
-.newVersion {
-	padding: 5px 10px 0px 10px;
-	background-color: #FFEFB7;
-	margin-bottom: 0px;
-	font-size: 100%;
-	width: 100%;
-	font-weight: normal;
-}
-
 .notebox {
 	padding: 5px 10px 5px 10px;
 	background-color: #FFEFB7;
@@ -1048,12 +999,6 @@ input.tags {
 
 .overview-install-info {
 	z-index: 50;
-	margin-left: 8px;
-}
-
-.overview_list {
-	overflow-y: scroll;
-	overflow-x: hidden;
 }
 
 .overview_utilities {
@@ -1116,18 +1061,6 @@ input.tags {
 	font-size: 100%;
 }
 
-#slider-password_strength {
-	background-size: 100%;
-}
-
-#strength-handle {
-	width: 3em;
-	height: 1.6em;
-	top: 50%;
-	margin-top: -.8em;
-	text-align: center;
-	line-height: 1.6em;
-}
 
 #albumselect {
 	padding-top: 10px;
@@ -1318,7 +1251,6 @@ label:hover {
 	font-family: "Lucida Grande", Tahoma, Arial, Verdana, sans-serif;
 	font-size: 100%;
 	line-height: 130%;
-	height: 21px;
 	text-decoration: none;
 	font-weight: bold;
 	color: #565656;
@@ -1331,7 +1263,6 @@ label:hover {
 	width: auto;
 	overflow: visible;
 	padding: 4px 10px 3px 7px; /* IE6 */
-	height: 34px;
 }
 
 .buttons button[type] {
@@ -1791,10 +1722,6 @@ button:hover:disabled,.buttons a:hover:disabled {
 
 
 /* language selector */
-#languagelist {
-	width: 400px;
-}
-
 .languagelist li {
 	background: none;
 	padding-left: 0;
@@ -1806,6 +1733,7 @@ button:hover:disabled,.buttons a:hover:disabled {
 	list-style: none;
 	height: 8em;
 	overflow: auto;
+	width: 400px;
 	background-color: white;
 }
 
@@ -1929,11 +1857,6 @@ ul.pagelist li.current {
 
 * html .language_string_listbox label {
 	height: 1%;
-}
-
-.textarea_hidden {
-	position: absolute !important;
-	left: -9999px !Important;
 }
 
 /* icon legend
@@ -2142,14 +2065,6 @@ fieldset,
 	border: 1px solid lightgray;
 }
 
-.logon_welcome {
-	padding: 5px 10px 5px 10px;
-	margin-bottom: 10px;
-	font-size: 100%;
-	width: 94%;
-	font-weight: normal;
-}
-
 #loginform .show_checkbox {
 	background-color: #F7F8F9;
 }
@@ -2244,18 +2159,11 @@ fieldset,
 	text-align: left;
 }
 
-.logtext table tr:nth-child(2n) {
-  background-color: #F7F7F7;
-}
-.logtext tbody tr:hover {
-  background-color: #EEEEEE;
-}
-
 .nowrap {
 	white-space: nowrap;
 }
 
-.log_buttons a {
+.log_buttons a,.buttons button {
 	display: block;
 	float: left;
 	margin: 0 7px 0 0;
@@ -2615,7 +2523,6 @@ ul.page-list {
 .page-list_row .page-list_extra {
 	float: left;
 	padding-top: 20px;
-	padding-left: 1em;
 }
 
 .page-list_right {
@@ -2667,10 +2574,6 @@ ul.page-list {
 
 .customhide {
 	background-color:#F1F2F3;
-}
-
-.privatetag {
-	background-color:gold;
 }
 
 .ui-nestedSortable-error {
@@ -2729,7 +2632,7 @@ div.bordered .subhead  {
 	padding-right: 5px;
 }
 
-img.npg_logoicon {
+img.zp_logoicon {
 	position: relative;
 	top: 3px;
 }
@@ -2807,21 +2710,11 @@ tr.highlightselection td {
 	list-style-type: none;
 	float: left;
 	margin: 0 8px 8px 0;
-	position: relative;
 }
 
 #images li p {
 	margin: -5px 0 0 0 !important;
 	padding: 0;
-}
-
-#images .images_publishstatus {
-	position: absolute;
-	z-index: 500;
-	top: 2px;
-	right: 2px;
-	padding: 0 1px 0 1px;
-	line-height: 1em;
 }
 
 /* definition lists */
@@ -2883,7 +2776,7 @@ form.tinyDirty input[type=submit]:active {
 	background: #eff6d5;
 }
 
-.npglogo img {
+.zenlogo img {
 	text-decoration: none !important;
 	vertical-align: sub;
 }
@@ -2924,37 +2817,3 @@ form.tinyDirty input[type=submit]:active {
 	background-position: center;
 }
 
-.ulclean {
-	list-style: none;
-}
-.ulclean li {
-	margin-left:20px;
-	list-style: none;
-}
-.ulclean h3 {
-	padding-top: 10px;
-	font-family: Courier, Monaco, monospace;
-	font-size: 1.1em;
-}
-
-.deprecated {
-	text-decoration: line-through;
-}
-
-.hidden {
-	display: none;
-}
-
-.clearfix:after {
-  clear: both !important;
-}
-
-.language_string_listbox,
-.zenpage_language_string_listbox {
-	resize: vertical !important;
-	overflow: scroll;
-}
-
-.strike {
-	text-decoration: line-through;
-}

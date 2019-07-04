@@ -1,25 +1,19 @@
 <?php
 
-/**
- * @package plugins/uploader_http
- */
 define('OFFSET_PATH', 3);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 
-$_loggedin = NULL;
+$_zp_loggedin = NULL;
 if (isset($_POST['auth'])) {
 	$hash = sanitize($_POST['auth']);
 	$id = sanitize($_POST['id']);
-	$_loggedin = $_authority->checkAuthorization($hash, $id);
-} else {
-	header('Location: ' . getAdminLink('admin-tabs/upload.php') . '?page=upload&tab=http&type=images&uploaded=1');
-	exit();
+	$_zp_loggedin = $_zp_authority->checkAuthorization($hash, $id);
 }
 
 admin_securityChecks(UPLOAD_RIGHTS, $return = currentRelativeURL());
 
 /* handle posts */
-$folder = $error = false;
+$error = false;
 if (isset($_POST['processed'])) {
 	// sometimes things just go terribly wrong!
 	// Check for files.
@@ -40,7 +34,7 @@ if (isset($_POST['processed'])) {
 	$newAlbum = ((isset($_POST['existingfolder']) && $_POST['existingfolder'] == 'false') || isset($_POST['newalbum']));
 	// Make sure the folder exists. If not, create it.
 	if (isset($_POST['processed']) && !empty($_POST['folder'])) {
-		$folder = npgFilters::apply('admin_upload_process', sanitize_path($_POST['folder']));
+		$folder = zp_apply_filter('admin_upload_process', sanitize_path($_POST['folder']));
 		$targetPath = ALBUM_FOLDER_SERVERPATH . internalToFilesystem($folder);
 		$new = !is_dir($targetPath);
 		if ($new) {
@@ -50,13 +44,13 @@ if (isset($_POST['processed'])) {
 		}
 		if ($rightsalbum->exists) {
 			if (!$rightsalbum->isMyItem(UPLOAD_RIGHTS)) {
-				if (!npgFilters::apply('admin_managed_albums_access', false, $return)) {
+				if (!zp_apply_filter('admin_managed_albums_access', false, $return)) {
 					$error = UPLOAD_ERR_BLOCKED;
 				}
 			}
 		} else {
 			// upload to the root
-			if (!npg_loggedin(MANAGE_ALL_ALBUM_RIGHTS))
+			if (!zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS))
 				$error = UPLOAD_ERR_BLOCKED;
 		}
 
@@ -72,14 +66,14 @@ if (isset($_POST['processed'])) {
 					$album->setTitle($title);
 				}
 				if ($new) {
-					$album->setOwner($_current_admin_obj->getUser());
+					$album->setOwner($_zp_current_admin_obj->getUser());
 				}
 				$album->setShow((int) ($_POST['publishalbum'] == 'true'));
 				$album->save();
 			} else {
-				$AlbumDirName = str_replace(SERVERPATH, '', $_gallery->albumdir);
-				trigger_error(gettext("The album could not be created in the “albums” folder. This is usually a permissions problem. Try setting the permissions on the “albums” and “cache” folders to be world-writable using a shell:") . " <code>chmod 777 " . $AlbumDirName . '/' . CACHEFOLDER . '/' . "</code>, "
-								. gettext("or use your FTP program to give everyone write permissions to those folders."), E_USER_ERROR);
+				$AlbumDirName = str_replace(SERVERPATH, '', $_zp_gallery->albumdir);
+				zp_error(gettext("The album could not be created in the “albums” folder. This is usually a permissions problem. Try setting the permissions on the “albums” and “cache” folders to be world-writable using a shell:") . " <code>chmod 777 " . $AlbumDirName . '/' . CACHEFOLDER . '/' . "</code>, "
+								. gettext("or use your FTP program to give everyone write permissions to those folders."));
 			}
 
 			foreach ($_FILES['files']['error'] as $key => $error) {
@@ -88,7 +82,7 @@ if (isset($_POST['processed'])) {
 					$tmp_name = $_FILES['files']['tmp_name'][$key];
 					$name = sanitize_path($_FILES['files']['name'][$key]);
 					$soename = seoFriendly($name);
-					$error = npgFilters::apply('check_upload_quota', UPLOAD_ERR_OK, $tmp_name);
+					$error = zp_apply_filter('check_upload_quota', UPLOAD_ERR_OK, $tmp_name);
 					if (!$error) {
 						if (Gallery::imageObjectClass($name)) {
 							if (strrpos($soename, '.') === 0)
@@ -103,7 +97,7 @@ if (isset($_POST['processed'])) {
 								move_uploaded_file($tmp_name, $uploadfile);
 								@chmod($uploadfile, FILE_MOD);
 								$image = newImage($album, $soename);
-								$image->setOwner($_current_admin_obj->getUser());
+								$image->setOwner($_zp_current_admin_obj->getUser());
 								if ($name != $soename) {
 									$image->setTitle(stripSuffix($name));
 								}
@@ -121,8 +115,13 @@ if (isset($_POST['processed'])) {
 				}
 			}
 			if ($error == UPLOAD_ERR_OK && ($filecount || isset($_POST['newalbum']))) {
-				header('Location: ' . getAdminLink('admin-tabs/upload.php') . '?page=upload&tab=http&type=images&uploaded=1&album=' . $folder);
-				exit();
+				if ($album->subRights() & MANAGED_OBJECT_RIGHTS_EDIT) {
+					//	he has edit rights, allow new album creation
+					header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin-edit.php?page=edit&album=' . pathurlencode($folder) . '&uploaded&subpage=1&tab=imageinfo&albumimagesort=id_desc');
+				} else {
+					header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin-upload.php?tab=http&uploaded=1');
+				}
+				exitZP();
 			}
 		}
 	}
@@ -157,6 +156,6 @@ if (!isset($_POST['processed'])) {
 			break;
 	}
 }
-header('Location: ' . getAdminLink('admin-tabs/upload.php') . '?page=upload&tab=http&album=' . $folder . '&error=' . $errormsg);
-exit();
+header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin-upload.php?error=' . $errormsg);
+exitZP();
 ?>

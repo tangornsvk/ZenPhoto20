@@ -1,7 +1,7 @@
 <?php
 /**
  * provides the Comments tab of admin
- * @package admin/comment_form
+ * @package admin
  */
 // force UTF-8 Ø
 
@@ -33,41 +33,41 @@ if (isset($_GET['action'])) {
 			XSRFdefender('comment_update');
 			$comment = new Comment(sanitize_numeric($_GET['id']));
 			$comment->setInModeration(1);
-			npgFilters::apply('comment_disapprove', $comment);
+			zp_apply_filter('comment_disapprove', $comment);
 			$comment->save();
-			header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php'));
-			exit();
+			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php');
+			exitZP();
 
 		case "notspam":
 			XSRFdefender('comment_update');
 			$comment = new Comment(sanitize_numeric($_GET['id']));
 			$comment->setInModeration(0);
-			npgFilters::apply('comment_approve', $comment);
+			zp_apply_filter('comment_approve', $comment);
 			$comment->save();
-			header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php'));
-			exit();
+			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php');
+			exitZP();
 
 		case 'applycomments':
 			XSRFdefender('applycomments');
 			if (isset($_POST['ids'])) {
 				$action = processCommentBulkActions();
-				header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php') . '?bulk=' . $action);
+				header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php?bulk=' . $action);
 			} else {
-				header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php') . '?saved');
+				header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php?saved');
 			}
-			exit();
+			exitZP();
 		case 'deletecomment':
 			XSRFdefender('deletecomment');
 			$id = sanitize_numeric($_GET['id']);
 			$comment = new Comment($id);
 			$comment->remove();
-			header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php') . '?ndeleted=1');
-			exit();
+			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php?ndeleted=1');
+			exitZP();
 
 		case 'savecomment':
 			if (!isset($_POST['id'])) {
-				header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php'));
-				exit();
+				header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php');
+				exitZP();
 			}
 			XSRFdefender('savecomment');
 			$id = sanitize_numeric($_POST['id']);
@@ -82,14 +82,14 @@ if (isset($_GET['action'])) {
 			$comment->setComment(sanitize($_POST['comment'], 1));
 			$comment->setAddressData($_comment_form_save_post = serialize(getCommentAddress(0)));
 			$comment->save();
-			header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php') . '?saved&page=editcomment&id=' . $comment->getID());
-			exit();
+			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php?saved&page=editcomment&id=' . $comment->getID());
+			exitZP();
 	}
 }
 
 
 printAdminHeader('comments');
-npgFilters::apply('texteditor_config', 'admin_comments');
+zp_apply_filter('texteditor_config', 'admin_comments');
 ?>
 <script type="text/javascript">
 	//<!-- <![CDATA[
@@ -113,7 +113,7 @@ printLogoAndLinks();
 		<?php
 		if ($page == "editcomment" && isset($_GET['id'])) {
 
-			npgFilters::apply('admin_note', 'comments', 'edit');
+			zp_apply_filter('admin_note', 'comments', 'edit');
 			?>
 			<h1><?php echo gettext("edit comment"); ?></h1>
 
@@ -174,23 +174,23 @@ printLogoAndLinks();
 								}
 								?>
 								<label for="date"><?php echo gettext("Date/Time:"); ?></label>
-								<input type="text" size="18" name="date" value="<?php echo $date; ?>" />
-								<label for="date"><?php echo gettext("ID:"); ?></label>
+								<input type="text" size="18" name="date" value="<?php echo date('Y-m-d H:i:s', strtotime($date)); ?>" />
+								<label for="date"><?php echo gettext("IP:"); ?></label>
 								<input type="text" size="18" name="ip" value="<?php echo html_encode($IP); ?>" />
 								<?php
 								$_comment_form_save_post = $commentarr;
 								if (getOption('comment_form_addresses')) {
 									?>
 									<label for="comment_form_street"><?php echo gettext('Street:'); ?></label>
-									<input type="text" name="0-comment_form_street" id="comment_form_street" class="inputbox" size="40" value="<?php echo @$commentarr['street']; ?>">
+									<input type="text" name="0-comment_form_street" id="comment_form_street" class="inputbox" size="40" value="<?php echo $commentarr['street']; ?>">
 									<label for="comment_form_city"><?php echo gettext('City:'); ?></label>
-									<input type="text" name="0-comment_form_city" id="comment_form_city" class="inputbox" size="40" value="<?php echo @$commentarr['city']; ?>">
+									<input type="text" name="0-comment_form_city" id="comment_form_city" class="inputbox" size="40" value="<?php echo $commentarr['city']; ?>">
 									<label for="comment_form_state"><?php echo gettext('State:'); ?></label>
-									<input type="text" name="0-comment_form_state" id="comment_form_state" class="inputbox" size="40" value="<?php echo @$commentarr['state']; ?>">
+									<input type="text" name="0-comment_form_state" id="comment_form_state" class="inputbox" size="40" value="<?php echo $commentarr['state']; ?>">
 									<label for="comment_form_country"><?php echo gettext('Country:'); ?></label>
-									<input type="text" name="0-comment_form_country" id="comment_form_country" class="inputbox" size="40" value="<?php echo @$commentarr['country']; ?>">
+									<input type="text" name="0-comment_form_country" id="comment_form_country" class="inputbox" size="40" value="<?php echo $commentarr['country']; ?>">
 									<label for="comment_form_postal"><?php echo gettext('Postal code:'); ?></label>
-									<input type="text" name="0-comment_form_postal" id="comment_form_postal" class="inputbox" size="40" value="<?php echo @$commentarr['postal']; ?>">
+									<input type="text" name="0-comment_form_postal" id="comment_form_postal" class="inputbox" size="40" value="<?php echo $commentarr['postal']; ?>">
 									<?php
 								}
 								?>
@@ -263,14 +263,14 @@ printLogoAndLinks();
 				$allcommentscount = count($allcomments);
 				$totalpages = ceil(($allcommentscount / COMMENTS_PER_PAGE));
 				unset($allcomments);
-				npgFilters::apply('admin_note', 'comments', 'list');
+				zp_apply_filter('admin_note', '  comments', '  list');
 				?>
 				<h1><?php echo gettext("Comments"); ?></h1>
 				<div class="tabbox">
 					<?php
 					/* Display a message if needed. Fade out and hide after 2 seconds. */
+
 					if (isset($_GET['bulk'])) {
-						$class = 'messagebox';
 						$bulkaction = sanitize($_GET['bulk']);
 						switch ($bulkaction) {
 							case 'deleteall':
@@ -282,43 +282,34 @@ printLogoAndLinks();
 							case 'approve':
 								$message = gettext('Selected items approved');
 								break;
-							default:
-								$message = gettext("Nothing changed");
-								$class = 'messagebox';
-								break;
 						}
 						?>
-						<div class="<?php echo $class; ?> fade-message">
-							<h2><?php echo $message; ?></h2>
-						</div>
+						<div class="messagebox fade-message"><?php echo $message; ?></div>
 						<?php
 					}
 					if ((isset($_GET['ndeleted']) && $_GET['ndeleted'] > 0) || isset($_GET['saved'])) {
 						?>
-						<?php
-						if (isset($_GET['ndeleted'])) {
-							?>
-							<div class="messagebox fade-message">
+						<div class="messagebox fade-message">
+							<?php
+							if (isset($_GET['ndeleted'])) {
+								?>
 								<h2>
 									<?php
 									$n = sanitize_numeric($_GET['ndeleted']);
 									printf(ngettext("%u Comment deleted successfully.", "%u Comment deleted successfully.", $n), $n);
 									?>
 								</h2>
-							</div>
-							<?php
-						}
-						if (isset($_GET['saved'])) {
-							?>
-							<div class="messagebox fade-message">
+								<?php
+							}
+							if (isset($_GET['saved'])) {
+								?>
 								<h2>
-									<?php echo gettext("Nothing changed"); ?>
+									<?php echo gettext("Changes applied"); ?>
 								</h2>
-							</div>
-							<?php
-						}
-						?>
-
+								<?php
+							}
+							?>
+						</div>
 						<?php
 					}
 					?>
@@ -349,7 +340,7 @@ printLogoAndLinks();
 								$arrow = NORTH_WEST_CORNER_ARROW;
 							}
 							?>
-							<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php'); ?>?fulltext=<?php
+							<a	href="admin-comments.php?fulltext=<?php
 							echo (int) ($fulltext + 1) & 1;
 							if ($viewall)
 								echo '&amp;viewall';
@@ -371,7 +362,7 @@ printLogoAndLinks();
 											gettext('Mark as spam') => 'spam',
 											gettext('Approve') => 'approve',
 									);
-									$checkarray = npgFilters::apply('bulk_comment_actions', $checkarray);
+									$checkarray = zp_apply_filter('bulk_comment_actions', $checkarray);
 									printBulkActions($checkarray);
 									?>
 								</th>
@@ -390,23 +381,20 @@ printLogoAndLinks();
 								$id = $comment['id'];
 								$author = $comment['name'];
 								$email = $comment['email'];
-								if (empty($author)) {
-									$author = $email;
-								}
 								$link = '<a title="' . gettext('The item upon which this comment was posted no longer exists.') . '">' . gettext('<strong>Missing Object</strong> ') . '</a>'; // in case of such
 								// ZENPAGE: switch added for zenpage comment support
 								switch ($comment['type']) {
 									case "albums":
 										$obj = getItemByID('albums', $comment['ownerid']);
 										if ($obj) {
-											$link = '<a href = "' . $obj->getLink() . '#_comment_id_' . $id . '">[' . gettext('album') . '] ' . $obj->getTitle() . '</a>';
+											$link = '<a href = "' . $obj->getLink() . '#zp_comment_id_' . $id . '">[' . gettext('album') . '] ' . $obj->getTitle() . '</a>';
 										}
 										break;
 									case "news": // ZENPAGE: if plugin is installed
 										if (extensionEnabled('zenpage')) {
 											$obj = getItemByID('news', $comment['ownerid']);
 											if ($obj) {
-												$link = '<a href = "' . $obj->getLink() . '#_comment_id_' . $id . '">[' . gettext("article") . '] ' . $obj->getTitle() . "</a> ";
+												$link = '<a href = "' . $obj->getLink() . '#zp_comment_id_' . $id . '">[' . gettext("article") . '] ' . $obj->getTitle() . "</a> ";
 											}
 										}
 										break;
@@ -414,17 +402,18 @@ printLogoAndLinks();
 										if (extensionEnabled('zenpage')) {
 											$obj = getItemByID('pages', $comment['ownerid']);
 											if ($obj) {
-												$link = "<a href=\"" . $obj->getLink() . '#_comment_id_' . $id . '">[' . gettext("page") . '] ' . $obj->getTitle() . "</a>";
+												$link = "<a href=\"" . $obj->getLink() . '#zp_comment_id_' . $id . '">[' . gettext("page") . '] ' . $obj->getTitle() . "</a>";
 											}
 										}
 										break;
 									default : // all the image types
 										$obj = getItemByID('images', $comment['ownerid']);
 										if ($obj) {
-											$link = "<a href=\"" . $obj->getLink() . '#_comment_id_' . $id . '">[' . gettext('image') . '] ' . $obj->getTitle() . "</a>";
+											$link = "<a href=\"" . $obj->getLink() . '#zp_comment_id_' . $id . '">[' . gettext('image') . '] ' . $obj->getTitle() . "</a>";
 										}
 										break;
 								}
+								$date = myts_date('%m/%d/%Y %I:%M %p', $comment['date']);
 								$website = $comment['website'];
 								$fullcomment = sanitize($comment['comment'], 2);
 								$shortcomment = truncate_string(getBare($fullcomment), 123);
@@ -437,7 +426,7 @@ printLogoAndLinks();
 
 										<?php echo ($fulltext) ? $fullcomment : $shortcomment; ?>
 
-									<td><?php echo $comment['date']; ?></td>
+									<td><?php echo date('Y-m-d H:i:s', strtotime($date)); ?></td>
 									<td>
 										<?php
 										echo $website ? "<a href=\"$website\">$author</a>" : $author;
@@ -456,7 +445,7 @@ printLogoAndLinks();
 												. '<a title = "' . gettext("Private message") . '">'
 												. NO_ENTRY
 												. '</a>'
-												. '</div>';
+												. '/div>';
 											}
 											?>
 											<div class="page-list_icon">
@@ -549,6 +538,8 @@ printLogoAndLinks();
 		<?php
 		printAdminFooter();
 		echo "\n" . '</div>'; //main
+
+
 		echo "\n</body>";
 		echo "\n</html>";
 		?>

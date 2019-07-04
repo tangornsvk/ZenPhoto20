@@ -4,19 +4,14 @@ if (!defined('WEBPATH'))
 ?>
 <!DOCTYPE html>
 <head>
-	<?php
-	npgFilters::apply('theme_head');
-
-	scriptLoader($_themeroot . '/style.css');
-
-	printRSSHeaderLink("Gallery", gettext('Gallery'));
-
-	printZDRoundedCornerJS();
-	?>
+	<?php zp_apply_filter('theme_head'); ?>
+	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
+	<?php printRSSHeaderLink("Gallery", gettext('Gallery RSS')); ?>
+	<?php printZDRoundedCornerJS(); ?>
 </head>
 
 <body>
-	<?php npgFilters::apply('theme_body_open'); ?>
+	<?php zp_apply_filter('theme_body_open'); ?>
 
 	<div id="main">
 
@@ -32,7 +27,7 @@ if (!defined('WEBPATH'))
 							printCurrentNewsArchive(" » ");
 							?></strong>
 					<?php } else { ?>
-						<a href="<?php echo getGalleryIndexURL(); ?>"><?php echo gettext("Index"); ?></a> » <strong><?php echo NEWS_LABEL; ?></strong>
+						<a href="<?php echo getGalleryIndexURL(); ?>"><?php echo gettext("Index"); ?></a> » <strong><?php echo gettext("News"); ?></strong>
 					<?php } ?>
 				</h2>
 			</div>
@@ -55,6 +50,11 @@ if (!defined('WEBPATH'))
 						</div></div>
 					<?php printTags('links', gettext('<strong>Tags:</strong>') . ' ', 'taglist', ', '); ?>
 					<br style="clear:both;" /><br />
+					<?php
+					if (function_exists('printRating')) {
+						printRating();
+					}
+					?>
 					<?php
 					// COMMENTS TEST
 					if (function_exists('printCommentForm')) {
@@ -111,6 +111,6 @@ if (!defined('WEBPATH'))
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php npgFilters::apply('theme_body_close'); ?>
+	<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

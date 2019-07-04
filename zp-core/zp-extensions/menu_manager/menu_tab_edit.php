@@ -1,7 +1,4 @@
 <?php
-/**
- * @package plugins/menu_manager
- */
 define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 if (extensionEnabled('zenpage')) {
@@ -9,7 +6,7 @@ if (extensionEnabled('zenpage')) {
 }
 require_once(dirname(__FILE__) . '/menu_manager-admin-functions.php');
 
-admin_securityChecks(ADMIN_RIGHTS, currentRelativeURL());
+admin_securityChecks(NULL, currentRelativeURL());
 
 $page = 'edit';
 
@@ -32,7 +29,9 @@ if (isset($_GET['del'])) {
 }
 
 printAdminHeader('menu', (is_array($result) && $result['id']) ? gettext('edit') : gettext('add'));
-scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/zenpage/zenpage.css');
+?>
+<link rel="stylesheet" href="../zenpage/zenpage.css" type="text/css" />
+<?php
 $menuset = checkChosenMenuset();
 ?>
 </head>
@@ -56,12 +55,12 @@ $menuset = checkChosenMenuset();
 						case 'all_items':
 							$('#albumselector,#pageselector,#categoryselector,#custompageselector,#titleinput,#titlelabel,#link_row,#visible_row,#span_row').hide();
 							$('#selector').html('<?php echo js_encode(gettext("All menu items")); ?>');
-							$('#description').html('<?php echo js_encode(gettext('This adds menu items for all objects. (It creates a "default" menuset.)')); ?>');
+							$('#description').html('<?php echo js_encode(gettext('This adds menu items for all zenphoto objects. (It creates a "default" menuset.)')); ?>');
 							break;
-						case 'siteindex':
+						case "galleryindex":
 							$('#albumselector,#pageselector,#categoryselector,#custompageselector,#link_row').hide();
-							$('#selector').html('<?php echo js_encode(gettext("Site index")); ?>');
-							$('#description').html('<?php echo js_encode(gettext("This is the site Index page.")); ?>');
+							$('#selector').html('<?php echo js_encode(gettext("Gallery index")); ?>');
+							$('#description').html('<?php echo js_encode(gettext("This is the normal zenphoto gallery Index page.")); ?>');
 							$('#link').attr('disabled', true);
 							$('#titleinput').show();
 							$('#link').val('<?php echo WEBPATH; ?>/');
@@ -69,12 +68,12 @@ $menuset = checkChosenMenuset();
 						case 'all_albums':
 							$('#albumselector,#pageselector,#categoryselector,#titleinput,#titlelabel,#link_row,#visible_row,#span_row').hide();
 							$('#selector').html('<?php echo js_encode(gettext("All Albums")); ?>');
-							$('#description').html('<?php echo js_encode(gettext("This adds menu items for all albums.")); ?>');
+							$('#description').html('<?php echo js_encode(gettext("This adds menu items for all zenphoto albums.")); ?>');
 							break;
 						case 'album':
 							$('#pageselector,#categoryselector,#custompageselector,#titleinput,#link_row').hide();
 							$('#selector').html('<?php echo js_encode(gettext("Album")); ?>');
-							$('#description').html('<?php echo js_encode(gettext("Creates a link to an Album.")); ?>');
+							$('#description').html('<?php echo js_encode(gettext("Creates a link to a zenphoto Album.")); ?>');
 							$('#link').attr('disabled', true);
 							$('#albumselector').show();
 							$('#titlelabel').html('<?php echo js_encode(gettext('Album')); ?>');
@@ -109,7 +108,7 @@ if (extensionEnabled('zenpage')) {
 								$('#titleinput').show();
 								$('#link').val('<?php echo getNewsIndexURL(); ?>');
 								break;
-							case 'all_categories':
+							case 'all_categorys':
 								$('#albumselector,#pageselector,#categoryselector,#custompageselector,#titleinput,#titlelabel,#link_row,#visible_row,#span_row').hide();
 								$('#selector').html('<?php echo js_encode(gettext("All Zenpage categories")); ?>');
 								$('#description').html('<?php echo js_encode(gettext("This adds menu items for all Zenpage categories.")); ?>');
@@ -128,14 +127,6 @@ if (extensionEnabled('zenpage')) {
 	<?php
 }
 ?>
-						case "albumindex":
-							$('#albumselector,#pageselector,#categoryselector,#custompageselector,#link_row').hide();
-							$('#selector').html('<?php echo js_encode(gettext("Album index")); ?>');
-							$('#description').html('<?php echo js_encode(gettext("Creates a link to Album index page for themes which do not show the albums on the Gallery index.")); ?>');
-							$('#link').attr('disabled', true);
-							$('#titleinput').show();
-							$('#link').val('<?php echo WEBPATH; ?>/');
-							break;
 						case 'custompage':
 							$('#albumselector,#pageselector,#categoryselector,#link').hide();
 							$('#custompageselector').show();
@@ -146,17 +137,17 @@ if (extensionEnabled('zenpage')) {
 							break;
 						case "dynamiclink":
 							$('#albumselector,#pageselector,#categoryselector,#custompageselector').hide();
-							$('#selector').html('<?php echo js_encode(gettext("Dynamic link")); ?>');
+							$('#selector').html('<?php echo js_encode(gettext("Custom link")); ?>');
 							$('#description').html('<?php echo js_encode(gettext("Creates a dynamic link. The string will be evaluated by PHP to create the link.")); ?>');
-							$('#link').prop('disabled', false);
+							$('#link').removeAttr('disabled');
 							$('#link_label').html('<?php echo js_encode(gettext('URL')); ?>');
 							$('#titleinput').show();
 							break;
 						case "customlink":
 							$('#albumselector,#pageselector,#categoryselector,#custompageselector').hide();
 							$('#selector').html('<?php echo js_encode(gettext("Custom link")); ?>');
-							$('#description').html('<?php echo js_encode(gettext("Creates a link outside the standard structure. Use of a full URL is recommended (e.g. http://www.domain.com).")); ?>');
-							$('#link').prop('disabled', false);
+							$('#description').html('<?php echo js_encode(gettext("Creates a link outside the zenphoto structure. Use of a full URL is recommended (e.g. http://www.domain.com).")); ?>');
+							$('#link').removeAttr('disabled');
 							$('#link_label').html('<?php echo js_encode(gettext('URL')); ?>');
 							$('#titleinput').show();
 							break;
@@ -171,7 +162,7 @@ if (extensionEnabled('zenpage')) {
 							$('#selector').html('<?php echo js_encode(gettext("Function")); ?>');
 							$('#description').html('<?php echo js_encode(gettext('Executes the PHP function provided.')); ?>');
 							$('#link_label').html('<?php echo js_encode(gettext('Function')); ?>');
-							$('#link').prop('disabled', false);
+							$('#link').removeAttr('disabled');
 							$('#titleinput').show();
 							$('#include_li_label').show();
 							break;
@@ -180,7 +171,7 @@ if (extensionEnabled('zenpage')) {
 							$('#selector').html('<?php echo js_encode(gettext("HTML")); ?>');
 							$('#description').html('<?php echo js_encode(gettext('Inserts custom HTML.')); ?>');
 							$('#link_label').html('<?php echo js_encode(gettext('HTML')); ?>');
-							$('#link').prop('disabled', false);
+							$('#link').removeAttr('disabled');
 							$('#titleinput').show();
 							$('#include_li_label').show();
 							break;
@@ -215,7 +206,7 @@ if (is_array($result)) {
 				//]]> -->
 			</script>
 			<?php
-			npgFilters::apply('admin_note', 'menu', 'edit');
+			zp_apply_filter('admin_note', 'menu', 'edit');
 			?>
 			<h1>
 				<?php
@@ -242,12 +233,12 @@ if (is_array($result)) {
 				}
 				?>
 				<p class="buttons">
-					<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/menu_manager/menu_tab.php'); ?>?menuset=<?php echo $menuset; ?>">
+					<a href="menu_tab.php?menuset=<?php echo $menuset; ?>">
 						<?php echo BACK_ARROW_BLUE; ?>
 						<strong><?php echo gettext("Back"); ?></strong>
 					</a>
 					<span class="floatright">
-						<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/menu_manager/menu_tab_edit.php'); ?>?add&amp;menuset=<?php echo urlencode($menuset); ?>">
+						<a href="menu_tab_edit.php?add&amp;menuset=<?php echo urlencode($menuset); ?>">
 							<?php echo PLUS_ICON; ?>
 							<strong>
 								<?php echo gettext("Add Menu Items"); ?>
@@ -273,8 +264,7 @@ if (is_array($result)) {
 						<select id="typeselector" name="typeselector" >
 							<option value=""><?php echo gettext("*Select the type of the menus item you wish to add*"); ?></option>
 							<option value="all_items"><?php echo gettext("All menu items"); ?></option>
-							<option value="siteindex"><?php echo gettext("Site index"); ?></option>
-							<option value="albumindex"><?php echo gettext("Album index"); ?></option>
+							<option value="galleryindex"><?php echo gettext("Gallery index"); ?></option>
 							<option value="all_albums"><?php echo gettext("All Albums"); ?></option>
 							<option value="album"><?php echo gettext("Album"); ?></option>
 							<?php
@@ -283,14 +273,13 @@ if (is_array($result)) {
 								<option value="all_pages"><?php echo gettext("All pages"); ?></option>
 								<option value="page"><?php echo gettext("Page"); ?></option>
 								<option value="newsindex"><?php echo gettext("News index"); ?></option>
-								<option value="all_categories"><?php echo gettext("All news categories"); ?></option>
+								<option value="all_categorys"><?php echo gettext("All news categories"); ?></option>
 								<option value="category"><?php echo gettext("News category"); ?></option>
 								<?php
 							}
 							?>
 							<option value="custompage"><?php echo gettext("Custom theme page"); ?></option>
 							<option value="customlink"><?php echo gettext("Custom link"); ?></option>
-							<option value="dynamiclink"><?php echo gettext("Dynamic link"); ?></option>
 							<option value="menulabel"><?php echo gettext("Label"); ?></option>
 							<option value="menufunction"><?php echo gettext("Function"); ?></option>
 							<option value="html"><?php echo gettext("HTML"); ?></option>
@@ -300,7 +289,7 @@ if (is_array($result)) {
 						$add = '&amp;update';
 					}
 					?>
-					<form class="dirtylistening" onReset="setClean('add');" autocomplete="off"  method="post" id="add" name="add" action="<?php echo getAdminLink(PLUGIN_FOLDER . '/menu_manager/menu_tab_edit.php'); ?>?save<?php
+					<form class="dirtylistening" onReset="setClean('add');" autocomplete="off"  method="post" id="add" name="add" action="menu_tab_edit.php?save<?php
 					echo $add;
 					if ($menuset)
 						echo '&amp;menuset=' . $menuset;
@@ -395,28 +384,19 @@ if (is_array($result)) {
 							<?php
 							if (is_array($result) && !empty($result['type'])) {
 								$array = getItemTitleAndURL($result);
-								if ($array['invalid']) {
+								if (!$array['valid']) {
 									?>
 									<tr>
 										<td colspan="100%">
-											<span class="notebox"><?php
-												switch ($array['invalid']) {
-													case 1:
-														printf(gettext('Target does not exist in <em>%1$s</em> theme'), $array['theme']);
-														break;
-													case 2:
-														echo gettext('Target does not exist');
-														break;
-													case 3:
-														echo gettext('Zenpage plugin not enabled');
-														break;
-												}
+											<span class="notebox">
+												<?php
 												if (array_key_exists('theme', $array)) {
 													printf(gettext('Target does not exist in <em>%1$s</em> theme'), $array['theme']);
 												} else {
 													echo gettext('Target does not exist.');
 												}
-												?></span>
+												?>
+											</span>
 										</td>
 									</tr>
 									<?php
@@ -435,8 +415,9 @@ if (is_array($result)) {
 					</form>
 				</div>
 			</div>
-			<?php printAdminFooter(); ?>
 		</div>
 	</div>
+	<?php printAdminFooter(); ?>
+
 </body>
 </html>

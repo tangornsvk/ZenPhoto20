@@ -1,15 +1,12 @@
 <?php if (!defined('WEBPATH')) die(); ?>
 <!DOCTYPE html>
 <head>
-	<?php
-	npgFilters::apply('theme_head');
-
-	scriptLoader($_themeroot . '/style.css');
-	?>
+	<?php zp_apply_filter('theme_head'); ?>
+	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
 </head>
 
 <body>
-	<?php npgFilters::apply('theme_body_open'); ?>
+	<?php zp_apply_filter('theme_body_open'); ?>
 
 	<div id="main">
 
@@ -41,6 +38,6 @@
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php npgFilters::apply('theme_body_close'); ?>
+	<?php zp_apply_filter('theme_body_close'); ?>
 </body>
 </html>

@@ -9,20 +9,22 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins/cacheHeader
- * @pluginCategory example
+ * @package plugins
+ * @subpackage example
+ * @category package
+ * @category ZenPhoto20Tools
  */
 $plugin_is_filter = 9 | ADMIN_PLUGIN | THEME_PLUGIN;
 $plugin_description = gettext('Outputs a "Cache-control" header with selected caching options.');
-
+$plugin_author = "Stephen Billard (sbillard)";
 $option_interface = 'cacheHeader_options';
 
 $_cacheHeader_side = getOption('cacheHeader_sides');
 if ($_cacheHeader_side == 'admin' || $_cacheHeader_side == 'all')
-	npgFilters::register('admin_headers', 'cacheHeader');
+	zp_register_filter('admin_headers', 'cacheHeader');
 if ($_cacheHeader_side == 'gallery' || $_cacheHeader_side == 'all')
-	npgFilters::register('theme_headers', 'cacheHeader');
-npgFilters::register('plugin_tabs', 'cacheHeader_options::tab');
+	zp_register_filter('theme_headers', 'cacheHeader');
+zp_register_filter('plugin_tabs', 'cacheHeader_options::tab');
 unset($_cacheHeader_side);
 
 class cacheHeader_options {

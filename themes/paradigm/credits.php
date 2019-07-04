@@ -24,15 +24,15 @@ if (!defined('WEBPATH'))
 				<h2>Copyright</h2>
 				Copyright
 				<?php
-				$admin = $_authority->getMasterUser();
+				$admin = $_zp_authority->getMasterUser();
 				$author = $admin->getName();
 				echo $author . ' ';
 				?>
 				<?php echo date('Y'); ?>.
 
-				<h2>netPhotoGraphics</h2>
-				<p><?php echo gettext('This website is based on netPhotoGraphics the <a href="http://netPhotoGraphics.org/" target="_blank">simple media website CMS</a>'); ?>.</p>
-				<p><?php echo gettext('Theme used:'); ?> Paradigm <?php echo gettext('by'); ?> Olivier French (<a href="http://www.france-in-photos.com">France in Photos</a>).</p>
+				<h2>ZenPhoto20</h2>
+				<p><?php echo gettext('This website is based on ZenPhoto20 the <a href="http://zenphoto20.us/" target="_blank">simple media website CMS</a>'); ?>.</p>
+				<p><?php echo gettext('Theme used:'); ?> Paradigm <?php echo gettext('by'); ?> Olivier Ffrench (<a href="http://www.france-in-photos.com">France in Photos</a>).</p>
 			</section>
 			<?php include(SERVERPATH . '/' . THEMEFOLDER . '/paradigm/includes/_sidebar.php'); ?>
 		</div>

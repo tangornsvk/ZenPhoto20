@@ -2,7 +2,7 @@
 
 /**
  * Comment Class
- * @package classes/comment_form
+ * @package classes
  */
 // force UTF-8 Ø
 

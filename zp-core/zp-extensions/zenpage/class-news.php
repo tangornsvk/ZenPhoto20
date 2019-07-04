@@ -4,7 +4,8 @@
  * zenpage news class
  *
  * @author Malte Müller (acrylian)
- * @package plugins/zenpage
+ * @package plugins
+ * @subpackage zenpage
  */
 // force UTF-8 Ø
 
@@ -83,6 +84,14 @@ class Article extends CMSItems {
 
 	function setSticky($v) {
 		$this->set('sticky', $v);
+	}
+
+	function getTruncation() {
+		return $this->get('truncation');
+	}
+
+	function setTruncation($v) {
+		$this->set('truncation', $v);
 	}
 
 	/**
@@ -172,13 +181,13 @@ class Article extends CMSItems {
 	 * returns true if the article exists in any published category (or in no categories)
 	 */
 	function categoryIsVisible() {
-		if (npg_loggedin(MANAGE_ALL_NEWS_RIGHTS))
+		if (zp_loggedin(MANAGE_ALL_NEWS_RIGHTS))
 			return true;
-		global $_CMS;
+		global $_zp_CMS;
 		$categories = $this->getCategories(false);
 		if (count($categories) > 0) {
 			foreach ($categories as $cat) {
-				if ($_CMS->visibleCategory($cat)) {
+				if ($_zp_CMS->visibleCategory($cat)) {
 					return true;
 				}
 			}
@@ -199,7 +208,7 @@ class Article extends CMSItems {
 		}
 		$categories = $this->getCategories();
 		if (empty($categories)) { //	cannot be protected!
-			return 'public_access';
+			return 'zp_public_access';
 		} else {
 			foreach ($categories as $cat) {
 				$catobj = newCategory($cat['titlelink']);
@@ -213,23 +222,23 @@ class Article extends CMSItems {
 	}
 
 	function subRights() {
-		global $_current_admin_obj;
+		global $_zp_current_admin_obj;
 		if (!is_null($this->subrights)) {
 			return $this->subrights;
 		}
 		$this->subrights = 0;
-		if (npg_loggedin()) {
-			if (npg_loggedin($this->manage_rights)) {
+		if (zp_loggedin()) {
+			if (zp_loggedin($this->manage_rights)) {
 				$this->subrights = MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW;
 				return $this->subrights;
 			}
 
-			$objects = $_current_admin_obj->getObjects();
+			$objects = $_zp_current_admin_obj->getObjects();
 			$categories = $this->getCategories();
-			$categories['`'] = array('type' => 'news_categories', 'titlelink' => '`');
+			$categories['`'] = array('type' => 'news', 'titlelink' => '`');
 			$possible = array();
 			foreach ($objects as $object) {
-				if ($object['type'] == 'news_categories') {
+				if ($object['type'] == 'news') {
 					$possible[$object['data']] = $object;
 				}
 			}
@@ -251,18 +260,18 @@ class Article extends CMSItems {
 	 * returns true of access is allowed
 	 */
 	function isMyItem($action) {
-		global $_current_admin_obj;
+		global $_zp_current_admin_obj;
 		if (parent::isMyItem($action)) {
 			return true;
 		}
-		if ($_current_admin_obj && $_current_admin_obj->getUser() == $this->getOwner()) {
-			return true; //	he is the author
-		}
-		if (npg_loggedin($action)) {
-			if ($this->getShow() && $action == LIST_RIGHTS) {
-				return LIST_RIGHTS;
+		if (zp_loggedin($action)) {
+			if (GALLERY_SECURITY == 'public' && $this->getShow() && $action == LIST_RIGHTS) {
+				return true;
 			}
-			$myObjects = $_current_admin_obj->getObjects('news_categories', true);
+			if ($_zp_current_admin_obj->getUser() == $this->getAuthor()) {
+				return true; //	he is the author
+			}
+			$myObjects = $_zp_current_admin_obj->getObjects('news', true);
 			if (!empty($myObjects)) {
 				$thisCats = $this->getCategories();
 				if (empty($thisCats) && isset($myObjects['`'])) {
@@ -297,7 +306,7 @@ class Article extends CMSItems {
 	 * @param string $show
 	 */
 	function checkAccess(&$hint = NULL, &$show = NULL) {
-		if (npg_loggedin(ALL_NEWS_RIGHTS))
+		if (zp_loggedin(ALL_NEWS_RIGHTS))
 			return true;
 		$categories = $this->getCategories();
 		if (empty($categories)) { //	no protection on un-categorized news articles
@@ -368,15 +377,15 @@ class Article extends CMSItems {
 	 * @return string
 	 */
 	function getLink($in_context = false) {
-		global$_CMS_current_category;
+		global$_zp_current_category;
 		$context = $contextR = '';
 
-		if ($in_context && in_context(ZENPAGE_NEWS_CATEGORY)) {
-			$context = 'category=' . $_CMS_current_category->getTitlelink();
+		if ($in_context && in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+			$context = 'category=' . $_zp_current_category->getTitlelink();
 			$contextR = '?' . $context;
 			$context = '&' . $context;
 		}
-		return npgFilters::apply('getLink', rewrite_path(_NEWS_ . '/' . $this->getTitlelink() . $contextR, '/index.php?p=news&title=' . $this->getTitlelink() . $context), $this, NULL);
+		return zp_apply_filter('getLink', rewrite_path(_NEWS_ . '/' . $this->getTitlelink() . $contextR, '/index.php?p=news&title=' . $this->getTitlelink() . $context), $this, NULL);
 	}
 
 	/**
@@ -385,16 +394,16 @@ class Article extends CMSItems {
 	 * @return int
 	 */
 	function getIndex() {
-		global $_CMS, $_CMS_current_category;
-		if (in_context(ZENPAGE_NEWS_CATEGORY)) {
-			$cat = $_CMS_current_category;
-			$catI = $_CMS_current_category->getID();
+		global $_zp_CMS, $_zp_current_category;
+		if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+			$cat = $_zp_current_category;
+			$catI = $_zp_current_category->getID();
 		} else {
 			$cat = NULL;
 			$catI = 0;
 		}
 		if (!isset($this->index[$catI])) {
-			$articles = $_CMS->getArticles(0, NULL, true, NULL, NULL, NULL, $cat);
+			$articles = $_zp_CMS->getArticles(0, NULL, true, NULL, NULL, NULL, $cat);
 			for ($i = 0; $i < count($articles); $i++) {
 				$article = $articles[$i];
 				if ($this->getTitlelink() == $article['titlelink']) {
@@ -413,9 +422,9 @@ class Article extends CMSItems {
 	 * @return object
 	 */
 	function getPrevArticle() {
-		global $_CMS;
+		global $_zp_CMS;
 		$index = $this->getIndex();
-		$article = $_CMS->getArticle($index - 1);
+		$article = $_zp_CMS->getArticle($index - 1);
 		return $article;
 	}
 
@@ -425,9 +434,9 @@ class Article extends CMSItems {
 	 * @return object
 	 */
 	function getNextArticle() {
-		global $_CMS;
+		global $_zp_CMS;
 		$index = $this->getIndex();
-		$article = $_CMS->getArticle($index + 1);
+		$article = $_zp_CMS->getArticle($index + 1);
 		return $article;
 	}
 

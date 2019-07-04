@@ -5,7 +5,8 @@
 $optionRights = OPTIONS_RIGHTS;
 
 function saveOptions() {
-	global $_gallery;
+	global $_zp_gallery;
+
 	$notify = $returntab = NULL;
 	$search = new SearchEngine();
 	if (isset($_POST['SEARCH_list'])) {
@@ -16,7 +17,6 @@ function saveOptions() {
 	natcasesort($searchfields);
 	setOption('search_fields', implode(',', $searchfields));
 	setOption('search_cache_duration', sanitize_numeric($_POST['search_cache_duration']));
-	setOption('cache_random_search', (int) isset($_POST['cache_random_search']));
 	$notify = processCredentials('search');
 	setOption('exact_tag_match', sanitize($_POST['tag_match']));
 	setOption('exact_string_match', sanitize($_POST['string_match']));
@@ -42,7 +42,6 @@ function saveOptions() {
 		}
 		setOption('search_image_sort_direction', $direction);
 	}
-
 	$sorttype = strtolower(sanitize($_POST['subalbumsortby'], 3));
 	if ($sorttype == 'custom')
 		$sorttype = strtolower(sanitize($_POST['customalbumsort'], 3));
@@ -52,42 +51,13 @@ function saveOptions() {
 	} else {
 		setOption('search_album_sort_direction', isset($_POST['album_sortdirection']));
 	}
-
-	if (isset($_POST['articlesortby'])) {
-		$sorttype = strtolower(sanitize($_POST['articlesortby'], 3));
-		setOption('search_article_sort_type', $sorttype);
-		if ($sorttype == 'random') {
-			setOption('search_article_sort_direction', 0);
-		} else {
-			if (empty($sorttype)) {
-				$direction = 0;
-			} else {
-				$direction = isset($_POST['article_sortdirection']);
-			}
-			setOption('search_article_sort_direction', $direction);
-		}
-	}
-	if (isset($_POST['pagesortby'])) {
-		$sorttype = strtolower(sanitize($_POST['pagesortby'], 3));
-		setOption('search_page_sort_type', $sorttype);
-		if ($sorttype == 'random') {
-			setOption('search_page_sort_direction', 0);
-		} else {
-			if (empty($sorttype)) {
-				$direction = 0;
-			} else {
-				$direction = isset($_POST['page_sortdirection']);
-			}
-			setOption('search_page_sort_direction', $direction);
-		}
-	}
 	$returntab = "&tab=search";
 
 	return array($returntab, $notify, NULL, NULL, NULL);
 }
 
 function getOptionContent() {
-	global $_gallery, $_sortby, $_CMS;
+	global $_zp_gallery, $_zp_sortby;
 	?>
 	<div id="tab_search" class="tabbox">
 		<form class="dirtylistening" onReset="toggle_passwords('', false);
@@ -287,7 +257,7 @@ function getOptionContent() {
 					<p>
 						<?php echo gettext('language specific tags'); ?>
 						<label>
-							<input type="radio" name="languageTagSearch"  value="" <?php if (getOption('languageTagSearch') == 0) echo ' checked="checked"'; ?> /><?php echo gettext('off'); ?>
+							<input type="radio" name="languageTagSearch"  value="" <?php if (getOption('languageTagSearch') == 1) echo ' checked="checked"'; ?> /><?php echo gettext('off'); ?>
 						</label>
 						<label>
 							<input type="radio" name="languageTagSearch"  value="1" <?php if (getOption('languageTagSearch') == 1) echo ' checked="checked"'; ?> /><?php echo gettext('generic'); ?>
@@ -368,11 +338,6 @@ function getOptionContent() {
 					<td class="option_name"><?php echo gettext('Cache expiry'); ?></td>
 					<td class="option_value">
 						<?php printf(gettext('redo search after %s minutes.'), '<input type="textbox" size="4" name="search_cache_duration" value="' . getOption('search_cache_duration') . '" />'); ?>
-						<br />
-						<label>
-							<input type="checkbox" name="cache_random_search" value="1" <?php if (getoption('cache_random_search')) echo ' checked="checked"'; ?>>
-							<?php echo gettext('cache searches which return randomly sorted items'); ?>
-						</label>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -384,15 +349,14 @@ function getOptionContent() {
 					</td>
 				</tr>
 				<?php
-				$sort = $_sortby;
+				$sort = $_zp_sortby;
 				$sort[gettext('Custom')] = 'custom';
-				$sort[gettext('Album order')] = 'sort_order';
 				?>
 				<tr>
 					<td class="option_name"><?php echo gettext("Sort albums by"); ?> </td>
-					<td class="option_value">
+					<td colspan="100%">
 						<span class="nowrap">
-							<select id="albumsortselect" style="width: 50%" name="subalbumsortby" onchange="update_direction(this, 'album_direction_div', 'album_custom_div');">
+							<select id="albumsortselect" name="subalbumsortby" onchange="update_direction(this, 'album_direction_div', 'album_custom_div');">
 								<?php
 								$cvt = $type = strtolower(getOption('search_album_sort_type'));
 								if ($type && !in_array($type, $sort)) {
@@ -435,24 +399,14 @@ function getOptionContent() {
 							</span>
 						</span>
 					</td>
-					<td class="option_desc">
-						<span class="option_info">
-							<?php echo INFORMATION_BLUE; ?>
-							<div class="option_desc_hidden">
-								<?php echo gettext('Search will return items in the selected order.'); ?>
-							</div>
-						</span>
-					</td>
 
 				</tr>
-				<?php
-				unset($sort[gettext('Album order')]);
-				?>
+
 				<tr>
 					<td class="option_name"><?php echo gettext("Sort images by"); ?> </td>
-					<td class="option_value">
+					<td colspan="100%">
 						<span class="nowrap">
-							<select id="imagesortselect" style="width: 50%" name="sortby" onchange="update_direction(this, 'image_direction_div', 'image_custom_div')">
+							<select id="imagesortselect" name="sortby" onchange="update_direction(this, 'image_direction_div', 'image_custom_div')">
 								<?php
 								$cvt = $type = strtolower(getOption('search_image_sort_type'));
 								if ($type && !in_array($type, $sort)) {
@@ -496,124 +450,8 @@ function getOptionContent() {
 							</span>
 						</span>
 					</td>
-					<td></td>
-				</tr>
 
-				<?php
-				if (extensionEnabled('zenpage')) {
-					unset($sort[gettext('Filemtime')]);
-					unset($sort[gettext('Filename')]);
-					if ($_CMS->news_enabled) {
-						?>
-						<tr>
-							<td class="option_name"><?php echo gettext("Sort articles by"); ?> </td>
-							<td class="option_value">
-								<span class="nowrap">
-									<select id="articlesortselect" style="width: 50%" name="articlesortby" onchange="update_direction(this, 'article_direction_div', 'article_custom_div')">
-										<?php
-										$cvt = $type = strtolower(getOption('search_article_sort_type'));
-										if ($type && !in_array($type, $sort)) {
-											$cv = array('custom');
-										} else {
-											$cv = array($type);
-										}
-										generateListFromArray($cv, $sort, false, true);
-										?>
-									</select>
-									<?php
-									if (($type == 'random') || ($type == '')) {
-										$dsp = 'none';
-									} else {
-										$dsp = 'inline';
-									}
-									?>
-									<label id="article_direction_div" style="display:<?php echo $dsp; ?>;white-space:nowrap;">
-										<?php echo gettext("descending"); ?>
-										<input type="checkbox" name="article_sortdirection" value="1"
-										<?php
-										if (getOption('search_article_sort_direction')) {
-											echo ' checked="checked"';
-										}
-										?> />
-									</label>
-								</span>
-								<?php
-								$flip = array_flip($sort);
-								if (empty($type) || isset($flip[$type])) {
-									$dsp = 'none';
-								} else {
-									$dsp = 'block';
-								}
-								?>
-								<span id="article_custom_div" class="customText" style="display:<?php echo $dsp; ?>;white-space:nowrap;">
-									<br />
-									<?php echo gettext('custom fields') ?>
-									<span class="tagSuggestContainer">
-										<input id="customarticlesort" class="customarticlesort" name="customarticlesort" type="text" value="<?php echo html_encode($cvt); ?>" />
-									</span>
-								</span>
-							</td>
-							<td></td>
-						</tr>
-						<?php
-					}
-					if ($_CMS->pages_enabled) {
-						$sort[gettext('Page order')] = 'sort_order';
-						?>
-						<tr>
-							<td class="option_name"><?php echo gettext("Sort pages by"); ?> </td>
-							<td class="option_value">
-								<span class="nowrap">
-									<select id="pagesortselect" style="width: 50%" name="pagesortby" onchange="update_direction(this, 'page_direction_div', 'page_custom_div')">
-										<?php
-										$cvt = $type = strtolower(getOption('search_page_sort_type'));
-										if ($type && !in_array($type, $sort)) {
-											$cv = array('custom');
-										} else {
-											$cv = array($type);
-										}
-										generateListFromArray($cv, $sort, false, true);
-										?>
-									</select>
-									<?php
-									if (($type == 'random') || ($type == '')) {
-										$dsp = 'none';
-									} else {
-										$dsp = 'inline';
-									}
-									?>
-									<label id="page_direction_div" style="display:<?php echo $dsp; ?>;white-space:nowrap;">
-										<?php echo gettext("descending"); ?>
-										<input type="checkbox" name="page_sortdirection" value="1"
-										<?php
-										if (getOption('search_page_sort_direction')) {
-											echo ' checked="checked"';
-										}
-										?> />
-									</label>
-								</span>
-								<?php
-								$flip = array_flip($sort);
-								if (empty($type) || isset($flip[$type])) {
-									$dsp = 'none';
-								} else {
-									$dsp = 'block';
-								}
-								?>
-								<span id="page_custom_div" class="customText" style="display:<?php echo $dsp; ?>;white-space:nowrap;">
-									<br />
-									<?php echo gettext('custom fields') ?>
-									<span class="tagSuggestContainer">
-										<input id="custompaagesort" class="custompagesort" name="custompagesort" type="text" value="<?php echo html_encode($cvt); ?>" />
-									</span>
-								</span>
-							</td>
-							<td></td>
-						</tr>
-						<?php
-					}
-				}
-				?>
+				</tr>
 				<tr>
 					<td colspan="100%">
 						<p class="buttons">

@@ -11,11 +11,11 @@
 if (!defined('OFFSET_PATH'))
 	define('OFFSET_PATH', 1);
 require_once(dirname(__FILE__) . "/functions.php");
-require_once(dirname(__FILE__) . "/lib-image.php");
+require_once(dirname(__FILE__) . "/functions-image.php");
 
 $disposal = getOption('protect_full_image');
 if ($disposal == 'No access') { // illegal use of the script!
-	imageProcessing::error('403 Forbidden', gettext("Forbidden"));
+	imageError('403 Forbidden', gettext("Forbidden"));
 } else {
 	if (isset($_GET['dsp'])) {
 		$disposal = sanitize($_GET['dsp']);
@@ -23,7 +23,7 @@ if ($disposal == 'No access') { // illegal use of the script!
 }
 // Check for minimum parameters.
 if (!isset($_GET['a']) || !isset($_GET['i'])) {
-	imageProcessing::error('404 Not Found', gettext("Too few arguments! Image not found."), 'err-imagenotfound.png');
+	imageError('404 Not Found', gettext("Too few arguments! Image not found."), 'err-imagenotfound.png');
 }
 
 list($album8, $image8) = rewrite_get_album_image('a', 'i');
@@ -31,20 +31,16 @@ $album = internalToFilesystem($album8);
 $image = internalToFilesystem($image8);
 
 /* Prevent hotlinking to the full image from other domains. */
-if (getOption('hotlink_protection')) {
-	if (isset($_SERVER['HTTP_REFERER'])) {
-		preg_match('|(.*)//([^/]*)|', $_SERVER['HTTP_REFERER'], $matches);
-		$checkstring = isset($matches[2]) ? preg_replace('/^www./', '', strtolower($matches[2])) : '';
-		if (strpos($checkstring, ":")) {
-			$checkstring = substr($checkstring, 0, strpos($checkstring, ":"));
-		}
-	} else {
-		$checkstring = '';
-	}
+if (getOption('hotlink_protection') && isset($_SERVER['HTTP_REFERER'])) {
+	preg_match('|(.*)//([^/]*)|', $_SERVER['HTTP_REFERER'], $matches);
+	$checkstring = preg_replace('/^www./', '', strtolower($matches[2]));
+	if (strpos($checkstring, ":")) {
+		$checkstring = substr($checkstring, 0, strpos($checkstring, ":"));
+	};
 	if (preg_replace('/^www./', '', strtolower($_SERVER['SERVER_NAME'])) != $checkstring) {
 		/* It seems they are directly requesting the full image. */
 		header('Location: ' . FULLWEBPATH . '/index.php?album=' . $album8 . '&image=' . $image8);
-		exit();
+		exitZP();
 	}
 }
 
@@ -54,32 +50,32 @@ $args = getImageArgs($_GET);
 $args[0] = 'FULL';
 $adminrequest = $args[12];
 
-if ($forbidden = getOption('image_processor_flooding_protection') && (!isset($_GET['check']) || $_GET['check'] != ipProtectTag($album, $image, $args))) {
-	// maybe it was from javascript which does not know better!
-	npg_session_start();
-	$forbidden = !isset($_SESSION['adminRequest']) || $_SESSION['adminRequest'] != @$_COOKIE['user_auth'];
+if ($forbidden = getOption('image_processor_flooding_protection') && (!isset($_GET['check']) || $_GET['check'] != sha1(HASH_SEED . serialize($args)))) {
+	// maybe it was from the tinyZenpage javascript which does not know better!
+	zp_session_start();
+	$forbidden = !isset($_SESSION['adminRequest']) || $_SESSION['adminRequest'] != @$_COOKIE['zp_user_auth'];
 }
 
 $args[0] = 'FULL';
 
 $hash = getOption('protected_image_password');
-if (($hash || !$albumobj->checkAccess()) && !npg_loggedin(VIEW_FULLIMAGE_RIGHTS)) {
+if (($hash || !$albumobj->checkAccess()) && !zp_loggedin(VIEW_FULLIMAGE_RIGHTS)) {
 	//	handle password form if posted
-	handle_password('image_auth', getOption('protected_image_password'), getOption('protected_image_user'));
+	zp_handle_password('zp_image_auth', getOption('protected_image_password'), getOption('protected_image_user'));
 	//check for passwords
-	$authType = 'image_auth';
+	$authType = 'zp_image_auth';
 	$hint = get_language_string(getOption('protected_image_hint'));
 	$show = getOption('protected_image_user');
 	if (empty($hash)) { // check for album password
 		$hash = $albumobj->getPassword();
-		$authType = "album_auth_" . $albumobj->getID();
+		$authType = "zp_album_auth_" . $albumobj->getID();
 		$hint = $albumobj->getPasswordHint();
 		$show = $albumobj->getUser();
 		if (empty($hash)) {
 			$albumobj = $albumobj->getParent();
 			while (!is_null($albumobj)) {
 				$hash = $albumobj->getPassword();
-				$authType = "album_auth_" . $albumobj->getID();
+				$authType = "zp_album_auth_" . $albumobj->getID();
 				$hint = $albumobj->getPasswordHint();
 				$show = $albumobj->getUser();
 				if (!empty($hash)) {
@@ -90,41 +86,41 @@ if (($hash || !$albumobj->checkAccess()) && !npg_loggedin(VIEW_FULLIMAGE_RIGHTS)
 		}
 	}
 	if (empty($hash)) { // check for gallery password
-		$hash = $_gallery->getPassword();
-		$authType = 'gallery_auth';
-		$hint = $_gallery->getPasswordHint();
-		$show = $_gallery->getUser();
+		$hash = $_zp_gallery->getPassword();
+		$authType = 'zp_gallery_auth';
+		$hint = $_zp_gallery->getPasswordHint();
+		$show = $_zp_gallery->getUser();
 	}
 
-	if (empty($hash) || (!empty($hash) && getNPGCookie($authType) != $hash)) {
-		require_once(CORE_SERVERPATH . 'rewrite.php');
+	if (empty($hash) || (!empty($hash) && zp_getCookie($authType) != $hash)) {
+		require_once(SERVERPATH . "/" . ZENFOLDER . '/rewrite.php');
 		require_once(dirname(__FILE__) . "/template-functions.php");
-		require_once(CORE_SERVERPATH . 'lib-controller.php');
-		Controller::load_gallery();
+		require_once(SERVERPATH . "/" . ZENFOLDER . '/functions-controller.php');
+		zp_load_gallery();
 
 		foreach (getEnabledPlugins() as $extension => $plugin) {
 			if ($plugin['priority'] & THEME_PLUGIN) {
 				require_once($plugin['path']);
-				$_loaded_plugins[$extension] = $extension;
+				$_zp_loaded_plugins[$extension] = $extension;
 			}
 		}
 
 		$theme = setupTheme($albumobj);
-		$custom = $_themeroot . '/functions.php';
+		$custom = $_zp_themeroot . '/functions.php';
 		if (file_exists($custom)) {
 			require_once($custom);
 		}
-		$_gallery_page = 'password.php';
-		$_themeScript = $_themeroot . '/password.php';
-		if (!file_exists(internalToFilesystem($_themeScript))) {
-			$_themeScript = CORE_SERVERPATH . 'password.php';
+		$_zp_gallery_page = 'password.php';
+		$_zp_script = $_zp_themeroot . '/password.php';
+		if (!file_exists(internalToFilesystem($_zp_script))) {
+			$_zp_script = SERVERPATH . '/' . ZENFOLDER . '/password.php';
 		}
 		header('Content-Type: text/html; charset=' . LOCAL_CHARSET);
 		header("HTTP/1.0 302 Found");
 		header("Status: 302 Found");
-		header('Last-Modified: ' . NPG_LAST_MODIFIED);
-		include(internalToFilesystem($_themeScript));
-		exit();
+		header('Last-Modified: ' . ZP_LAST_MODIFIED);
+		include(internalToFilesystem($_zp_script));
+		exitZP();
 	}
 }
 
@@ -159,7 +155,7 @@ switch ($suffix) {
 		} else {
 			header('Location: ' . $imageobj->getFullImageURL(), true, 301);
 		}
-		exit();
+		exitZP();
 }
 if ($force_cache = getOption('cache_full_image')) {
 	$cache_file = getImageCacheFilename($album, $image, $args);
@@ -171,8 +167,8 @@ if ($force_cache = getOption('cache_full_image')) {
 }
 
 $process = $rotate = false;
-if (gl_imageCanRotate()) {
-	$rotate = imageProcessing::getRotation($imageobj);
+if (zp_imageCanRotate()) {
+	$rotate = getImageRotation($imageobj);
 	$process = $rotate;
 }
 $watermark_use_image = getWatermarkParam($imageobj, WATERMARK_FULL);
@@ -180,7 +176,6 @@ if ($watermark_use_image == NO_WATERMARK) {
 	$watermark_use_image = '';
 } else {
 	$process = 2;
-	$watermark_use_image = getWatermarkPath($watermark_use_image);
 }
 
 if (isset($_GET['q'])) {
@@ -197,7 +192,7 @@ if (!($process || $force_cache)) { // no processing needed
 		} else {
 			header("Location: " . getAlbumFolder(FULLWEBPATH) . pathurlencode($album) . "/" . rawurlencode($image));
 		}
-		exit();
+		exitZP();
 	} else { // the web server does not have access to the image, have to supply it
 		$fp = fopen($image_path, 'rb');
 		// send the right headers
@@ -210,7 +205,7 @@ if (!($process || $force_cache)) { // no processing needed
 		// dump the picture and stop the script
 		fpassthru($fp);
 		fclose($fp);
-		exit();
+		exitZP();
 	}
 }
 
@@ -222,7 +217,7 @@ if ($disposal == 'Download') {
 
 if (is_null($cache_path) || !file_exists($cache_path)) { //process the image
 	if ($forbidden) {
-		imageProcessing::error('403 Forbidden', gettext("Forbidden(2)"));
+		imageError('403 Forbidden', gettext("Forbidden(2)"));
 	}
 	if ($force_cache && !$process) {
 		// we can just use the original!
@@ -237,25 +232,42 @@ if (is_null($cache_path) || !file_exists($cache_path)) { //process the image
 		}
 	} else {
 		//	have to create the image
-		$iMutex = new npgMutex('i', getOption('imageProcessorConcurrency'));
+		$iMutex = new zpMutex('i', getOption('imageProcessorConcurrency'));
 		$iMutex->lock();
-		$newim = gl_imageGet($image_path);
+		$newim = zp_imageGet($image_path);
 		if ($rotate) {
-			$newim = gl_rotateImage($newim, $rotate);
+			$newim = zp_rotateImage($newim, $rotate);
 		}
 		if ($watermark_use_image) {
-			$newim = imageProcessing::watermarkImage($newim, $watermark_use_image, $image_path);
+			$watermark_image = getWatermarkPath($watermark_use_image);
+			if (!file_exists($watermark_image))
+				$watermark_image = SERVERPATH . '/' . ZENFOLDER . '/images/imageDefault.png';
+			$offset_h = getOption('watermark_h_offset') / 100;
+			$offset_w = getOption('watermark_w_offset') / 100;
+			$watermark = zp_imageGet($watermark_image);
+			$watermark_width = zp_imageWidth($watermark);
+			$watermark_height = zp_imageHeight($watermark);
+			$imw = zp_imageWidth($newim);
+			$imh = zp_imageHeight($newim);
+			$percent = getOption('watermark_scale') / 100;
+			$r = sqrt(($imw * $imh * $percent) / ($watermark_width * $watermark_height));
+			if (!getOption('watermark_allow_upscale')) {
+				$r = min(1, $r);
+			}
+			$nw = round($watermark_width * $r);
+			$nh = round($watermark_height * $r);
+			if (($nw != $watermark_width) || ($nh != $watermark_height)) {
+				$watermark = zp_imageResizeAlpha($watermark, $nw, $nh);
+			}
+			// Position Overlay in Bottom Right
+			$dest_x = max(0, floor(($imw - $nw) * $offset_w));
+			$dest_y = max(0, floor(($imh - $nh) * $offset_h));
+			zp_copyCanvas($newim, $watermark, $dest_x, $dest_y, 0, 0, $nw, $nh);
+			zp_imageKill($watermark);
 		}
-
 		$iMutex->unlock();
-		if (!gl_imageOutputt($newim, $suffix, $cache_path, $quality) && DEBUG_IMAGE) {
+		if (!zp_imageOutput($newim, $suffix, $cache_path, $quality) && DEBUG_IMAGE) {
 			debugLog('full-image failed to create:' . $image);
-		}
-		if (isset($_GET['returncheckmark'])) {
-			//	from the cachemanager cache image generator
-			require_once(CORE_SERVERPATH . 'setup/setup-functions.php');
-			sendImage(0, 'i.php');
-			exit();
 		}
 	}
 }
@@ -275,7 +287,7 @@ if (!is_null($cache_path)) {
 	} else {
 		header('Location: ' . FULLWEBPATH . '/' . CACHEFOLDER . pathurlencode(imgSrcURI($cache_file)), true, 301);
 	}
-	exit();
+	exitZP();
 }
 ?>
 

@@ -19,6 +19,7 @@ img {
 	text-align: center;
 }
 
+
 h1 {
 	display: block;
 	text-align: left;
@@ -318,66 +319,66 @@ ul.language_string_list {
 	border-bottom-width: 5px;
 	width: 16em;
 	line-height: 1.5em;
-}
-
-/* check box label and p styling - edit page */
-
-.box-edit-zenpage label {
-	display: inline;
-}
-
-.checkbox {
-	margin: 0.3em 0px 0em 0px;
-	padding: 0;
-}
 
 
-/* scheduled publishing
---------------------------*/
-.expire {
-	color: red;
-	font-weight: normal;
-}
+	/* check box label and p styling - edit page */
 
-.scheduledate {
-	color: #FF8A00;
-	font-weight: normal;
-}
+	.box-edit-zenpage label {
+		display: inline;
+	}
 
-.inactivescheduledate {
-	color: red;
-	font-weight: bold;
-}
-
-.expiredate {
-	color:#0080C0;
-	font-weight: normal;
-}
-.expired {
-	color: red;
-	font-weight: bold;
-}
-
-div.floatright form {
-	margin-left: 0px;
-	margin-right: 0px;
-}
-
-form#articledatesdropdown,
-form#unpublisheddropdown,
-form#categoriesdropdown {
-	margin-right: 0px;
-}
-
-form#sortorderdropdown {
-	margin-right: 0px;
-}
+	.checkbox {
+		margin: 0.3em 0px 0em 0px;
+		padding: 0;
+	}
 
 
-/* Checkbox category bulk selector */
-#mass_cats_data li {
-	text-align: left;
-	list-style: none;
-	padding: 0;
-	margin: 0  10px 0 -30px;
-}
+	/* scheduled publishing
+	--------------------------*/
+	.expire {
+		color: red;
+		font-weight: normal;
+	}
+
+	.scheduledate {
+		color: #FF8A00;
+		font-weight: normal;
+	}
+
+	.inactivescheduledate {
+		color: red;
+		font-weight: bold;
+	}
+
+	.expiredate {
+		color:#0080C0;
+		font-weight: normal;
+	}
+	.expired {
+		color: red;
+		font-weight: bold;
+	}
+
+	div.floatright form {
+		margin-left: 0px;
+		margin-right: 0px;
+	}
+
+	form#articledatesdropdown,
+	form#unpublisheddropdown,
+	form#categoriesdropdown {
+		margin-right: 0px;
+	}
+
+	form#sortorderdropdown {
+		margin-right: 0px;
+	}
+
+
+	/* Checkbox category bulk selector */
+	#mass_cats_data li {
+		text-align: left;
+		list-style: none;
+		padding: 0;
+		margin: 0  10px 0 -30px;
+	}

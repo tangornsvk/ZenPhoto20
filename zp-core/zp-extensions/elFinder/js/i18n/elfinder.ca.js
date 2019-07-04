@@ -3,15 +3,7 @@
  * @author Sergio Jovani <lesergi@gmail.com>
  * @version 2014-12-19
  */
-(function(root, factory) {
-	if (typeof define === 'function' && define.amd) {
-		define(['elfinder'], factory);
-	} else if (typeof exports !== 'undefined') {
-		module.exports = factory(require('elfinder'));
-	} else {
-		factory(root.elFinder);
-	}
-}(this, function(elFinder) {
+if (elFinder && elFinder.prototype && typeof(elFinder.prototype.i18) == 'object') {
 	elFinder.prototype.i18.ca = {
 		translator : 'Sergio Jovani &lt;lesergi@gmail.com&gt;',
 		language   : 'Català',
@@ -115,7 +107,7 @@
 			'cmdhome'      : 'Inici',
 			'cmdinfo'      : 'Obté informació',
 			'cmdmkdir'     : 'Nova carpeta',
-			'cmdmkfile'    : 'Nou fitxer',
+			'cmdmkfile'    : 'Nou fitxer de text',
 			'cmdopen'      : 'Obre',
 			'cmdpaste'     : 'Enganxa',
 			'cmdquicklook' : 'Previsualitza',
@@ -371,5 +363,5 @@
 			'kindVideoOGG'    : 'Fitxer de vídeo Ogg'
 		}
 	};
-}));
+}
 

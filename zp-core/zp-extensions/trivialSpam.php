@@ -5,20 +5,21 @@
  * for more robust SPAM filters.
  *
  * @author Stephen Billard (sbillard)
- *
- * @package plugins/trivialSpam
- * @pluginCategory admin
+ * 
+ * @package plugins
+ * @subpackage admin
  */
-$plugin_is_filter = 5 | FEATURE_PLUGIN;
+$plugin_is_filter = 5 | CLASS_PLUGIN;
 $plugin_description = gettext("Trivial SPAM filter.");
-$plugin_disable = (isset($_spamFilter) && !extensionEnabled('trivialSpam')) ? sprintf(gettext('Only one SPAM handler plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), $_spamFilter->name) : '';
+$plugin_author = "Stephen Billard (sbillard)";
+$plugin_disable = (isset($_zp_spamFilter) && !extensionEnabled('trivialSpam')) ? sprintf(gettext('Only one SPAM handler plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), $_zp_spamFilter->name) : '';
 
-$option_interface = '_TrivialSpam';
+$option_interface = 'zpTrivialSpam';
 
 if ($plugin_disable) {
 	enableExtension('trivialSpam', 0);
 } else {
-	$_spamFilter = new _TrivialSpam();
+	$_zp_spamFilter = new zpTrivialSpam();
 }
 
 /**
@@ -28,7 +29,7 @@ if ($plugin_disable) {
  * on the commented object.
  *
  */
-class _TrivialSpam {
+class zpTrivialSpam {
 
 	var $name = 'trivialSpam';
 
@@ -59,9 +60,9 @@ class _TrivialSpam {
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		return array(gettext('Action') => array('key' => 'spamFilter_none_action', 'type' => OPTION_TYPE_SELECTOR,
-						'selections' => array(gettext('pass') => 'pass', gettext('moderate') => 'moderate', gettext('reject') => 'reject'),
-						'desc' => gettext('This action will be taken for all messages.')));
+		return array(gettext('Action') => array('key'				 => 'spamFilter_none_action', 'type'			 => OPTION_TYPE_SELECTOR,
+										'selections' => array(gettext('pass') => 'pass', gettext('moderate') => 'moderate', gettext('reject') => 'reject'),
+										'desc'			 => gettext('This action will be taken for all messages.')));
 	}
 
 	/**
@@ -91,7 +92,7 @@ class _TrivialSpam {
 	 * @return int
 	 */
 	function filterMessage($author, $email, $website, $body, $receiver, $ip) {
-		if (npg_loggedin($receiver->manage_rights) || $receiver->isMyItem($receiver->manage_some_rights)) { //	trust "managers"
+		if (zp_loggedin($receiver->manage_rights) || $receiver->isMyItem($receiver->manage_some_rights)) { //	trust "managers"
 			return 2;
 		}
 		$strategy = getOption('spamFilter_none_action');
