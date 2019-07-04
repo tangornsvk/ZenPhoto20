@@ -1,40 +1,44 @@
-<?php include ('inc_header.php'); ?>
+<?php 
+if (extensionEnabled('favoritesHandler')) {
+	include ('inc_header.php');
+?>
 
-	<!-- wrap -->
-		<!-- container -->
-			<!-- page-header -->
+	<!-- .container main -->
+		<!-- .page-header -->
+			<!-- .header -->
 				<h3><?php printGalleryTitle(); ?></h3>
-			</div> <!-- /page-header -->
+			</div><!-- .header -->
+		</div><!-- /.page-header -->
 
-			<div class="breadcrumb">
-				<h4>
-					<?php if (getOption('zpB_homepage')) { ?>
-						<?php printCustomPageURL(getGalleryTitle(), 'gallery'); ?>
-					<?php } else { ?>
-						<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Albums Index'); ?>"><?php echo html_encode(getGalleryTitle()); ?></a>
-					<?php } ?>&raquo;
-					<?php printAlbumTitle(); ?>
-				</h4>
-			</div>
+		<div class="breadcrumb">
+			<h4>
+				<?php printCustomPageURL(getGalleryTitle(), 'gallery', '', '', ' » '); ?><?php printAlbumTitle(); ?>
+			</h4>
+		</div>
 
-			<?php if (extensionEnabled('slideshow')) { ?>
-			<ul class="pager hidden-phone pull-right"> <!--hidden-phone -->
-				<li>
-					<?php printSlideShowLink(gettext('Slideshow')); ?>
-				</li>
-			</ul>
-			<?php } ?>
+		<div class="page-header bottom-margin-reset">
+			<p><?php printAlbumDesc(); ?></p>
+		</div>
 
-			<?php printPageListWithNav('«', '»', false, true, 'pagination', NULL, true, 7); ?>
+		<?php
+		printPageListWithNav('«', '»', false, true, 'pagination pagination-sm', NULL, true, 7);
 
-			<div class="page-header bottom-margin-reset">
-				<p><?php printAlbumDesc(true); ?></p>
-			</div>
+		if (isAlbumPage()) {
+			include('inc_print_album_thumb.php');
+		}
 
-			<?php include('inc_print_album_thumb.php'); ?>
+		if (isImagePage()) {
+			include('inc_print_image_thumb.php');
+		}
 
-			<?php include('inc_print_image_thumb.php'); ?>
+		printPageListWithNav('«', '»', false, true, 'pagination pagination-sm', NULL, true, 7);
+		?>
 
-			<?php printPageListWithNav('«', '»', false, true, 'pagination', NULL, true, 7); ?>
+	</div><!-- /.container main -->
 
-<?php include ('inc_footer.php'); ?>
+<?php
+	include('inc_footer.php');
+} else {
+	include(CORE_SERVERPATH . '404.php');
+}
+?>

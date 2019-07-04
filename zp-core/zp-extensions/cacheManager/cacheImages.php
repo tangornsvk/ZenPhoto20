@@ -3,12 +3,12 @@
  * This template is used to generate cache images. Running it will process the entire gallery,
  * supplying an album name (ex: loadAlbums.php?album=newalbum) will only process the album named.
  * Passing clear=on will purge the designated cache before generating cache images
- * @package plugins
+ * @package plugins/cacheManager
  */
 // force UTF-8 Ø
 define('OFFSET_PATH', 3);
 require_once("../../admin-globals.php");
-require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
+require_once(CORE_SERVERPATH . 'template-functions.php');
 
 
 if (isset($_REQUEST['album'])) {
@@ -19,8 +19,10 @@ if (isset($_REQUEST['album'])) {
 admin_securityChecks($localrights, $return = currentRelativeURL());
 
 function loadAlbum($album) {
-	global $_zp_current_album, $_zp_current_image, $_zp_gallery, $custom, $enabled;
+	global $_current_album, $_current_image, $_gallery, $custom, $enabled, $fullImage;
+	@set_time_limit(200);
 	$subalbums = $album->getAlbums();
+	sort($subalbums);
 	$started = false;
 	$tcount = $count = 0;
 	foreach ($subalbums as $folder) {
@@ -29,7 +31,7 @@ function loadAlbum($album) {
 			$tcount = $tcount + loadAlbum($subalbum);
 		}
 	}
-	$theme = $_zp_gallery->getCurrentTheme();
+	$theme = $_gallery->getCurrentTheme();
 	$id = 0;
 	$parent = getUrAlbum($album);
 	$albumtheme = $parent->getAlbumTheme();
@@ -38,13 +40,13 @@ function loadAlbum($album) {
 		$id = $parent->getID();
 	}
 	loadLocalOptions($id, $theme);
-	$_zp_current_album = $album;
+	$_current_album = $album;
 	if ($album->getNumImages() > 0) {
 		echo "<br />" . $album->name . ' ';
 		while (next_image(true)) {
-			if (isImagePhoto($_zp_current_image)) {
+			if (isImagePhoto($_current_image)) {
 				$countit = 0;
-				if (in_array('*', $enabled)) {
+				if ($fullImage) {
 					$uri = getFullImageURL(NULL, 'Protected view');
 					if (strpos($uri, 'full-image.php?') !== false) {
 						if (!($count + $countit)) {
@@ -56,13 +58,12 @@ function loadAlbum($album) {
 						?>
 						<a href="<?php echo html_encode($uri); ?>&amp;debug">
 							<?php
-							echo '<img src="' . html_encode(pathurlencode($uri)) . '" height="30" width="30" alt="X" />' . "\n";
+							echo '<img src="' . html_encode($uri) . '&returncheckmark" height="16" width="16" alt="X" />' . "\n";
 							?>
 						</a>
 						<?php
 					}
 				}
-
 				foreach ($custom as $key => $cacheimage) {
 					if (in_array($key, $enabled)) {
 						$size = isset($cacheimage['image_size']) ? $cacheimage['image_size'] : NULL;
@@ -70,7 +71,7 @@ function loadAlbum($album) {
 						$height = isset($cacheimage['image_height']) ? $cacheimage['image_height'] : NULL;
 						$thumbstandin = isset($cacheimage['thumb']) ? $cacheimage['thumb'] : NULL;
 						if ($special = ($thumbstandin === true)) {
-							list($special, $cw, $ch, $cx, $cy) = $_zp_current_image->getThumbCropping($size, $width, $height);
+							list($special, $cw, $ch, $cx, $cy) = $_current_image->getThumbCropping($size, $width, $height);
 						}
 						if (!$special) {
 							$cw = isset($cacheimage['crop_width']) ? $cacheimage['crop_width'] : NULL;
@@ -81,37 +82,31 @@ function loadAlbum($album) {
 						$effects = isset($cacheimage['gray']) ? $cacheimage['gray'] : NULL;
 						if (isset($cacheimage['wmk'])) {
 							$passedWM = $cacheimage['wmk'];
+						} else if ($cacheimage['thumb'] < 0) {
+							$passedWM = '!';
+						} else if ($thumbstandin) {
+							$passedWM = getWatermarkParam($_current_image, WATERMARK_THUMB);
 						} else {
-							if ($thumbstandin) {
-								$passedWM = getWatermarkParam($_zp_current_image, WATERMARK_THUMB);
-							} else {
-								$passedWM = getWatermarkParam($_zp_current_image, WATERMARK_IMAGE);
-							}
+							$passedWM = getWatermarkParam($_current_image, WATERMARK_IMAGE);
 						}
-
 						if (isset($cacheimage['maxspace'])) {
-							getMaxSpaceContainer($width, $height, $_zp_current_image, $thumbstandin);
+							getMaxSpaceContainer($width, $height, $_current_image, $thumbstandin);
 						}
 						$args = array($size, $width, $height, $cw, $ch, $cx, $cy, NULL, $thumbstandin, NULL, $thumbstandin, $passedWM, NULL, $effects);
 						$args = getImageParameters($args, $album->name);
-						$uri = getImageURI($args, $album->name, $_zp_current_image->filename, $_zp_current_image->filemtime);
+						$uri = getImageURI($args, $album->name, $_current_image->filename, $_current_image->filemtime);
 						if (strpos($uri, 'i.php?') !== false) {
+							$uri = str_replace('check=', '', $uri);
 							if (!($count + $countit)) {
-								echo "{ ";
+								echo '{ ';
 							} else {
 								echo ' | ';
 							}
 							$countit = 1;
 							?>
-							<a href="<?php echo html_encode($uri); ?>&amp;debug">
-								<?php
-								if ($thumbstandin) {
-									echo '<img src="' . html_encode(pathurlencode($uri)) . '" height="15" width="15" alt="x" />' . "\n";
-								} else {
-									echo '<img src="' . html_encode(pathurlencode($uri)) . '" height="20" width="20" alt="X" />' . "\n";
-								}
-								?>
-							</a>
+							<span>
+								<?php echo '<img src="' . html_encode($uri) . '&returncheckmark" height="16" width="16" alt="X" />' . "\n"; ?>
+							</span>
 							<?php
 						}
 					}
@@ -120,8 +115,7 @@ function loadAlbum($album) {
 			}
 		}
 		if ($count)
-			echo '
-						} ';
+			echo '} ';
 		printf(ngettext('[%u image]', '[%u images]', $count), $count);
 		echo "<br />\n";
 	}
@@ -141,9 +135,9 @@ if ($alb) {
 	$tab = 'edit';
 	$album = newAlbum($folder);
 	if (!$album->isMyItem(ALBUM_RIGHTS)) {
-		if (!zp_apply_filter('admin_managed_albums_access', false, $return)) {
-			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php');
-			exitZP();
+		if (!npgFilters::apply('admin_managed_albums_access', false, $return)) {
+			header('Location: ' . getAdminLink('admin.php'));
+			exit();
 		}
 	}
 } else {
@@ -151,14 +145,16 @@ if ($alb) {
 }
 $custom = array();
 
-$result = query('SELECT * FROM ' . prefix('plugin_storage') . ' WHERE `type` = "cacheManager" ORDER BY `aux`');
+$result = query('SELECT * FROM ' . prefix('plugin_storage') . ' WHERE `type` = "cacheManager"');
 while ($row = db_fetch_assoc($result)) {
-	$row = getSerializedArray($row['data']);
-	$custom[] = $row;
+	$datarow = getSerializedArray($row['data']);
+	if ($datarow['theme']) {
+		$custom[] = $datarow;
+	}
 }
-$custom = sortMultiArray($custom, array('theme', 'thumb', 'image_size', 'image_width', 'image_height'));
+$custom = sortMultiArray($custom, array('theme', 'album', 'thumb', 'image_size', 'image_width', 'image_height'), false, true, true);
 
-if (isset($_GET['select'])) {
+if (isset($_GET['action']) && $_GET['action'] == 'select') {
 	XSRFdefender('cacheImages');
 	$enabled = @$_POST['enable'];
 } else {
@@ -173,36 +169,48 @@ printLogoAndLinks();
 echo "\n" . '<div id = "main">';
 printTabs();
 echo "\n" . '<div id = "content">';
-zp_apply_filter('admin_note', 'cache', '');
+npgFilters::apply('admin_note', 'cache', '');
 $clear = sprintf(gettext('Refresh cache for %s'), $object);
 $count = 0;
 
 if ($alb) {
-	$r = '/admin-edit.php?page = edit&album = ' . $alb;
+	$r = '/admin-tabs/edit.php?page = edit&album=' . $alb;
 	echo "\n<h1>" . $clear . "</h1>";
 } else {
 	$r = '/admin.php';
 	echo "\n<h1>" . $clear . "</h1>";
 }
 ?>
+
+<script type="text/javascript">
+	$(function () {
+		$('img').on("error", function () {
+			var link = $(this).attr('src');
+			var title = $(this).attr('title');
+			$(this).parent().html('<a href="' + link + '&debug" target="_blank" title="' + title + '"><?php echo CROSS_MARK_RED; ?></a>');
+		});
+	});
+</script>
+
 <div class="tabbox">
 	<?php
 	$cachesizes = 0;
-	$currenttheme = $_zp_gallery->getCurrentTheme();
+	$currenttheme = $_gallery->getCurrentTheme();
 	$themes = array();
-	foreach ($_zp_gallery->getThemes() as $theme => $data) {
+	foreach ($_gallery->getThemes() as $theme => $data) {
 		$themes[$theme] = $data['name'];
 	}
 	$last = '';
 	cacheManager::printShowHide();
 	?>
 
-	<form class="dirtylistening" onReset="setClean('size_selections');" id="size_selections" name="size_selections" action="?tab=images&select&album=<?php echo $alb; ?>" method="post" autocomplete="off">
+	<form class="dirtylistening" onReset="setClean('size_selections');" id="size_selections" name="size_selections" action="?tab=images&action=select&album=<?php echo $alb; ?>" method="post" autocomplete="off">
 		<?php XSRFToken('cacheImages') ?>
 		<ol class="no_bullets">
 			<?php
 			if (getOption('cache_full_image') && (!is_array($enabled) || in_array('*', $enabled))) {
 				if (is_array($enabled)) {
+					$fullImage = true;
 					unset($enabled[array_search('*', $enabled)]);
 					$checked = ' checked="checked" disabled="disabled"';
 				} else {
@@ -215,26 +223,38 @@ if ($alb) {
 					if (!is_array($enabled)) {
 						?>
 						<span class="icons" id="<?php echo $theme; ?>_arrow">
-							<img class="icon-position-top4" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/images/placeholder.png'; ?>" alt="" />
+							<img class="icon-position-top4" src="<?php echo WEBPATH . '/' . CORE_FOLDER . '/images/placeholder.png'; ?>" alt="" />
 						</span>
 						<?php
 					}
 					?>
 					<label>
-						<input type="checkbox" name="enable[]" value="*" <?php echo $checked; ?> />
+						<input type="checkbox" name="enable[*]" value="*" <?php echo $checked; ?> />
 						<?php echo gettext('Apply'); ?> <code><?php echo gettext('Full Image'); ?></code>
 					</label>
 				</li>
 				<?php
 			}
-
 			$seen = array();
+
 			foreach ($custom as $key => $cacheimage) {
 				if (!is_array($enabled) || in_array($key, $enabled)) {
+					$themeid = $cacheimage['theme'];
+					$theme = preg_replace('/[^A-Za-z0-9\-_]/', '', $themeid);
+					if (isset($themes[$theme])) {
+						$themeid = $themes[$theme];
+					}
+					if (isset($cacheimage['album']) && $cacheimage['album']) {
+						$theme .= '_' . $cacheimage['album'];
+						$themeid .= ' (' . $cacheimage['album'] . ')';
+					} else {
+						$cacheimage['album'] = NULL;
+					}
+
 					if (is_array($enabled)) {
 						$checked = ' checked="checked" disabled="disabled"';
 					} else {
-						if ($currenttheme == $cacheimage['theme'] || $cacheimage['theme'] == 'admin') {
+						if ($currenttheme == $cacheimage['theme'] || $cacheimage['theme'] == 'admin' || $cacheimage['album']) {
 							$checked = ' checked="checked"';
 						} else {
 							$checked = '';
@@ -258,15 +278,15 @@ if ($alb) {
 							$postfix = str_replace('_w', '_wMax', $postfix);
 							$postfix = str_replace('_h', '_hMax', $postfix);
 						} else {
-							$postfix = '_' . gettext('invalid_MaxSpace');
+							$postfix = '_' . gettext('invalid MaxSpace');
 							$checked = ' disabled="disabled"';
 						}
 					}
-					$themeid = $cacheimage['theme'];
-					$theme = preg_replace('/[^A-Za-z0-9\-_]/', '', $themeid);
-					if (isset($themes[$theme])) {
-						$themeid = $themes[$theme];
+					if (empty($postfix)) {
+						$postfix = gettext('invalid Cache Set');
+						$checked = ' disabled="disabled"';
 					}
+
 					if ($theme != $last && !is_array($enabled)) {
 						if ($last) {
 							?>
@@ -284,7 +304,7 @@ if ($alb) {
 							</a>
 						</span>
 						<label>
-							<input type="checkbox" name="<?php echo $theme; ?>" id="<?php echo $theme; ?>" value="" onclick="checkTheme('<?php echo $theme; ?>');"<?php echo $checked; ?> /><?php printf(gettext('all sizes for <i>%1$s</i>'), $themeid); ?>
+							<input type="checkbox" name="<?php echo $theme; ?>" id="<?php echo $theme; ?>" value="" onclick="checkTheme('<?php echo $theme; ?>');"<?php echo $checked; ?> /><?php printf(gettext('all sizes for <em>%1$s</em>'), $themeid); ?>
 						</label>
 						<span id="<?php echo $theme; ?>_list" style="display:none">
 							<ol class="no_bullets"><!-- <?php echo $last; ?> -->
@@ -336,8 +356,8 @@ if ($alb) {
 					$album = newAlbum($folder);
 					$count = loadAlbum($album);
 				} else {
-					$albums = $_zp_gallery->getAlbums();
-					shuffle($albums);
+					$albums = $_gallery->getAlbums();
+					sort($albums);
 					foreach ($albums as $folder) {
 						$album = newAlbum($folder);
 						if (!$album->isDynamic()) {
@@ -381,9 +401,7 @@ if ($alb) {
 	<?php
 	echo "\n" . '</div>';
 	echo "\n" . '</div>';
-	echo "\n" . '</div>';
-
 	printAdminFooter();
-
+	echo "\n" . '</div>';
 	echo "\n</body>";
 	?>

@@ -2,12 +2,11 @@
 /**
  * This is the "files" upload tab
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/elFinder
  */
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 admin_securityChecks(FILES_RIGHTS | UPLOAD_RIGHTS, currentRelativeURL());
-zp_setCookie('uploadtype', 'elFinder');
+setNPGCookie('uploadtype', 'elFinder');
 $locale = substr(getOption('locale'), 0, 2);
 if (empty($locale))
 	$locale = 'en';
@@ -15,23 +14,22 @@ printAdminHeader('upload', 'files');
 
 if (isset($_REQUEST['themeEdit'])) {
 	$theme = sanitize($_REQUEST['themeEdit']);
-	$_zp_admin_tab = 'themes';
+	$_admin_tab = 'themes';
 	$title = gettext('Theme Manager');
 } else {
 	$theme = false;
 	$title = gettext('File Manager');
 }
-?>
-
-<link rel="stylesheet" type="text/css" media="screen" href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/elFinder/'; ?>css/elfinder.min.css">
-<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/elFinder/'; ?>js/elfinder.min.js"></script>
-<link rel="stylesheet" type="text/css" media="screen" href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/elFinder/'; ?>css/theme.css">
-<?php
+scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/elFinder/css/elfinder.min.css');
+scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/elFinder/css/theme.css');
+scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/elFinder/js/elfinder.min.js');
 if ($locale != 'en') {
 	?>
-	<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/elFinder/'; ?>js/i18n/elfinder.<?php echo $locale; ?>.js"></script>
+	<!-- elFinder translation (OPTIONAL) -->
 	<?php
+	scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/elFinder/js/i18n/elfinder' . $locale . '.js');
 }
+
 echo "\n</head>";
 ?>
 
@@ -45,7 +43,7 @@ echo "\n</head>";
 			<div id="container">
 				<?php
 				$subtab = getCurrentTab();
-				zp_apply_filter('admin_note', 'upload', $subtab);
+				npgFilters::apply('admin_note', 'upload', $subtab);
 				?>
 				<h1><?php echo $title; ?></h1>
 				<div class="tabbox">
@@ -55,10 +53,10 @@ echo "\n</head>";
 								lang: '<?php echo $locale; ?>', // language (OPTIONAL)
 								customData: {
 									'XSRFToken': '<?php echo getXSRFToken('elFinder'); ?>',
-									'zp_user_auth': '<?php echo zp_getCookie('zp_user_auth'); ?>',
+									'user_auth': '<?php echo getNPGCookie('user_auth'); ?>',
 <?php
 if ($theme) {
-	if (zp_loggedin(THEMES_RIGHTS) && is_dir(SERVERPATH . '/' . THEMEFOLDER . '/' . $theme)) {
+	if (npg_loggedin(THEMES_RIGHTS) && is_dir(SERVERPATH . '/' . THEMEFOLDER . '/' . $theme)) {
 		?>
 											'themeEdit': '<?php echo $theme; ?>',
 		<?php
@@ -69,12 +67,12 @@ if ($theme) {
 ?>
 									'origin': 'upload'
 								},
-								url: '<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/elFinder/php/connector_zp.php'  				// connector URL (REQUIRED)
+								url: '<?php echo WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER; ?>/elFinder/php/connector_npg.php'  		// connector URL (REQUIRED)
 							}).elfinder('instance');
 						});
 					</script>
 					<?php
-					if (zp_loggedin(ALBUM_RIGHTS) && !$theme) {
+					if (npg_loggedin(ALBUM_RIGHTS) && !$theme) {
 						?>
 						<p class="notebox">
 							<?php echo gettext('<strong>Note:</strong> Accessing the Albums folder with this utility is equivalent to using FTP to access it. <em>Copy</em> and <em>rename</em> do not carry the database data with the change.'); ?>
@@ -87,9 +85,8 @@ if ($theme) {
 				</div>
 			</div>
 		</div>
+		<?php printAdminFooter(); ?>
 	</div>
-	<?php printAdminFooter(); ?>
-
 </body>
 </html>
 <?php ?>

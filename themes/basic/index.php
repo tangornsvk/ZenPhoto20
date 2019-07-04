@@ -6,15 +6,18 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
+		<?php
+		npgFilters::apply('theme_head');
+		scriptLoader($zenCSS);
+		scriptLoader(dirname(dirname($zenCSS)) . '/common.css');
 
-		<?php zp_apply_filter('theme_head'); ?>
-
-		<link rel="stylesheet" href="<?php echo pathurlencode($zenCSS); ?>" type="text/css" />
-		<link rel="stylesheet" href="<?php echo pathurlencode(dirname(dirname($zenCSS))); ?>/common.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
+		if (class_exists('RSS')) {
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		}
+		?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 		<div id="main">
 			<div id="gallerytitle">
 				<?php
@@ -30,7 +33,10 @@ if (!defined('WEBPATH'))
 			<div id="padbox">
 				<?php printGalleryDesc(); ?>
 				<div id="albums">
-					<?php while (next_album()): ?>
+					<?php
+					printCodeblock(1);
+					while (next_album()) {
+						?>
 						<div class="album">
 							<div class="thumb">
 								<a href="<?php echo html_encode(getAlbumURL()); ?>" title="<?php echo gettext('View album:'); ?> <?php printAnnotatedAlbumTitle(); ?>"><?php printAlbumThumbImage(getAnnotatedAlbumTitle()); ?></a>
@@ -42,10 +48,44 @@ if (!defined('WEBPATH'))
 							</div>
 							<p style="clear: both; "></p>
 						</div>
-					<?php endwhile; ?>
+					<?php } ?>
+
 				</div>
 				<br class="clearall">
-				<?php printPageListWithNav("« " . gettext("prev"), gettext("next") . " »"); ?>
+				<?php
+				printCodeblock(2);
+				printPageListWithNav("« " . gettext("prev"), gettext("next") . " »");
+				$pages = $news = NULL;
+				if (extensionEnabled('zenpage')) {
+					$news = hasNews();
+					$pages = hasPages();
+				}
+				if ($pages || $news) {
+					?>
+					<br /><hr />
+					<?php
+					if ($news) {
+						?>
+						<span class="zp_link">
+							<?php
+							printCustomPageURL(NEWS_LABEL, 'news');
+							?>
+						</span>
+						<?php
+					}
+					if ($pages) {
+						$pages = $_CMS->getPages(NULL, true); // top level only
+						foreach ($pages as $item) {
+							$pageobj = newPage($item['titlelink']);
+							?>
+							<span class="zp_link">
+								<a href="<?php echo $pageobj->getLink(); ?>"><?php echo html_encode($pageobj->getTitle()); ?></a>
+							</span>
+							<?php
+						}
+					}
+				}
+				?>
 			</div>
 		</div>
 		<div id="credit">
@@ -58,12 +98,13 @@ if (!defined('WEBPATH'))
 			<?php if (class_exists('RSS')) printRSSLink('Gallery', '', 'RSS', ' | '); ?>
 			<?php printCustomPageURL(gettext("Archive View"), "archive"); ?> |
 			<?php
+			if (extensionEnabled('daily-summary')) {
+				printDailySummaryLink(gettext('Daily summary'), '', '', ' | ');
+			}
 			if (extensionEnabled('contact_form')) {
 				printCustomPageURL(gettext('Contact us'), 'contact', '', '', ' | ');
 			}
-			?>
-			<?php
-			if (!zp_loggedin() && function_exists('printRegisterURL')) {
+			if (!npg_loggedin() && function_exists('printRegisterURL')) {
 				printRegisterURL(gettext('Register for this site'), '', ' | ');
 			}
 			?>
@@ -72,7 +113,7 @@ if (!defined('WEBPATH'))
 		<?php @call_user_func('mobileTheme::controlLink'); ?>
 		<?php @call_user_func('printLanguageSelector'); ?>
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

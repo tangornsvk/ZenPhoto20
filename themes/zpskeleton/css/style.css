@@ -531,20 +531,20 @@ p.readmorelink a:hover{border-color:#aaa;}
 
 /* Admin Toolbox
 ------------------------------ */
-#admin{
+#admin_tb{
 	top: 55px;
 }
-#admin_data{
+#admin_tb_data{
 	top: 85px;
 }
-#admin h3 {
+#admin_tb h3 {
 
 	font-weight: normal;
 	font-size:12px;
 	margin: 0;
 	padding: 0;
 	text-align: center;}
-#admin h3:hover {
+#admin_tb h3:hover {
 	color: #036;}
 
 .alert-message,.errorbox,.notebox{
@@ -874,4 +874,46 @@ or wrap each row of columns in a <div class="row"> */
 
 #loginform button[type] {
 	background-color: #F7F8F9;
+}
+
+.g-recaptcha > div{
+	margin: 10px auto !important;
+	padding-left: 100px;
+	width: auto !important;
+	height: auto !important;
+}
+
+.disclose_password_show {
+	padding-right: 400px !important;
+}
+
+ul.pagelist {
+	clear: both;
+	padding: 0;
+	margin: 20px 0 0 0;
+	list-style-type: none;
+}
+ul.pagelist li {
+	display: inline;
+}
+ul.pagelist li a, ul.pagelist span.disabledlink {
+	padding: 4px;
+}
+ul.pagelist li.current a {
+	color: gray; /*denotes the current page were on (1..5 etc) (I'm hiding it in the background)*/
+}
+ul.pagelist li.prev {
+	margin-right: 10px;
+}
+ul.pagelist li.next {
+	margin-left: 10px;
+}
+.pagenav {
+	clear: both;
+}
+
+#latest li, .latest li{
+	float: left;
+	padding-left: 25px;
+	padding-right: 25px;
 }

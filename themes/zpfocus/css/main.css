@@ -1,3 +1,10 @@
+/* start with a clean slate */
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
 html, body, div, span, applet, object, iframe,
 h1, h2, h3, h4, h5, h6, p, blockquote, pre,
 a, abbr, acronym, address, big, cite, code,
@@ -318,17 +325,17 @@ html[xmlns] .clearfix {display: block;}
 
 /* Admin Toolbox */
 
-#admin_data {
+#admin_tb_data {
 	top: 40px;
 }
-#admin h3 {
+#admin_tb h3 {
 	font-weight: normal;
 	font-size:12px;
 	margin: 0;
 	padding: 0;
 	text-align: center;
 }
-#admin h3:hover {
+#admin_tb h3:hover {
 	color: #036;}
 
 /* Alert boxes */
@@ -510,4 +517,34 @@ li.sfHover > a > .sf-sub-indicator {
 
 #loginform button[type] {
 	background-color: #F7F8F9;
+}
+
+.disclose_password_show {
+	padding-right: 80px !important;
+}
+
+
+ul.pagelist {
+	clear: both;
+	padding: 0;
+	margin: 20px 0 0 0;
+	list-style-type: none;
+}
+ul.pagelist li {
+	display: inline;
+}
+ul.pagelist li a, ul.pagelist span.disabledlink {
+	padding: 4px;
+}
+ul.pagelist li.current a {
+	color: __C_50__ ; /*denotes the current page were on (1..5 etc) (I'm hiding it in the background)*/
+}
+ul.pagelist li.prev {
+	margin-right: 10px;
+}
+ul.pagelist li.next {
+	margin-left: 10px;
+}
+.pagenav {
+	clear: both;
 }

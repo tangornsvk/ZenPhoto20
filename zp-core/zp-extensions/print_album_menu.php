@@ -15,22 +15,17 @@
  *
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard)
- * @package plugins
- * @subpackage theme
+ * @package plugins/print_album_menu
+ * @pluginCategory theme
  */
 $plugin_description = gettext("Adds a theme function to print an album menu either as a nested list or as a dropdown menu.");
-$plugin_author = "Malte Müller (acrylian), Stephen Billard (sbillard)";
 
 $option_interface = 'print_album_menu';
 
-if (!defined('MENU_TRUNCATE_STRING'))
-	define('MENU_TRUNCATE_STRING', getOption('menu_truncate_string'));
-if (!defined('MENU_TRUNCATE_INDICATOR'))
-	define('MENU_TRUNCATE_INDICATOR', getOption('menu_truncate_indicator'));
 define('ALBUM_MENU_COUNT', getOption('print_album_menu_count'));
 define('ALBUM_MENU_SHOWSUBS', getOption('print_album_menu_showsubs'));
 
-$_zp_albums_visited_albumMenu = array();
+$_albums_visited_albumMenu = array();
 
 /**
  * Plugin option handling class
@@ -42,8 +37,6 @@ class print_album_menu {
 		if (OFFSET_PATH == 2) {
 			setOptionDefault('print_album_menu_showsubs', 0);
 			setOptionDefault('print_album_menu_count', 1);
-			setOptionDefault('menu_truncate_string', 0);
-			setOptionDefault('menu_truncate_indicator', '');
 		}
 	}
 
@@ -82,7 +75,7 @@ class print_album_menu {
  * that was included to remain compatiblility with older installs of this menu.
  *
  * Usage: add the following to the php page where you wish to use these menus:
- * enable this extension on the zenphoto admin plugins tab.
+ * enable this extension on the admin plugins tab.
  * Call the function printAlbumMenu() at the point where you want the menu to appear.
  *
  * @param string $option
@@ -117,7 +110,7 @@ function printAlbumMenu($option, $showcount = NULL, $css_id = '', $css_class_top
  * Prints a nested html list of all albums context sensitive.
  *
  * Usage: add the following to the php page where you wish to use these menus:
- * enable this extension on the zenphoto admin plugins tab;
+ * enable this extension on the admin plugins tab;
  * Call the function printAlbumMenuList() at the point where you want the menu to appear.
  *
  * @param string $option
@@ -139,17 +132,17 @@ function printAlbumMenu($option, $showcount = NULL, $css_id = '', $css_class_top
  * @return html list of the albums
  */
 function printAlbumMenuList($option, $showcount = NULL, $css_id = '', $css_class_topactive = '', $css_class = '', $css_class_active = '', $indexname = "Gallery Index", $showsubs = NULL, $firstimagelink = false, $keeptopactive = false, $startlist = true, $limit = NULL) {
-	global $_zp_gallery, $_zp_current_album, $_zp_gallery_page;
+	global $_gallery, $_current_album, $_gallery_page;
 	// if in search mode don't use the foldout contextsensitiveness and show only toplevel albums
-	if (in_context(ZP_SEARCH_LINKED)) {
+	if (in_context(SEARCH_LINKED)) {
 		$option = "list-top";
 	}
 
 	$albumpath = rewrite_path("/", "/index.php?album=");
-	if (empty($_zp_current_album) || ($_zp_gallery_page != 'album.php' && $_zp_gallery_page != 'image.php')) {
+	if (empty($_current_album) || ($_gallery_page != 'album.php' && $_gallery_page != 'image.php')) {
 		$currentfolder = "";
 	} else {
-		$currentfolder = $_zp_current_album->name;
+		$currentfolder = $_current_album->name;
 	}
 
 	if (is_null($css_id)) {
@@ -175,10 +168,10 @@ function printAlbumMenuList($option, $showcount = NULL, $css_id = '', $css_class
 		}
 	}
 
-	if ($option == 'list-sub' && in_context(ZP_ALBUM)) {
-		$albums = $_zp_current_album->getAlbums();
+	if ($option == 'list-sub' && in_context(NPG_ALBUM)) {
+		$albums = $_current_album->getAlbums();
 	} else {
-		$albums = $_zp_gallery->getAlbums();
+		$albums = $_gallery->getAlbums();
 	}
 
 	printAlbumMenuListAlbum($albums, $currentfolder, $option, $showcount, $showsubs, $css_class, $css_class_topactive, $css_class_active, $firstimagelink, $keeptopactive, $limit);
@@ -203,7 +196,7 @@ function printAlbumMenuList($option, $showcount = NULL, $css_id = '', $css_class
  * @param int $limit truncation of display text
  */
 function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsubs, $css_class, $css_class_topactive, $css_class_active, $firstimagelink, $keeptopactive, $limit = NULL) {
-	global $_zp_gallery, $_zp_current_album, $_zp_current_search, $_zp_albums_visited_albumMenu;
+	global $_gallery, $_current_album, $_current_search, $_albums_visited_albumMenu;
 	if (is_null($limit)) {
 		$limit = MENU_TRUNCATE_STRING;
 	}
@@ -229,7 +222,7 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
 						);
 
 		if ($process && hasDynamicAlbumSuffix($album) && !is_dir(ALBUM_FOLDER_SERVERPATH . $album)) {
-			if (in_array($album, $_zp_albums_visited_albumMenu))
+			if (in_array($album, $_albums_visited_albumMenu))
 				$process = false; // skip already seen dynamic albums
 		}
 		$albumobj = newAlbum($album, true);
@@ -244,8 +237,8 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
 				$css_class_t = $css_class_active . $has_password;
 			}
 			if ($keeptopactive) {
-				if (isset($_zp_current_album) && is_object($_zp_current_album)) {
-					$currenturalbum = getUrAlbum($_zp_current_album);
+				if (isset($_current_album) && is_object($_current_album)) {
+					$currenturalbum = getUrAlbum($_current_album);
 					$currenturalbumname = $currenturalbum->name;
 				}
 			}
@@ -269,9 +262,9 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
 				}
 			}
 
-			if ((in_context(ZP_ALBUM) && !in_context(ZP_SEARCH_LINKED) && (@$_zp_current_album->getID() == $albumobj->getID() ||
+			if ((in_context(NPG_ALBUM) && !in_context(SEARCH_LINKED) && (@$_current_album->getID() == $albumobj->getID() ||
 							$albumobj->name == $currenturalbumname)) ||
-							(in_context(ZP_SEARCH_LINKED)) && ($a = $_zp_current_search->getDynamicAlbum()) && $a->name == $albumobj->name) {
+							(in_context(SEARCH_LINKED)) && ($a = $_current_search->getDynamicAlbum()) && $a->name == $albumobj->name) {
 				$current = $css_class_t;
 			} else {
 				$current = "";
@@ -293,9 +286,9 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
 			$subalbums = $albumobj->getAlbums();
 			if (!empty($subalbums)) {
 				echo "\n" . '<ul class="' . $css_class . '">' . "\n";
-				array_push($_zp_albums_visited_albumMenu, $album);
+				array_push($_albums_visited_albumMenu, $album);
 				printAlbumMenuListAlbum($subalbums, $folder, $option, $showcount, $showsubs, $css_class, $css_class_topactive, $css_class_active, $firstimagelink, false, $limit);
-				array_pop($_zp_albums_visited_albumMenu);
+				array_pop($_albums_visited_albumMenu);
 				echo "\n</ul>\n";
 			}
 		}
@@ -310,7 +303,7 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
  * Is used by the wrapper function printAlbumMenu() if the options "jump" is choosen. For standalone use, too.
  *
  * Usage: add the following to the php page where you wish to use these menus:
- * enable this extension on the zenphoto admin plugins tab;
+ * enable this extension on the admin plugins tab;
  * Call the function printAlbumMenuJump() at the point where you want the menu to appear.
  *
  * @param string $option "count" for a image counter in brackets behind the album name, "" = for no image numbers
@@ -320,9 +313,9 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
  * @param bool $skipform If set to false this prints a full form option select list (default), if set to true it will only print the options
  */
 function printAlbumMenuJump($option = "count", $indexname = "Gallery Index", $firstimagelink = false, $showsubs = NULL, $skipform = false) {
-	global $_zp_gallery, $_zp_current_album, $_zp_gallery_page;
-	if (!is_null($_zp_current_album) || $_zp_gallery_page == 'album.php') {
-		$currentfolder = $_zp_current_album->name;
+	global $_gallery, $_current_album, $_gallery_page;
+	if (!is_null($_current_album) || $_gallery_page == 'album.php') {
+		$currentfolder = $_current_album->name;
 	}
 	if (is_null($showsubs)) {
 		$showsubs = ALBUM_MENU_SHOWSUBS;
@@ -334,17 +327,9 @@ function printAlbumMenuJump($option = "count", $indexname = "Gallery Index", $fi
 
 	if (!$skipform) {
 		?>
-		<script type="text/javaScript">
-			// <!-- <![CDATA[
-			function gotoLink(form) {
-			var OptionIndex=form.ListBoxURL.selectedIndex;
-			parent.location = form.ListBoxURL.options[OptionIndex].value;
-			}
-			// ]]> -->
-		</script>
 		<form name="AutoListBox" action="#">
 			<p>
-				<select name="ListBoxURL" size="1" onchange="gotoLink(this.form);">
+				<select name="ListBoxURL" size="1" onchange="npg_gotoLink(this.form);">
 					<?php
 					if (!empty($indexname)) {
 						$selected = checkSelectedAlbum("", "index");
@@ -397,16 +382,16 @@ function printAlbumMenuJump($option = "count", $indexname = "Gallery Index", $fi
  * @return string returns nothing or "selected"
  */
 function checkSelectedAlbum($checkalbum, $option) {
-	global $_zp_current_album, $_zp_gallery_page;
-	if (is_object($_zp_current_album)) {
-		$currentalbumname = $_zp_current_album->name;
+	global $_current_album, $_gallery_page;
+	if (is_object($_current_album)) {
+		$currentalbumname = $_current_album->name;
 	} else {
 		$currentalbumname = "";
 	}
 	$selected = "";
 	switch ($option) {
 		case "index":
-			if ($_zp_gallery_page === "index.php") {
+			if ($_gallery_page === "index.php") {
 				$selected = "selected";
 			}
 			break;

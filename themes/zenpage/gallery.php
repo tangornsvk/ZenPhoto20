@@ -7,13 +7,15 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
-
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
+		<?php
+		npgFilters::apply('theme_head');
+		scriptLoader($_themeroot . '/style.css');
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<div id="main">
 
@@ -35,7 +37,7 @@ if (!defined('WEBPATH'))
 				</div>
 				<div id="content-left">
 					<?php
-					if (!extensionEnabled('zenpage') || ($_zp_gallery_page == 'gallery.php' || ($_zp_gallery_page == 'index.php' && !getOption("zenpage_zp_index_news")))) {
+					if (!extensionEnabled('zenpage') || ($_gallery_page == 'gallery.php' || ($_gallery_page == 'index.php' && !getOption("zenpage_zp_index_news")))) {
 						?>
 						<?php printGalleryDesc(); ?>
 						<?php printPageListWithNav("« " . gettext("prev"), gettext("next") . " »"); ?>
@@ -57,13 +59,13 @@ if (!defined('WEBPATH'))
 						<?php printPageListWithNav("« " . gettext("prev"), gettext("next") . " »"); ?>
 
 						<?php
-					} else if (getNumNews(true)) { // news article loop
+					} else if (hasNews()) { // news article loop
 						printNewsPageListWithNav(gettext('next »'), gettext('« prev'), true, 'pagelist', true);
 						echo "<hr />";
 						while (next_news()):;
 							?>
 							<div class="newsarticle">
-								<h3><?php printNewsURL(); ?><?php echo " <span class='newstype'>[" . gettext('news') . "]</span>"; ?></h3>
+								<h3><?php printNewsURL(); ?><?php echo " <span class='newstype'>[" . NEWS_LABEL . "]</span>"; ?></h3>
 								<div class="newsarticlecredit"><span class="newsarticlecredit-left"><?php
 										printNewsDate();
 										if (function_exists('getCommentCount')) {
@@ -104,7 +106,7 @@ if (!defined('WEBPATH'))
 
 		</div><!-- main -->
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

@@ -10,12 +10,11 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/tweet_news
+ * @pluginCategory admin
  */
 $plugin_is_filter = 9 | FEATURE_PLUGIN;
 $plugin_description = gettext('Tweet news articles when published.');
-$plugin_author = "Stephen Billard (sbillard)";
 $plugin_disable = (function_exists('curl_init')) ? false : gettext('The <em>php_curl</em> extension is required');
 $plugin_notice = (extensionEnabled('TinyURL')) ? '' : gettext('Enable the tinyURL plugin to shorten URLs in your tweets.');
 
@@ -24,26 +23,26 @@ $option_interface = 'tweet';
 if ($plugin_disable) {
 	enableExtension('tweet_news', 0);
 } else {
-	zp_register_filter('show_change', 'tweet::published');
+	npgFilters::register('show_change', 'tweet::published');
 	if (getOption('tweet_news_albums'))
-		zp_register_filter('new_album', 'tweet::published');
+		npgFilters::register('new_album', 'tweet::published');
 	if (getOption('tweet_news_images'))
-		zp_register_filter('new_image', 'tweet::published');
+		npgFilters::register('new_image', 'tweet::published');
 	if (getOption('tweet_news_news'))
-		zp_register_filter('new_article', 'tweet::newZenpageObject');
+		npgFilters::register('new_article', 'tweet::newZenpageObject');
 	if (getOption('tweet_news_pages'))
-		zp_register_filter('new_page', 'tweet::newZenpageObject');
-	zp_register_filter('admin_overview', 'tweet::errorsOnOverview');
-	zp_register_filter('admin_note', 'tweet::errorsOnAdmin');
-	zp_register_filter('edit_album_utilities', 'tweet::tweeter');
-	zp_register_filter('save_album_utilities_data', 'tweet::tweeterExecute');
-	zp_register_filter('edit_image_utilities', 'tweet::tweeter');
-	zp_register_filter('save_image_utilities_data', 'tweet::tweeterExecute');
-	zp_register_filter('general_zenpage_utilities', 'tweet::tweeter');
-	zp_register_filter('save_article_custom_data', 'tweet::tweeterZenpageExecute');
-	zp_register_filter('save_page_custom_data', 'tweet::tweeterZenpageExecute');
+		npgFilters::register('new_page', 'tweet::newZenpageObject');
+	npgFilters::register('admin_overview', 'tweet::errorsOnOverview');
+	npgFilters::register('admin_note', 'tweet::errorsOnAdmin');
+	npgFilters::register('edit_album_utilities', 'tweet::tweeter');
+	npgFilters::register('save_album_data', 'tweet::tweeterExecute');
+	npgFilters::register('edit_image_utilities', 'tweet::tweeter');
+	npgFilters::register('save_image_data', 'tweet::tweeterExecute');
+	npgFilters::register('general_utilities', 'tweet::tweeter');
+	npgFilters::register('save_article_data', 'tweet::tweeterZenpageExecute');
+	npgFilters::register('save_page_data', 'tweet::tweeterZenpageExecute');
 
-	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . "/common/oAuth/twitteroauth.php");
+	require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . "/common/oAuth/twitteroauth.php");
 }
 
 /**
@@ -75,7 +74,7 @@ class tweet {
 	 * supported options
 	 */
 	function getOptionsSupported() {
-		global $_zp_CMS;
+		global $_CMS;
 		$options = array(
 				gettext('Consumer Key') => array('key' => 'tweet_news_consumer', 'type' => OPTION_TYPE_TEXTBOX,
 						'order' => 1,
@@ -108,12 +107,12 @@ class tweet {
 		If (getOption('multi_lingual')) {
 			$options[gettext('Tweet Language')] = array('key' => 'tweet_language', 'type' => OPTION_TYPE_SELECTOR,
 					'order' => 5.5,
-					'selections' => generateLanguageList(),
+					'selections' => i18n::generateLanguageList(),
 					'desc' => gettext('Select the language for the Tweet message.'));
 		}
-		if (getOption('tweet_news_news') && is_object($_zp_CMS)) {
+		if (getOption('tweet_news_news') && is_object($_CMS)) {
 			$catlist = getSerializedArray(getOption('tweet_news_categories'));
-			$news_categories = $_zp_CMS->getAllCategories(false);
+			$news_categories = $_CMS->getAllCategories(false);
 			$catlist = array(gettext('*not categorized*') => 'tweet_news_categories_none');
 			foreach ($news_categories as $category) {
 				$option = 'tweet_news_categories_' . $category['titlelink'];
@@ -180,9 +179,11 @@ class tweet {
 	 * @param object $obj
 	 */
 	static function published($obj) {
-		$error = self::tweetObjectWithCheck($obj);
-		if ($error) {
-			query('INSERT INTO ' . prefix('plugin_storage') . ' (`type`,`aux`,`data`) VALUES ("tweet_news","error",' . db_quote($error) . ')');
+		if ($obj->getShow()) {
+			$error = self::tweetObjectWithCheck($obj);
+			if ($error) {
+				query('INSERT INTO ' . prefix('plugin_storage') . ' (`type`,`aux`,`data`) VALUES ("tweet_news","error",' . db_quote($error) . ')');
+			}
 		}
 		return $obj;
 	}
@@ -302,14 +303,14 @@ class tweet {
 	 */
 	private static function tweetObject($obj) {
 		if (getOption('multi_lingual')) {
-			$cur_locale = getUserLocale();
-			setupCurrentLocale(getOption('tweet_language')); //	the log will be in the language of the master user.
+			$cur_locale = i18n::getUserLocale();
+			i18n::setupCurrentLocale(getOption('tweet_language')); //	the log will be in the language of the master user.
 		}
 		$error = '';
 		if (class_exists('tinyURL')) {
-			$link = tinyURL::getURL($obj);
+			$link = FULLHOSTPATH . tinyURL::getURL($obj);
 		} else {
-			$link = $obj->getLink();
+			$link = FULLHOSTPATH . $obj->getLink();
 		}
 		switch ($type = $obj->table) {
 			case 'pages':
@@ -330,7 +331,7 @@ class tweet {
 				break;
 		}
 		if (isset($cur_locale)) {
-			setupCurrentLocale($cur_locale); //	restore to whatever was in effect.
+			i18n::setupCurrentLocale($cur_locale); //	restore to whatever was in effect.
 		}
 		return $error;
 	}
@@ -391,7 +392,7 @@ class tweet {
 	 * @param int $prefix
 	 */
 	static function tweeter($before, $object, $prefix = NULL) {
-		$output = '<p class="checkbox">' . "\n" . '<label>' . "\n" . '<input type="checkbox" name="tweet_me' . $prefix . '" id="tweet_me' . $prefix . '" value="1" /> <img src="' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/tweet_news/twitter_newbird_blue.png" /> ' . gettext('Tweet me') . "\n</label>\n</p>\n";
+		$output = '<p class="checkbox">' . "\n" . '<label>' . "\n" . '<input type="checkbox" name="tweet_me' . $prefix . '" id="tweet_me' . $prefix . '" value="1" /> <img src="' . WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/tweet_news/twitter_newbird_blue.png" /> ' . gettext('Tweet me') . "\n</label>\n</p>\n";
 		return $before . $output;
 	}
 
@@ -417,7 +418,7 @@ class tweet {
 	 * @param unknown_type $custom
 	 * @param unknown_type $object
 	 */
-	static function tweeterZenpageExecute($custom, $object) {
+	static function tweeterZenpageExecute($object) {
 		self::tweeterExecute($object, '');
 		return $custom;
 	}

@@ -15,84 +15,82 @@ class imagegallery {
 		return true;
 	}
 
-	function theme_head($_zp_themeroot) {
-		?>
-		<link rel="stylesheet" type="text/css" href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . COMMON_FOLDER; ?>/adGallery/jquery.ad-gallery.css">
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . COMMON_FOLDER; ?>/adGallery/jquery.ad-gallery.min.js"></script>
-		<?php
+	function theme_head($_themeroot) {
+		scriptLoader(CORE_SERVERPATH . COMMON_FOLDER . '/adGallery/jquery.ad-gallery.css');
+		scriptLoader(CORE_SERVERPATH . COMMON_FOLDER . '/adGallery/jquery.ad-gallery.js');
 	}
 
-	function theme_bodyopen($_zp_themeroot) {
+	function theme_bodyopen($_themeroot) {
 		$location = getOption('garland_caption_location');
 		?>
 		<script type="text/javascript">
-			$(function() {
+			$(function () {
 				var galleries = $('.ad-gallery').adGallery({
 					width: 520, // Width of the image, set to false and it will read the CSS width
 					height: 345, // Height of the image, set to false and it will read the CSS height
 					start_at_index: 0, // Which image should be displayed at first? 0 is the first image
 					description_wrapper: <?php if ($location != 'image') { ?>$('#caption')<?php } else { ?>false<?php } ?>, // Either false or a jQuery object, if you want the image descriptions
-					// to be placed somewhere else than on top of the image
-					animate_first_image: false, // Should first image just be displayed, or animated in?
-					animation_speed: 500, // Which ever effect is used to switch images, how long should it take?
-					display_next_and_prev: true, // Can you navigate by clicking on the left/right on the image?
-					display_back_and_forward: true, // Are you allowed to scroll the thumb list?
-					scroll_jump: 0, // If 0, it jumps the width of the container
-					loader_image: '<?php echo WEBPATH . '/' . ZENFOLDER . '/' . COMMON_FOLDER; ?>/adGallery/loader.gif',
-					slideshow: {
-						enable: true,
-						autostart: true,
-						speed: 5000,
-						start_label: '<?php echo gettext('Start'); ?>',
-						stop_label: '<?php echo gettext('Stop'); ?>',
-						stop_on_scroll: true, // Should the slideshow stop if the user scrolls the thumb list?
-						countdown_prefix: '(', // Wrap around the countdown
-						countdown_sufix: ')',
-					},
-					effect: '<?php echo getOption('garland_transition'); ?>', // or 'slide-vert', 'resize', 'fade', 'none' or false
-					enable_keyboard_move: true, // Move to next/previous image with keyboard arrows?
-					cycle: true, // If set to false, you can't go from the last image to the first, and vice versa
-					// All callbacks has the AdGallery objects as 'this' reference
-					callbacks: {
-						// Executes right after the internal init, can be used to choose which images
-						// you want to preload
-						// This gets fired right after the new_image is fully visible
-						afterImageVisible: function() {
-							// For example, preload the next image
-							var context = this;
-							this.preloadImage(this.current_index + 1,
-											function() {
-												// This function gets executed after the image has been loaded
-												context.loading(false);
-											}
-							);
+								// to be placed somewhere else than on top of the image
+								animate_first_image: false, // Should first image just be displayed, or animated in?
+								animation_speed: 500, // Which ever effect is used to switch images, how long should it take?
+								display_next_and_prev: true, // Can you navigate by clicking on the left/right on the image?
+								display_back_and_forward: true, // Are you allowed to scroll the thumb list?
+								scroll_jump: 0, // If 0, it jumps the width of the container
+								loader_image: '<?php echo WEBPATH . '/' . CORE_FOLDER . '/' . COMMON_FOLDER; ?>/adGallery/loader.gif',
+								slideshow: {
+									enable: true,
+									autostart: true,
+									speed: 5000,
+									start_label: '<?php echo gettext('Start'); ?>',
+									stop_label: '<?php echo gettext('Stop'); ?>',
+									stop_on_scroll: true, // Should the slideshow stop if the user scrolls the thumb list?
+									countdown_prefix: '(', // Wrap around the countdown
+									countdown_sufix: ')',
+								},
+								effect: '<?php echo getOption('garland_transition'); ?>', // or 'slide-vert', 'resize', 'fade', 'none' or false
+								enable_keyboard_move: true, // Move to next/previous image with keyboard arrows?
+								cycle: true, // If set to false, you can't go from the last image to the first, and vice versa
+								// All callbacks has the AdGallery objects as 'this' reference
+								callbacks: {
+									// Executes right after the internal init, can be used to choose which images
+									// you want to preload
+									// This gets fired right after the new_image is fully visible
+									afterImageVisible: function () {
+										// For example, preload the next image
+										var context = this;
+										this.preloadImage(this.current_index + 1,
+														function () {
+															// This function gets executed after the image has been loaded
+															context.loading(false);
+														}
+										);
 		<?php
 		if ($location == 'separate') {
 			?>
-								$('#caption').show();
+											$('#caption').show();
 			<?php
 		}
 		?>
-						},
-						beforeImageVisible: function(new_image, old_image) {
+									},
+									beforeImageVisible: function (new_image, old_image) {
 		<?php
 		if ($location == 'separate') {
 			?>
-								$('#caption').hide();
+											$('#caption').hide();
 			<?php
 		}
 		?>
-						}
-					}
-				});
-			});
+									}
+								}
+							});
+						});
 		</script>
 
 		<?php
 	}
 
 	function theme_content($map) {
-		global $_zp_current_image, $points;
+		global $_current_image, $points;
 		if (isImagePage()) {
 			?>
 			<!-- Gallery section -->
@@ -112,7 +110,7 @@ class imagegallery {
 									<?php
 									while (next_image(true)) {
 										if ($map) {
-											$coord = getGeoCoord($_zp_current_image);
+											$coord = simpleMap::getCoord($_current_image);
 											if ($coord) {
 												$points[] = $coord;
 											}
@@ -128,7 +126,7 @@ class imagegallery {
 											?>
 											<li>
 												<a href="<?php echo html_encode(getDefaultSizedImage()); ?>">
-													<img src="<?php echo html_encode(pathurlencode(getImageThumb())); ?>"
+													<img src="<?php echo html_encode(getImageThumb()); ?>"
 															 class="image<?php echo $lastImage; ?>"
 															 alt="<?php echo html_encode(getImageDesc()); ?>">
 												</a>
@@ -141,9 +139,9 @@ class imagegallery {
 							</div>
 						</div>
 					</div>
-				<?php
-			}
-			?>
+					<?php
+				}
+				?>
 
 				<div id="caption"<?php if (getOption('garland_caption_location') == 'none') echo ' style="display:none"' ?>>
 				</div>

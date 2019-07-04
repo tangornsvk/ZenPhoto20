@@ -13,12 +13,12 @@ if (function_exists('printContactForm')) {
 	<html>
 		<head>
 
-			<?php zp_apply_filter('theme_head'); ?>
+			<?php npgFilters::apply('theme_head'); ?>
 
 		</head>
 
 		<body onload="blurAnchors()">
-			<?php zp_apply_filter('theme_body_open'); ?>
+			<?php npgFilters::apply('theme_body_open'); ?>
 
 			<!-- Wrap Header -->
 			<div id="header">
@@ -59,7 +59,7 @@ if (function_exists('printContactForm')) {
 			<!-- Wrap Subalbums -->
 			<div id="subcontent">
 				<div id="submain">
-					<h3><?php echo gettext('Contact us.') ?></h3>
+					<h3><?php echo gettext('Contact us') ?></h3>
 
 					<?php printContactForm(); ?>
 				</div>
@@ -70,19 +70,19 @@ if (function_exists('printContactForm')) {
 			<div class="footlinks">
 
 				<?php printThemeInfo(); ?>
-				<?php printZenphotoLink(); ?>
+				<?php print_SW_Link(); ?>
 
 			</div> <!-- footerlinks -->
 
 
 			<?php
-			zp_apply_filter('theme_body_close');
+			npgFilters::apply('theme_body_close');
 			?>
 
 		</body>
 	</html>
 	<?php
 } else {
-	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
+	include(CORE_SERVERPATH . '404.php');
 }
 ?>

@@ -13,9 +13,9 @@
 	</div>
 	<div id="page">
 		<div class="post">
-			<?php if (!zp_loggedin()) { ?>
+			<?php if (!npg_loggedin()) { ?>
 				<div class="error"><?php echo gettext("Please Login"); ?></div>
-				<?php printPasswordForm($hint, $show); ?>
+				<?php printPasswordForm(isset($hint) ? $hint : NULL, isset($show) ? $show : TRUE, false, isset($hint) ? WEBPATH : NULL); ?>
 			<?php } else { ?>
 				<div class="errorbox">
 					<p><?php echo gettext('You are logged in...'); ?></p>
@@ -23,7 +23,7 @@
 			<?php } ?>
 
 			<?php
-			if (!zp_loggedin() && function_exists('printRegistrationForm') && $_zp_gallery->isUnprotectedPage('register')) {
+			if (!npg_loggedin() && function_exists('printRegistrationForm') && $_gallery->isUnprotectedPage('register')) {
 				printCustomPageURL(gettext('Register for this site'), 'register', '', '<br />');
 				echo '<br />';
 			}

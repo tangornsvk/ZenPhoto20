@@ -3,17 +3,19 @@
  * JavaScript thumb nav plugin with dynamic loading of thumbs on request via JavaScript.
  * Place <var>printThumbNav()</var> on your theme's <i>image.php</i> where you want it to appear.
  *
- * Supports theme based custom css files (place <var>jcarousel.css</var> and needed images in your theme's folder).
+ * Supports theme based custom css files (place <var>jcarousel.css</var> and needed images in your theme's <var>jCarousel_thumb_nav</var> folder).
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage theme
+ * @package plugins/jCarousel_thumb_nav
+ * @pluginCategory theme
  */
 $plugin_description = gettext("jQuery jCarousel thumb nav plugin with dynamic loading of thumbs on request via JavaScript.");
-$plugin_author = "Malte Müller (acrylian) based on a jCarousel example";
 $plugin_disable = (extensionEnabled('bxslider_thumb_nav')) ? sprintf(gettext('Only one Carousel plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), 'bxslider_thumb_nav') : '';
 
 $option_interface = 'jcarousel';
+if (!getOption('jQuery_Migrate_theme')) { //	until such time as jquery.jcarousel works with jQuery 3.3
+	setOption('jQuery_Migrate_theme', 1, false);
+}
 
 /**
  * Plugin option handling class
@@ -47,14 +49,14 @@ class jcarousel {
 			setOptionDefault('jcarousel_fullimagelink', '');
 			setOptionDefault('jcarousel_vertical', 0);
 			if (class_exists('cacheManager')) {
-				cacheManager::deleteThemeCacheSizes('jcarousel_thumb_nav');
-				cacheManager::addThemeCacheSize('jcarousel_thumb_nav', NULL, getOption('jcarousel_width'), getOption('jcarousel_height'), getOption('jcarousel_cropw'), getOption('jcarousel_croph'), NULL, NULL, true, NULL, NULL, NULL);
+				cacheManager::deleteCacheSizes('jcarousel_thumb_nav');
+				cacheManager::addCacheSize('jcarousel_thumb_nav', NULL, getOption('jcarousel_width'), getOption('jcarousel_height'), getOption('jcarousel_cropw'), getOption('jcarousel_croph'), NULL, NULL, true, NULL, NULL, NULL);
 			}
 		}
 	}
 
 	function getOptionsSupported() {
-		global $_zp_gallery;
+		global $_gallery;
 		$options = array(gettext('Thumbs number') => array('key' => 'jcarousel_scroll', 'type' => OPTION_TYPE_NUMBER,
 						'order' => 0,
 						'desc' => gettext("The number of thumbs to scroll by. Note that the CSS might need to be adjusted.")),
@@ -92,13 +94,6 @@ class jcarousel {
 	}
 
 	static function themeJS() {
-		$theme = getCurrentTheme();
-		$css = SERVERPATH . '/' . THEMEFOLDER . '/' . internalToFilesystem($theme) . '/jcarousel.css';
-		if (file_exists($css)) {
-			$css = WEBPATH . '/' . THEMEFOLDER . '/' . $theme . '/jcarousel.css';
-		} else {
-			$css = WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/jCarousel_thumb_nav/jcarousel.css';
-		}
 		?>
 		<script>
 			(function ($) {
@@ -114,16 +109,25 @@ class jcarousel {
 
 			})(jQuery);
 		</script>
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/jCarousel_thumb_nav/jquery.jcarousel.pack.js"></script>
-		<link rel="stylesheet" type="text/css" href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/jCarousel_thumb_nav/jquery.jcarousel.css" />
-		<link rel="stylesheet" type="text/css" href="<?php echo html_encode($css); ?>" />
 		<?php
+		scriptLoader(CORE_SERVERPATH .  PLUGIN_FOLDER . '/jCarousel_thumb_nav/jquery.jcarousel.pack.js');
+		scriptLoader(CORE_SERVERPATH .  PLUGIN_FOLDER . '/jCarousel_thumb_nav/jquery.jcarousel.css');
+		$theme = getCurrentTheme();
+		if (file_exists(SERVERPATH . '/' . THEMEFOLDER . '/' . internalToFilesystem($theme) . '/jcarousel.css')) {
+			// this should comply with the standard!
+			$css = SERVERPATH . '/' . THEMEFOLDER . '/' . $theme . '/jcarousel.css';
+			require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/deprecated-functions.php');
+			deprecated_functions::notify_handler(gettext('The jCarousel css files should be placed in the theme subfolder "jCarousel_thumb_nav"'), NULL);
+		} else {
+			$css = getPlugin('jCarousel_thumb_nav/jcarousel.css', $theme);
+		}
+		scriptLoader($css);
 	}
 
 }
 
-if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->getCurrentTheme() . '_' . stripSuffix($_zp_gallery_page))) {
-	zp_register_filter('theme_head', 'jcarousel::themeJS');
+if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_gallery->getCurrentTheme() . '_' . stripSuffix($_gallery_page))) {
+	npgFilters::register('theme_body_close', 'jcarousel::themeJS');
 
 	/** Prints the jQuery jCarousel HTML setup to be replaced by JS
 	 *
@@ -139,11 +143,11 @@ if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->g
 	 * @param int $speed not supported
 	 */
 	function printThumbNav($minitems = NULL, $maxitems = NULL, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $fullimagelink = NULL, $vertical = NULL, $speed = NULL, $thumbscroll = NULL) {
-		global $_zp_gallery, $_zp_current_album, $_zp_current_image, $_zp_current_search, $_zp_gallery_page;
+		global $_gallery, $_current_album, $_current_image, $_current_search, $_gallery_page;
 		//	Just incase the theme has not set the option, at least second try will work!
-		setOptionDefault('slideshow_' . $_zp_gallery->getCurrentTheme() . '_' . stripSuffix($_zp_gallery_page), 1);
+		setOptionDefault('jcarousel_' . $_gallery->getCurrentTheme() . '_' . stripSuffix($_gallery_page), 1);
 		$items = "";
-		if (is_object($_zp_current_album) && $_zp_current_album->getNumImages() >= 2) {
+		if (is_object($_current_album) && $_current_album->getNumImages() >= 2) {
 			if (is_null($thumbscroll)) {
 				$thumbscroll = getOption('jcarousel_scroll');
 			} else {
@@ -180,8 +184,8 @@ if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->g
 			} else {
 				$vertical = 'false';
 			}
-			if (in_context(ZP_SEARCH_LINKED)) {
-				if ($_zp_current_search->getNumImages() === 0) {
+			if (in_context(SEARCH_LINKED)) {
+				if ($_current_search->getNumImages() === 0) {
 					$searchimages = false;
 				} else {
 					$searchimages = true;
@@ -189,32 +193,32 @@ if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->g
 			} else {
 				$searchimages = false;
 			}
-			if (in_context(ZP_SEARCH_LINKED) && $searchimages) {
-				$jcarousel_items = $_zp_current_search->getImages();
+			if (in_context(SEARCH_LINKED) && $searchimages) {
+				$jcarousel_items = $_current_search->getImages();
 			} else {
-				$jcarousel_items = $_zp_current_album->getImages();
+				$jcarousel_items = $_current_album->getImages();
 			}
 			if (count($jcarousel_items) >= 2) {
 				foreach ($jcarousel_items as $item) {
 					if (is_array($item)) {
-						$imgobj = newImage($_zp_current_album, $item['filename']);
+						$imgobj = newImage($_current_album, $item['filename']);
 					} else {
-						$imgobj = newImage($_zp_current_album, $item);
+						$imgobj = newImage($_current_album, $item);
 					}
 					if ($fullimagelink) {
 						$link = $imgobj->getFullImageURL();
 					} else {
 						$link = $imgobj->getLink();
 					}
-					if (!is_null($_zp_current_image)) {
-						if ($_zp_current_album->isDynamic()) {
-							if ($_zp_current_image->filename == $imgobj->filename && $_zp_current_image->getAlbum()->name == $imgobj->getAlbum()->name) {
+					if (!is_null($_current_image)) {
+						if ($_current_album->isDynamic()) {
+							if ($_current_image->filename == $imgobj->filename && $_current_image->getAlbum()->name == $imgobj->getAlbum()->name) {
 								$active = 'active';
 							} else {
 								$active = '';
 							}
 						} else {
-							if ($_zp_current_image->filename == $imgobj->filename) {
+							if ($_current_image->filename == $imgobj->filename) {
 								$active = 'active';
 							} else {
 								$active = '';
@@ -230,14 +234,14 @@ if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->g
 			}
 			$items = substr($items, 0, -2);
 			$numimages = getNumImages();
-			if (!is_null($_zp_current_image)) {
+			if (!is_null($_current_image)) {
 				$imgnumber = imageNumber();
 			} else {
 				$imgnumber = 1;
 			}
 			?>
 			<script type="text/javascript">
-			// <!-- <![CDATA[
+				// <!-- <![CDATA[
 				var mycarousel_itemList = [
 			<?php echo $items; ?>
 				];
@@ -272,7 +276,7 @@ if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->g
 						itemLoadCallback: {onBeforeAnimation: mycarousel_itemLoadCallback}
 					});
 				});
-			// ]]> -->
+				// ]]> -->
 			</script>
 			<ul id="mycarousel">
 				<!-- The content will be dynamically loaded in here -->
@@ -282,4 +286,3 @@ if (!$plugin_disable && !OFFSET_PATH && getOption('jcarousel_' . $_zp_gallery->g
 	}
 
 }
-?>

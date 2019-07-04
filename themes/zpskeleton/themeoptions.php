@@ -34,13 +34,13 @@ class ThemeOptions {
 		setThemeOptionDefault('zpskel_archive', true);
 		setThemeOptionDefault('zenpage_homepage', 'none');
 		if (class_exists('cacheManager')) {
-			cacheManager::deleteThemeCacheSizes('zpskeleton');
-			cacheManager::addThemeCacheSize('zpskeleton', null, 420, 200, 420, 200, null, null, null, true, getOption('Image_watermark'), false, false); // album thumbs
-			cacheManager::addThemeCacheSize('zpskeleton', 220, null, null, null, null, null, null, true, getOption('Image_watermark'), false, false); // image thumbs: uncropped large
-			cacheManager::addThemeCacheSize('zpskeleton', 190, null, null, null, null, null, null, true, getOption('Image_watermark'), false, false); // image thumbs: uncropped small
-			cacheManager::addThemeCacheSize('zpskeleton', null, 190, 190, 190, 190, null, null, true, getOption('Image_watermark'), false, false); // bottom image strip
-			cacheManager::addThemeCacheSize('zpskeleton', 420, null, null, null, null, null, null, false, getOption('fullimage_watermark'), null, null); // mobile full
-			cacheManager::addThemeCacheSize('zpskeleton', 630, null, null, null, null, null, null, false, getOption('fullimage_watermark'), null, null); // desktop full
+			cacheManager::deleteCacheSizes('zpskeleton');
+			cacheManager::addCacheSize('zpskeleton', null, 420, 200, 420, 200, null, null, null, true, getOption('Image_watermark'), false, false); // album thumbs
+			cacheManager::addCacheSize('zpskeleton', 220, null, null, null, null, null, null, true, getOption('Image_watermark'), false, false); // image thumbs: uncropped large
+			cacheManager::addCacheSize('zpskeleton', 190, null, null, null, null, null, null, true, getOption('Image_watermark'), false, false); // image thumbs: uncropped small
+			cacheManager::addCacheSize('zpskeleton', null, 190, 190, 190, 190, null, null, true, getOption('Image_watermark'), false, false); // bottom image strip
+			cacheManager::addCacheSize('zpskeleton', 420, null, null, null, null, null, null, false, getOption('fullimage_watermark'), null, null); // mobile full
+			cacheManager::addCacheSize('zpskeleton', 630, null, null, null, null, null, null, false, getOption('fullimage_watermark'), null, null); // desktop full
 		}
 	}
 
@@ -62,10 +62,10 @@ class ThemeOptions {
 				gettext('Popup (PrettyPhoto) Target') => array('key' => 'zpskel_pptarget', 'type' => OPTION_TYPE_RADIO,
 						'order' => 2,
 						'buttons' => array(gettext('Sized (630px)') => 'sized', gettext('Original Image') => 'original'),
-						'desc' => gettext("Select whether the popup script (PrettyPhoto) targets a processed/sized image for the slideshow or the original (unsized/uprocessed) uploaded image.  Although not used on mobile decives, this will decrease your load time if you select sized.  You need to also select sized if you are using watermarks.")),
+						'desc' => gettext("Select whether the popup script (PrettyPhoto) targets a processed/sized image for the slideshow or the original (unsized/unprocessed) uploaded image.  Although not used on mobile devices, this will decrease your load time if you select sized.  You need to also select sized if you are using watermarks.")),
 				gettext('Download Button') => array('key' => 'zpskel_download', 'type' => OPTION_TYPE_CHECKBOX,
 						'order' => 6,
-						'desc' => gettext("Check to display a download button on the image page, behavour controlled by options->image->Full Image Protection.")),
+						'desc' => gettext("Check to display a download button on the image page, behavior  controlled by options->image->Full Image Protection.")),
 				gettext('Show Archive') => array('key' => 'zpskel_archive', 'type' => OPTION_TYPE_CHECKBOX,
 						'order' => 7,
 						'desc' => gettext("Check to display the gallery and news archive menu item.")),
@@ -81,7 +81,7 @@ class ThemeOptions {
 	}
 
 	function getOptionsDisabled() {
-		return array('thumb_size', 'image_size', 'image_use_side1', 'image_use_side2', 'image_use_side3', 'image_use_side4');
+		return array('thumb_size', 'image_size', 'image_use_side');
 	}
 
 	function handleOption($option, $currentValue) {

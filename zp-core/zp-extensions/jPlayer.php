@@ -64,40 +64,36 @@
  * <b>NOTE:</b> This player does not support external albums!
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage media
+ * @package plugins/jPlayer
+ * @pluginCategory media
  */
 $plugin_is_filter = defaultExtension(5 | CLASS_PLUGIN);
-$plugin_description = gettext("This plugin handles <code>flv</code>, <code>fla</code>, <code>mp3</code>, <code>mp4</code>, <code>m4v</code>, and <code>m4a</code> multi-media files.");
-gettext("Please see <a href='http://jplayer.org'>jplayer.org</a> for more info about the player and its license.");
-$plugin_author = "Malte Müller (acrylian)";
-$plugin_disable = zpFunctions::pluginDisable(array(array(!extensionEnabled('class-video'), gettext('This plugin requires the <em>class-video</em> plugin')), array(class_exists('Video') && Video::multimediaExtension() != 'jPlayer' && Video::multimediaExtension() != 'pseudoPlayer', sprintf(gettext('jPlayer not enabled, %s is already instantiated.'), class_exists('Video') ? Video::multimediaExtension() : false)), array(getOption('album_folder_class') === 'external', (gettext('This player does not support <em>External Albums</em>.')))));
+if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
+	$plugin_description = gettext("This plugin handles <code>flv</code>, <code>fla</code>, <code>mp3</code>, <code>mp4</code>, <code>m4v</code>, and <code>m4a</code> multi-media files.");
+	gettext("Please see <a href='http://jplayer.org'>jplayer.org</a> for more info about the player and its license.");
+	$plugin_disable = npgFunctions::pluginDisable(array(array(!extensionEnabled('class-video'), gettext('This plugin requires the <em>class-video</em> plugin')), array(class_exists('Video') && Video::multimediaExtension() != 'jPlayer' && Video::multimediaExtension() != 'pseudoPlayer', sprintf(gettext('jPlayer not enabled, %s is already instantiated.'), class_exists('Video') ? Video::multimediaExtension() : false)), array(getOption('album_folder_class') === 'external', (gettext('This player does not support <em>External Albums</em>.')))));
+}
 
 $option_interface = 'jplayer_options';
 
-if ($plugin_disable) {
-	enableExtension('jplayer', 0);
-} else {
-	Gallery::addImageHandler('flv', 'Video');
-	Gallery::addImageHandler('fla', 'Video');
-	Gallery::addImageHandler('mp3', 'Video');
-	Gallery::addImageHandler('mp4', 'Video');
-	Gallery::addImageHandler('m4v', 'Video');
-	Gallery::addImageHandler('m4a', 'Video');
+Gallery::addImageHandler('flv', 'Video');
+Gallery::addImageHandler('fla', 'Video');
+Gallery::addImageHandler('mp3', 'Video');
+Gallery::addImageHandler('mp4', 'Video');
+Gallery::addImageHandler('m4v', 'Video');
+Gallery::addImageHandler('m4a', 'Video');
 
-	$_zp_multimedia_extension = new jPlayer(); // claim to be the flash player.
-	zp_register_filter('content_macro', 'jPlayer::macro');
-	zp_register_filter('theme_head', 'jplayer::headJS');
-	if (getOption('jplayer_playlist')) {
-		zp_register_filter('theme_head', 'jplayer::playlistJS');
-	}
+$_multimedia_extension = new jPlayer(); // claim to be the flash player.
+npgFilters::register('content_macro', 'jPlayer::macro');
+npgFilters::register('theme_body_close', 'jplayer::headJS');
+if (getOption('jplayer_playlist')) {
+	npgFilters::register('theme_body_close', 'jplayer::playlistJS');
+}
 
-	// theme function wrapper for user convenience
-	function printjPlayerPlaylist($option = "playlist", $albumfolder = "") {
-		global $_zp_multimedia_extension;
-		$_zp_multimedia_extension->printjPlayerPlaylist($option, $albumfolder);
-	}
-
+// theme function wrapper for user convenience
+function printjPlayerPlaylist($option = "playlist", $albumfolder = "") {
+	global $_multimedia_extension;
+	$_multimedia_extension->printjPlayerPlaylist($option, $albumfolder);
 }
 
 class jplayer_options {
@@ -120,8 +116,8 @@ class jplayer_options {
 			/* TODO: what are these sizes?
 			  $player = new jPlayer();
 			 * if (class_exists('cacheManager')) {
-			  cacheManager::deleteThemeCacheSizes('jplayer');
-			  cacheManager::addThemeCacheSize('jplayer', NULL, $player->width, $player->height, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			  cacheManager::deleteCacheSizes('jplayer');
+			  cacheManager::addCacheSize('jplayer', NULL, $player->width, $player->height, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 			 * }
 			 */
 		}
@@ -158,10 +154,10 @@ class jplayer_options {
 								gettext('jp-video-480p (720x405px)*') => "jp-video-480p",
 								gettext('jp-video-720p (1280x720px)*') => "jp-video-720p",
 								gettext('jp-video-1080p (1920x1080px)*') => "jp-video-1080p"),
-						'desc' => gettext("jPlayer is dependent on their HTML and CSS based skin. Sizes marked with a <strong>*</strong> are supported by the two zenphoto custom skins only (these two skins are also responsive in width). If you need different sizes you need to modify a skin or make your own and also need to change values in the plugin class method getPlayerSize().")),
+						'desc' => gettext("jPlayer is dependent on their HTML and CSS based skin. Sizes marked with a <strong>*</strong> are supported by the two custom skins only (these two skins are also responsive in width). If you need different sizes you need to modify a skin or make your own and also need to change values in the plugin class method getPlayerSize().")),
 				gettext('Player skin') => array('key' => 'jplayer_skin', 'type' => OPTION_TYPE_SELECTOR,
 						'selections' => $skins,
-						'desc' => gettext("Select the skin (theme) to use. <br />NOTE: Since the skin is pure HTML/CSS only there may be display issues with certain themes that require manual adjustments. The two zenphoto custom skins are responsive regarding the player width. Place custom skin within the root plugins folder. See plugin documentation for more info."))
+						'desc' => gettext("Select the skin (theme) to use. <br />NOTE: Since the skin is pure HTML/CSS only there may be display issues with certain themes that require manual adjustments. The two custom skins are responsive regarding the player width. Place custom skin within the root plugins folder. See plugin documentation for more info."))
 		);
 	}
 
@@ -170,16 +166,16 @@ class jplayer_options {
 	 *
 	 */
 	static function getSkin() {
-		$default_skins_dir = SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/jPlayer/skin/';
+		$default_skins_dir = CORE_SERVERPATH . PLUGIN_FOLDER . '/jPlayer/skin/';
 		$user_skins_dir = SERVERPATH . '/' . USER_PLUGIN_FOLDER . '/jPlayer/skin/';
 		$filestoignore = array('.', '..', '.DS_Store', 'Thumbs.db', '.htaccess', '.svn');
 		$skins = array_diff(scandir($default_skins_dir), array_merge($filestoignore));
 		$default_skins = self::getSkinCSS($skins, $default_skins_dir);
-		//echo "<pre>";print_r($default_skins);echo "</pre>";
+//echo "<pre>";print_r($default_skins);echo "</pre>";
 		$skins2 = @array_diff(scandir($user_skins_dir), array_merge($filestoignore));
 		if (is_array($skins2)) {
 			$user_skins = selfgetSkinCSS($skins2, $user_skins_dir);
-			//echo "<pre>";print_r($user_skins);echo "</pre>";
+//echo "<pre>";print_r($user_skins);echo "</pre>";
 			$default_skins = array_merge($default_skins, $user_skins);
 		}
 		return $default_skins;
@@ -238,10 +234,10 @@ class jPlayer {
 	}
 
 	static function getMacrojplayer($albumname, $imagename, $count = 1) {
-		global $_zp_multimedia_extension;
+		global $_multimedia_extension;
 		$movie = newImage(array('folder' => $albumname, 'filename' => $imagename), true);
 		if ($movie->exists) {
-			return $_zp_multimedia_extension->getPlayerConfig($movie, NULL, (int) $count);
+			return $_multimedia_extension->getPlayerConfig($movie, NULL, (int) $count);
 		} else {
 			return '<span class = "error">' . sprintf(gettext('%1$s::%2$s not found.'), $albumname, $imagename) . '</span>';
 		}
@@ -253,28 +249,23 @@ class jPlayer {
 				'params' => array('string', 'string', 'int*'),
 				'value' => 'jplayer::getMacrojplayer',
 				'owner' => 'jplayer',
-				'desc' => gettext('provide the album name (%1), media file name (%2) and a unique number (%3). (If there is only player instance on the page the parameter may be omitted.)')
+				'desc' => gettext('Provide the album name (%1), media file name (%2) and a unique number (%3). (If there is only player instance on the page the unique number may be omitted.)')
 		);
 		return $macros;
 	}
 
 	static function headJS() {
-		$skin = @array_shift(getPluginFiles('*.css', 'jPlayer/skin/' . getOption('jplayer_skin')));
-		if (file_exists($skin)) {
-			$skin = str_replace(SERVERPATH, WEBPATH, $skin); //replace SERVERPATH as that does not work as a CSS link
-		} else {
-			$skin = WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/jPlayer/skin/zenphotolight/jplayer.zenphotolight.css';
+		$skins = getPluginFiles('*.css', 'jPlayer/skin/' . getOption('jplayer_skin'));
+		$skin = array_shift($skins);
+		if (!file_exists($skin)) {
+			$skin = CORE_SERVERPATH . PLUGIN_FOLDER . '/jPlayer/skin/zenphotolight/jplayer.zenphotolight.css';
 		}
-		?>
-		<link href="<?php echo $skin; ?>" rel="stylesheet" type="text/css" />
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/jPlayer/js/jquery.jplayer.min.js"></script>
-		<?php
+		scriptLoader($skin);
+		scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/jPlayer/js/jquery.jplayer.min.js');
 	}
 
 	static function playlistJS() {
-		?>
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/jPlayer/js/jplayer.playlist.min.js"></script>
-		<?php
+		scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/jPlayer/js/jplayer.playlist.min.js');
 	}
 
 	/**
@@ -287,8 +278,15 @@ class jPlayer {
 	 * @param string $height Not supported as jPlayer is dependend on its CSS based skin to change sizes. Can only be set via plugin options.
 	 *
 	 */
-	function getPlayerConfig($movie, $movietitle = NULL, $count = NULL) {
-		$moviepath = $movie->getFullImageURL(FULLWEBPATH);
+	function getPlayerConfig($movie, $movietitle = NULL, $count = NULL, $w = NULL, $h = NULL) {
+		if (is_null($w)) {
+			$w = $this->getWidth();
+		}
+		if (is_null($h)) {
+			$h = $this->getHeight();
+		}
+
+		$moviepath = $movie->getImagePath(FULLWEBPATH);
 		if (is_null($movietitle)) {
 			$movietitle = $movie->getTitle();
 		}
@@ -310,10 +308,10 @@ class jPlayer {
 		}
 		$videoThumb = '';
 		if (getOption('jplayer_poster') && ($this->mode == 'video' || ($this->mode == 'audio' && getOption('jplayer_audioposter')))) {
-			//$splashimagerwidth = $this->width;
-			//$splashimageheight = $this->height;
+			//$splashimagerwidth = $w;
+			//$splashimageheight = $h;
 			//getMaxSpaceContainer($splashimagerwidth, $splashimageheight, $movie, true); // jplayer squishes always if not the right aspect ratio
-			$videoThumb = ',poster:"' . $movie->getCustomImage(null, $this->width, $this->height, $this->width, $this->height, null, null, true) . '"';
+			$videoThumb = ',poster:"' . $movie->getCustomImage(null, $w, $h, $w, $h, null, null, true) . '"';
 		}
 		$playerconfig = '
 		<script type="text/javascript">
@@ -327,7 +325,7 @@ class jPlayer {
 						' . $videoThumb . '
 					})' . $autoplay . ';
 				},
-				swfPath: "' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/jPlayer/js",
+				swfPath: "' . WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/jPlayer/js",
 				supplied: "' . $this->supplied . $this->supplied_counterparts . '",
 				cssSelectorAncestor: "#jp_container_' . $count . '"';
 
@@ -343,7 +341,7 @@ class jPlayer {
 			$playerconfig .= '
 				,	size: {
 			width: "100%",
-			height: "' . $this->height . 'px",
+			height: "100%",
 			cssClass: "' . $this->playersize . '"
 		},';
 		} else {
@@ -359,8 +357,8 @@ class jPlayer {
 	//]]>
 	</script>';
 
-		// I am really too lazy to figure everything out to optimize this quite complex html nesting so I generalized only parts.
-		// This will also make it easier and more convenient to spot any html changes the jplayer developer might come up with later on (as he did from 2.0 to 2.1!)
+// I am really too lazy to figure everything out to optimize this quite complex html nesting so I generalized only parts.
+// This will also make it easier and more convenient to spot any html changes the jplayer developer might come up with later on (as he did from 2.0 to 2.1!)
 		if ($this->mode == 'video' || !empty($videoThumb)) {
 			$playerconfig .= '
 			<div id="jp_container_' . $count . '" class="jp-video ' . $this->playersize . '" role="application" aria-label="media player">
@@ -455,9 +453,9 @@ class jPlayer {
 	 * @param string $count unique text for when there are multiple player items on a page
 	 */
 	function printPlayerConfig($movie = NULL, $movietitle = NULL, $count = NULL) {
-		global $_zp_current_image;
+		global $_current_image;
 		if (empty($movie)) {
-			$movie = $_zp_current_image;
+			$movie = $_current_image;
 		}
 		echo $this->getPlayerConfig($movie, $movietitle, $count, NULL, NULL);
 	}
@@ -538,36 +536,18 @@ class jPlayer {
 	 *
 	 */
 	function setModeAndSuppliedFormat($ext) {
+		$this->supplied = $ext;
 		switch ($ext) {
 			case 'm4a':
 			case 'mp3':
 			case 'fla':
 				$this->mode = 'audio';
-				switch ($ext) {
-					case 'm4a':
-						$this->supplied = 'm4a';
-						break;
-					case 'mp3':
-						$this->supplied = 'mp3';
-						break;
-					case 'fla':
-						$this->supplied = 'fla';
-						break;
-				}
 				break;
 			case 'mp4':
+				$this->supplied = 'm4v';
 			case 'm4v':
 			case 'flv':
 				$this->mode = 'video';
-				switch ($ext) {
-					case 'm4v':
-					case 'mp4':
-						$this->supplied = 'm4v';
-						break;
-					case 'flv':
-						$this->supplied = 'flv';
-						break;
-				}
 				break;
 		}
 	}
@@ -585,12 +565,12 @@ class jPlayer {
 			case 'mp3':
 			case 'm4a':
 			case 'fla':
-				$suffixes = array('oga', 'webma');
+				$suffixes = array('oga', 'webma', 'webm');
 				break;
 			case 'mp4':
 			case 'm4v':
 			case 'flv':
-				$suffixes = array('ogv', 'webmv');
+				$suffixes = array('ogv', 'webmv', 'webm');
 				break;
 			default:
 				$suffixes = array();
@@ -602,7 +582,7 @@ class jPlayer {
 			  $filesuffix = 'ogg';
 			  } */
 			$counterpart = str_replace($ext, $filesuffix, $moviepath);
-			//$suffix = str_replace('.','',$suffix);
+//$suffix = str_replace('.','',$suffix);
 			if (file_exists(str_replace(FULLWEBPATH, SERVERPATH, $counterpart))) {
 				$this->supplied_counterparts .= ',' . $suffix;
 				$counterparts .= ',' . $suffix . ':"' . pathurlencode($counterpart) . '"';
@@ -624,12 +604,12 @@ class jPlayer {
 	 * @param string $albumfolder album name to get a playlist from directly
 	 */
 	function printjPlayerPlaylist($option = "playlist", $albumfolder = "") {
-		global $_zp_current_album, $_zp_current_search;
+		global $_current_album, $_current_search;
 		if (empty($albumfolder)) {
-			if (in_context(ZP_SEARCH)) {
-				$albumobj = $_zp_current_search;
+			if (in_context(NPG_SEARCH)) {
+				$albumobj = $_current_search;
 			} else {
-				$albumobj = $_zp_current_album;
+				$albumobj = $_current_album;
 			}
 		} else {
 			$albumobj = newAlbum($albumfolder);
@@ -644,7 +624,7 @@ class jPlayer {
 					$suffixes = array('m4a', 'mp3', 'fla');
 					break;
 				default:
-					//	an invalid option parameter!
+//	an invalid option parameter!
 					return;
 			}
 			$id = $albumobj->getID();
@@ -689,7 +669,7 @@ class jPlayer {
 					<?php if (getOption('jplayer_download')) { ?>
 							free:true,
 					<?php } ?>
-					<?php echo $this->supplied; ?>:"<?php echo html_encode(pathurlencode($url = $video->getFullImageURL(FULLWEBPATH))); ?>"
+					<?php echo $this->supplied; ?>:"<?php echo $url = $video->getFullImageURL(FULLWEBPATH); ?>"
 					<?php echo $this->getCounterpartFiles($url, $ext); ?>
 					<?php echo $videoThumb; ?>
 						}
@@ -703,7 +683,7 @@ class jPlayer {
 // Seems the flash fallback fails here
 			?>
 				], {
-				swfPath: "<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/jPlayer/js",
+				swfPath: "<?php echo WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER; ?>/jPlayer/js",
 								solution: "flash,html",
 			<?php if ($option == 'playlist') { ?>
 					supplied: "m4v, mp4, m4a, mp3, fla, flv<?php echo $this->supplied_counterparts; ?>"

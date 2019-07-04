@@ -13,11 +13,10 @@
  * Be aware that hijacking content from sites that are not your own may be a violation of applicable laws!
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage admin
+ * @package plugins/mergedRSS
+ * @pluginCategory admin
  */
 $plugin_description = gettext("Merges several RSS feeds into one.");
-$plugin_author = "Malte Müller (acrylian)";
 $plugin_disable = (class_exists('SimpleXMLElement')) ? false : gettext('PHP <em>SimpleXML</em> is required.');
 $option_interface = 'MergedRSSOptions';
 
@@ -27,7 +26,7 @@ if (isset($_GET['mergedrss'])) {
 	$feeds = getOption('mergedrss_feeds');
 	$feeds = explode(';', $feeds);
 	if (count($feeds) < 0) {
-		exitZP();
+		exit();
 	}
 	// set the header type
 	header("Content-type: text/xml");
@@ -49,7 +48,7 @@ if (isset($_GET['mergedrss'])) {
 		$mergedrss_feeditems = 10;
 	}
 	$MergedRSS->export(false, true, $mergedrss_feeditems); //getOption('RSS_items')
-	exitZP();
+	exit();
 }
 
 class MergedRSSOptions {
@@ -62,13 +61,13 @@ class MergedRSSOptions {
 
 	function getOptionsSupported() {
 		return array(
-						gettext('RSS feeds to merge')	 => array('key'					 => 'mergedrss_feeds', 'type'				 => OPTION_TYPE_TEXTAREA,
-										'order'				 => 11,
-										'multilingual' => false,
-										'desc'				 => gettext('Enter the full urls of the feeds to merge separated by semicolons (e.g. "http://www.domain1.com/rss; http://www.domain2.com/rss")')),
-						gettext('Feed items:')				 => array('key'		 => 'mergedrss_items', 'type'	 => OPTION_TYPE_NUMBER,
-										'order'	 => 2,
-										'desc'	 => gettext("The number of new entries you want to appear in your site’s RSS feed")),
+				gettext('RSS feeds to merge') => array('key' => 'mergedrss_feeds', 'type' => OPTION_TYPE_TEXTAREA,
+						'order' => 11,
+						'multilingual' => false,
+						'desc' => gettext('Enter the full urls of the feeds to merge separated by semicolons (e.g. "http://www.domain1.com/rss; http://www.domain2.com/rss")')),
+				gettext('Feed items:') => array('key' => 'mergedrss_items', 'type' => OPTION_TYPE_NUMBER,
+						'order' => 2,
+						'desc' => gettext("The number of new entries you want to appear in your site’s RSS feed")),
 		);
 	}
 

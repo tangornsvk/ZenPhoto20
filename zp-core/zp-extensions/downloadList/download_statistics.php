@@ -6,22 +6,20 @@
  *
  * This plugin is dependent on the css of the gallery_statistics utility plugin!
  *
- * @package admin
+ * @package admin/downloadList
  */
 define('OFFSET_PATH', 3);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 
 admin_securityChecks(ADMIN_RIGHTS, currentRelativeURL());
 
-if (!zp_loggedin(OVERVIEW_RIGHTS)) { // prevent nefarious access to this page.
-	header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?from=' . currentRelativeURL());
-	exitZP();
+if (!npg_loggedin(OVERVIEW_RIGHTS)) { // prevent nefarious access to this page.
+	header('Location: ' . getAdminLink('admin.php').'?from=' . currentRelativeURL());
+	exit();
 }
 
 printAdminHeader('overview', 'download');
-?>
-<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin-statistics.css" type="text/css" media="screen" />
-<?php
+scriptLoader(CORE_SERVERPATH . 'admin-statistics.css');
 
 /**
  * Prints a table with a bar graph of the values.
@@ -96,7 +94,7 @@ echo '</head>';
 			<?php printTabs(); ?>
 		</span>
 		<div id="content">
-			<?php zp_apply_filter('admin_note', 'statistics', ''); ?>
+			<?php npgFilters::apply('admin_note', 'statistics', ''); ?>
 			<h1><?php echo gettext("Download Statistics"); ?></h1>
 			<div class="tabbox">
 				<?php

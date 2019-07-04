@@ -7,14 +7,16 @@ if (class_exists('CMS')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
-
-			<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-			<?php if (class_exists('RSS')) printRSSHeaderLink("News", "Zenpage news", ""); ?>
-			<?php zp_apply_filter('theme_head'); ?>
+			<?php
+			npgFilters::apply('theme_head');
+			scriptLoader($_themeroot . '/style.css');
+			if (class_exists('RSS'))
+				printRSSHeaderLink("News", "Zenpage news", "");
+			?>
 		</head>
 
 		<body>
-			<?php zp_apply_filter('theme_body_open'); ?>
+			<?php npgFilters::apply('theme_body_open'); ?>
 
 			<div id="main">
 
@@ -23,11 +25,11 @@ if (class_exists('CMS')) {
 					<?php
 					if (getOption('Allow_search')) {
 						if (is_NewsCategory()) {
-							$catlist = array('news' => array($_zp_current_category->getTitlelink()), 'albums' => '0', 'images' => '0', 'pages' => '0');
+							$catlist = array('news' => array($_CMS_current_category->getTitlelink()), 'albums' => '0', 'images' => '0', 'pages' => '0');
 							printSearchForm(NULL, 'search', NULL, gettext('Search category'), NULL, NULL, $catlist);
 						} else {
 							$catlist = array('news' => '1', 'albums' => '0', 'images' => '0', 'pages' => '0');
-							printSearchForm(NULL, "search", "", gettext("Search news"), NULL, NULL, $catlist);
+							printSearchForm(NULL, "search", "", gettext("Search"), NULL, NULL, $catlist);
 						}
 					}
 					?>
@@ -82,7 +84,6 @@ if (class_exists('CMS')) {
 							<?php printTags('links', gettext('<strong>Tags:</strong>') . ' ', 'taglist', ', '); ?>
 							<br style="clear:both;" /><br />
 							<?php
-							@call_user_func('printRating');
 							// COMMENTS TEST
 							@call_user_func('printCommentForm');
 						} else {
@@ -142,12 +143,12 @@ if (class_exists('CMS')) {
 
 			</div><!-- main -->
 			<?php
-			zp_apply_filter('theme_body_close');
+			npgFilters::apply('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
+	include(CORE_SERVERPATH . '404.php');
 }
 ?>

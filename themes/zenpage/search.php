@@ -7,16 +7,17 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php
+		npgFilters::apply('theme_head');
 
-
-
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
-		<?php printZDSearchToggleJS(); ?>
+		scriptLoader($_themeroot . '/style.css');
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		printZDSearchToggleJS();
+		?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+<?php npgFilters::apply('theme_body_open'); ?>
 		<div id="main">
 			<div id="header">
 				<h1><?php printGalleryTitle(); ?></h1>
@@ -33,15 +34,15 @@ if (!defined('WEBPATH'))
 					$numpages = $numnews = 0;
 				}
 				if ($total == 0) {
-					$_zp_current_search->clearSearchWords();
+					$_current_search->clearSearchWords();
 				}
 				if (getOption('Allow_search')) {
-					$categorylist = $_zp_current_search->getCategoryList();
+					$categorylist = $_current_search->getCategoryList();
 					if (is_array($categorylist)) {
 						$catlist = array('news' => $categorylist, 'albums' => '0', 'images' => '0', 'pages' => '0');
 						printSearchForm(NULL, 'search', NULL, gettext('Search category'), NULL, NULL, $catlist);
 					} else {
-						$albumlist = $_zp_current_search->getAlbumList();
+						$albumlist = $_current_search->getAlbumList();
 						if (is_array($albumlist)) {
 							$album_list = array('albums' => $albumlist, 'pages' => '0', 'news' => '0');
 							printSearchForm(NULL, 'search', NULL, gettext('Search album'), NULL, NULL, $album_list);
@@ -78,7 +79,7 @@ if (!defined('WEBPATH'))
 						</h3>
 						<?php
 					}
-					if ($_zp_page == 1) { //test of zenpage searches
+					if ($_current_page == 1) { //test of zenpage searches
 						if ($numpages > 0) {
 							$number_to_show = 5;
 							$c = 0;
@@ -139,29 +140,29 @@ if (!defined('WEBPATH'))
 						}
 						?>
 					</h3>
-					<?php if (getNumAlbums() != 0) { ?>
+						<?php if (getNumAlbums() != 0) { ?>
 						<div id="albums">
-							<?php while (next_album()): ?>
+	<?php while (next_album()): ?>
 								<div class="album">
 									<div class="thumb">
 										<a href="<?php echo html_encode(getAlbumURL()); ?>" title="<?php echo gettext('View album:'); ?> <?php printBareAlbumTitle(); ?>"><?php printCustomAlbumThumbImage(getBareAlbumTitle(), NULL, 95, 95, 95, 95); ?></a>
 									</div>
 									<div class="albumdesc">
 										<h3><a href="<?php echo html_encode(getAlbumURL()); ?>" title="<?php echo gettext('View album:'); ?> <?php printBareAlbumTitle(); ?>"><?php printAlbumTitle(); ?></a></h3>
-										<?php printAlbumDate(""); ?>
-										<p><?php echo html_encodeTagged(shortenContent(getAlbumDesc(), 45)); ?></p>
+		<?php printAlbumDate(""); ?>
+										<p><?php echo html_encodeTagged(shortenContent(getAlbumDesc(), 45, getOption("zenpage_textshorten_indicator"))); ?></p>
 									</div>
 								</div>
-							<?php endwhile; ?>
+						<?php endwhile; ?>
 						</div>
-					<?php } ?>
-					<?php if (getNumImages() > 0) { ?>
+						<?php } ?>
+						<?php if (getNumImages() > 0) { ?>
 						<div id="images">
-							<?php while (next_image()) { ?>
+	<?php while (next_image()) { ?>
 								<div class="image">
 									<div class="imagethumb"><a href="<?php echo html_encode(getImageURL()); ?>" title="<?php printBareImageTitle(); ?>"><?php printImageThumb(getBareImageTitle()); ?></a></div>
 								</div>
-							<?php } ?>
+						<?php } ?>
 						</div>
 						<br class="clearall">
 					<?php } ?>
@@ -179,19 +180,19 @@ if (!defined('WEBPATH'))
 
 
 				<div id="sidebar">
-					<?php include("sidebar.php"); ?>
+<?php include("sidebar.php"); ?>
 				</div><!-- sidebar -->
 
 
 
 				<div id="footer">
-					<?php include("footer.php"); ?>
+<?php include("footer.php"); ?>
 				</div>
 			</div><!-- content -->
 
 		</div><!-- main -->
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

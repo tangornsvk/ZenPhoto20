@@ -7,12 +7,13 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php
+		npgFilters::apply('theme_head');
 
+		scriptLoader($_themeroot . '/style.css');
 
-
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-		<?php if (zp_has_filter('theme_head', 'colorbox::css')) { ?>
+		if (npgFilters::has_filter('theme_head', 'colorbox::css')) {
+			?>
 			<script type="text/javascript">
 				// <!-- <![CDATA[
 				window.addEventListener('load', function () {
@@ -37,7 +38,7 @@ if (!defined('WEBPATH'))
 		<?php if (class_exists('RSS')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<div id="main">
 			<div id="header">
@@ -54,7 +55,7 @@ if (!defined('WEBPATH'))
 			<div id="content">
 
 				<div id="breadcrumb">
-					<h2><a href="<?php echo getGalleryIndexURL(); ?>" title="<?php gettext('Index'); ?>"><?php echo gettext("Index"); ?></a> » <?php
+					<h2><a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Index'); ?>"><?php echo gettext("Index"); ?></a> » <?php
 						printParentBreadcrumb("", " » ", " » ");
 						printAlbumBreadcrumb("  ", " » ");
 						?>
@@ -87,7 +88,7 @@ if (!defined('WEBPATH'))
 						}
 						if (!empty($tburl)) {
 							?>
-							<a href="<?php echo html_encode(pathurlencode($tburl)); ?>"<?php echo $boxclass; ?> title="<?php printBareImageTitle(); ?>">
+							<a href="<?php echo html_encode($tburl); ?>"<?php echo $boxclass; ?> title="<?php printBareImageTitle(); ?>">
 								<?php
 							}
 							printCustomSizedImageMaxSpace(getBareImageTitle(), 580, 580);
@@ -109,7 +110,7 @@ if (!defined('WEBPATH'))
 						?>
 						<br style="clear:both;" /><br />
 						<?php
-						if (function_exists('printSlideShowLink')) {
+						if (function_exists('printSlideShowLink') && isImagePhoto()) {
 							echo '<span id="slideshowlink">';
 							printSlideShowLink();
 							echo '</span>';
@@ -125,9 +126,9 @@ if (!defined('WEBPATH'))
 						<br style="clear:both" />
 						<?php
 						If (function_exists('printAddToFavorites'))
-							printAddToFavorites($_zp_current_image);
+							printAddToFavorites($_current_image);
 						@call_user_func('printRating');
-						@call_user_func('printGoogleMap');
+						simpleMap::printMap();
 						?>
 
 					</div>
@@ -148,7 +149,7 @@ if (!defined('WEBPATH'))
 
 		</div><!-- main -->
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

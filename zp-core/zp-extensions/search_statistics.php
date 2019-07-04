@@ -20,18 +20,17 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/search_statistics
+ * @pluginCategory admin
  */
-$plugin_is_filter = 2 | CLASS_PLUGIN;
+$plugin_is_filter = 2 | FEATURE_PLUGIN;
 $plugin_description = gettext("Collects and displays search criteria.");
-$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'search_statistics';
 
-zp_register_filter('search_statistics', 'search_statistics::handler');
+npgFilters::register('search_statistics', 'search_statistics::handler');
 
-zp_register_filter('admin_tabs', 'search_statistics::admin_tabs');
+npgFilters::register('admin_tabs', 'search_statistics::admin_tabs');
 
 /**
  * Option handler class
@@ -70,9 +69,9 @@ class search_statistics {
 				gettext('Threshold (terms)') => array('key' => 'search_statistics_terms_threshold', 'type' => OPTION_TYPE_NUMBER,
 						'order' => 3,
 						'desc' => gettext('Show the top <em>Threshold</em> terms used in searches.')),
-				gettext('Threshold (IP)') => array('key' => 'search_statistics_ip_threshold', 'type' => OPTION_TYPE_NUMBER,
+				gettext('Threshold (ID)') => array('key' => 'search_statistics_ip_threshold', 'type' => OPTION_TYPE_NUMBER,
 						'order' => 4,
-						'desc' => gettext('Show the top <em>Threshold</em> IPs that have performed searches.'))
+						'desc' => gettext('Show the top <em>Threshold</em> IDs that have performed searches.'))
 		);
 	}
 
@@ -81,8 +80,8 @@ class search_statistics {
 	}
 
 	static function admin_tabs($tabs) {
-		if (zp_loggedin(OVERVIEW_RIGHTS)) {
-			$tabs['overview']['subtabs'][gettext('Search analysis')] = '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/search_statistics/search_analysis.php?tab=searchstat';
+		if (npg_loggedin(OVERVIEW_RIGHTS)) {
+			$tabs['overview']['subtabs'][gettext('Search analysis')] = PLUGIN_FOLDER . '/search_statistics/search_analysis.php?tab=searchstat';
 		}
 		return $tabs;
 	}
@@ -90,19 +89,19 @@ class search_statistics {
 	/**
 	 *
 	 * Logs User searches
-	 * @param array $search_statistics the search criteria
+	 * @param array $searchString the search criteria
 	 * @param string $type 'album', 'image', etc.
 	 * @param bool $success	did the search return a result
 	 * @param bool $dynamic was it from a dynamic album
-	 * @param int $iteration count of the filters since the search engine instantiation
+	 * @param int $instance unique id of the search engine instantiation
 	 */
-	static function handler($search_statistics, $type, $success, $dynamic, $iteration) {
+	static function handler($searchString, $type, $success, $dynamic, $instance) {
 		if (!$dynamic) { // log unique user searches
-			$store = array('type' => $type, 'success' => $success, 'iteration' => $iteration, 'data' => $search_statistics);
-			$sql = 'INSERT INTO ' . prefix('plugin_storage') . ' (`type`, `aux`,`data`) VALUES ("search_statistics", ' . db_quote(getUserIP()) . ',' . db_quote(serialize($store)) . ')';
+			$store = array('type' => $type, 'success' => $success, 'data' => $searchString);
+			$sql = 'INSERT INTO ' . prefix('plugin_storage') . ' (`type`, `subtype`, `aux`,`data`) VALUES ("search_statistics", ' . db_quote($instance) . ', ' . db_quote(getUserID()) . ',' . db_quote(serialize($store)) . ')';
 			query($sql);
 		}
-		return $search_statistics;
+		return $searchString;
 	}
 
 }

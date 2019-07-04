@@ -4,10 +4,9 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * Copyright 2016 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2016 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/accessThreshold
  */
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 admin_securityChecks(DEBUG_RIGHTS, $return = currentRelativeURL());
@@ -107,7 +106,7 @@ foreach ($recentIP as $ip => $data) {
 		$out .= 'background-color:WhiteSmoke;';
 	}
 
-	$out .='">' . "\n";
+	$out .= '">' . "\n";
 	$out .= '  <span style="width:42%;float:left;"><span style="float:right;">' . $localeBlock . $ipDisp . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>' . "\n";
 	$out .= '  <span style="width:48%;float:left;' . $old . '">' . date('Y-m-d H:i:s', $data['lastAccessed']) . '</span>' . "\n";
 	$out .= '  <span style="width:9%;float:left;"><span style="float:right;">' . '<span style="' . $invalid . '">' . $interval . '</span></span></span>' . "\n";
@@ -121,7 +120,7 @@ foreach ($recentIP as $ip => $data) {
 	$ct++;
 }
 if (empty($output)) {
-	$output[] = gettext("No entries excede the noise level");
+	$output[] = gettext("No entries exceed the noise level");
 }
 
 printAdminHeader('admin');
@@ -133,7 +132,7 @@ echo "\n</head>";
 	<div id="main">
 		<?php printTabs(); ?>
 		<div id="content">
-			<?php zp_apply_filter('admin_note', 'access', ''); ?>
+			<?php npgFilters::apply('admin_note', 'access', ''); ?>
 			<h1>
 				<?php
 				echo gettext('Access threshold');
@@ -142,7 +141,7 @@ echo "\n</head>";
 			<div id="container">
 
 				<div class="tabbox">
-					<form name="data_sort" style="float: right;" method="post" action="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/accessThreshold/admin_tab.php?action=data_sortorder&tab=accessThreshold" >
+					<form name="data_sort" style="float: right;" method="post" action="<?php echo getAdminLink(PLUGIN_FOLDER . '/accessThreshold/admin_tab.php'); ?>?action=data_sortorder&tab=accessThreshold" >
 						<span class="nowrap">
 							<?php echo gettext('Sort by:'); ?>
 							<select id="sortselect" name="data_sortby" onchange="this.form.submit();">
@@ -178,9 +177,8 @@ echo "\n</head>";
 				</div>
 			</div>
 		</div>
+		<?php printAdminFooter();
+		?>
 	</div>
-	<?php printAdminFooter();
-	?>
-
 </body>
 </html>

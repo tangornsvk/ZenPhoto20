@@ -8,7 +8,7 @@
 				printAlbumMenu('jump', NULL, '', '', '', '', gettext('Gallery Index'));
 			}
 			if (getOption('allow_search')) {
-				printSearchForm('', 'search', '', gettext('Search'), "$_zp_themeroot/images/search-drop.png", NULL, NULL, "$_zp_themeroot/images/reset.gif");
+				printSearchForm('', 'search', '', gettext('Search'), "$_themeroot/images/search-drop.png", NULL, NULL, "$_themeroot/images/reset.gif");
 			}
 			?>
 		</div>
@@ -20,7 +20,7 @@
 				<?php
 				$rss = false;
 				if (getOption('RSS_album_image')) {
-					printRSSLink('Gallery', '', gettext('Latest images'), '', false, 'rss');
+					printRSSLink('Gallery', '', gettext('Images'), '', false, 'rss');
 					$rss = true;
 				}
 				if (($_zenpage_enabled) && (getOption('RSS_articles'))) {
@@ -29,12 +29,12 @@
 					} else {
 						$separ = '';
 					};
-					printRSSLink('News', $separ, gettext('Latest news'), '', false, 'rss');
+					printRSSLink('News', $separ, NEWS_LABEL, '', false, 'rss');
 				}
 				?>
 				<script type="text/javascript">
 					//<![CDATA[
-					$('.rss').prepend('<img alt="RSS Feed" src="<?php echo $_zp_themeroot; ?>/images/rss.png">&nbsp;');
+					$('.rss').prepend('<img alt="RSS Feed" src="<?php echo $_themeroot; ?>/images/rss.png">&nbsp;');
 					//]]>
 				</script>
 			</div>
@@ -44,10 +44,13 @@
 			<?php
 			echo getMainSiteName();
 			printCustomPageURL(gettext('Archive View'), 'archive', '', ' | ');
+			if (extensionEnabled('daily-summary')) {
+				printDailySummaryLink(gettext('Daily summary'), '', ' | ');
+			}
 			if (extensionEnabled('user_login-out')) {
 				printUserLogin_out(' | ', '', 2);
 			}
-			if ((!zp_loggedin()) && (extensionEnabled('register_user'))) {
+			if ((!npg_loggedin()) && (extensionEnabled('register_user'))) {
 				printRegisterURL(gettext('Register'), ' | ');
 			}
 			?>
@@ -55,14 +58,14 @@
 
 		<div id="zpcredit">
 			<?php
-			printZenphotoLink(getOption('css_style'));
+			print_SW_Link();
 			?>
 			<?php
-			if (($_zp_gallery_page == 'image.php') ||
-							(($_zp_gallery_page == 'album.php') && (getOption('use_galleriffic')) && (getNumImages() > 0)) ||
+			if (($_gallery_page == 'image.php') ||
+							(($_gallery_page == 'album.php') && (getOption('use_galleriffic')) && (getNumImages() > 0)) ||
 							(($_zenpage_enabled) && (is_NewsArticle()))) {
 				?>
-				<img id="icon-help" src="<?php echo $_zp_themeroot; ?>/images/help.png" title="<?php echo gettext('You can browse with the arrows keys of your keyboard'); ?>" alt="help" />
+				<img id="icon-help" src="<?php echo $_themeroot; ?>/images/help.png" title="<?php echo gettext('You can browse with the arrows keys of your keyboard'); ?>" alt="help" />
 			<?php } ?>
 		</div>
 	</div>
@@ -70,9 +73,9 @@
 </div>			<!-- END #PAGE -->
 
 <?php
-zp_apply_filter('theme_body_close');
+npgFilters::apply('theme_body_close');
 ?>
 
 </body>
 </html>
-<!-- zpArdoise 1.4.13 - a ZenPhoto/ZenPage theme by Vincent3569  -->
+<!-- zpArdoise 1.4.13 - a netPhotoGraphics/ZenPage theme by Vincent3569  -->

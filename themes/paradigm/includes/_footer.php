@@ -17,14 +17,21 @@
 						<li><?php printCustomPageURL(gettext('Archive View'), 'archive'); ?></li>
 						<?php
 					}
-
-					if (function_exists("printAllNewsCategories") && ((getNumNews(true)) > 0)) {
+					if (extensionEnabled('daily-summary')) {
 						?>
-						<li><?php printNewsIndexURL(gettext('News'), '', gettext('News')); ?></li>
+						<li>
+							<?php printDailySummaryLink(gettext('Daily summary'), '', '', ''); ?>
+						</li>
 						<?php
 					}
 
-					if (function_exists("printPageMenu") && ((getNumPages(true)) > 0)) {
+					if (function_exists("printAllNewsCategories") && ((hasNews()) > 0)) {
+						?>
+						<li><?php printNewsIndexURL(NEWS_LABEL, '', NEWS_LABEL); ?></li>
+						<?php
+					}
+
+					if (function_exists("printPageMenu") && ((hasPages()) > 0)) {
 						printPageMenu("list-top", "", "", "", "", "", "1", false);
 					}
 					if (function_exists('printFavoritesURL')) {
@@ -112,7 +119,7 @@
 
 
 <?php
-zp_apply_filter('theme_body_close');
+npgFilters::apply('theme_body_close');
 ?>
 
 <?php if (getOption('sharethis_id') != '') { ?>

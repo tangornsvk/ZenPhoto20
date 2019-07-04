@@ -8,14 +8,14 @@ if (function_exists('printContactForm')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
-			<?php zp_apply_filter('theme_head'); ?>
-			
-			
-			 
-			<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
+			<?php
+			npgFilters::apply('theme_head');
+
+			scriptLoader($_themeroot . '/style.css');
+			?>
 		</head>
 		<body>
-			<?php zp_apply_filter('theme_body_open'); ?>
+			<?php npgFilters::apply('theme_body_open'); ?>
 
 			<div id="main">
 
@@ -54,12 +54,12 @@ if (function_exists('printContactForm')) {
 
 			</div><!-- main -->
 			<?php
-			zp_apply_filter('theme_body_close');
+			npgFilters::apply('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
+	include(CORE_SERVERPATH . '404.php');
 }
-	?>
+?>

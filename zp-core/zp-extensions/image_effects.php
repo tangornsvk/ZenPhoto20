@@ -24,11 +24,11 @@
  *
  * The following tokens are available to represent paths:
  * 	<ul>
- * 		<li><var>%WEBPATH%</v> to represent the WEB path to the zenphoto installation.</li>
- * 		<li><var>%SERVERPATH%</var> to represent the server path to the zenphoto installation.</li>
- * 		<li><var>%PLUGIN_FOLDER%</var> to represent the zenphoto "extensions" folder.</li>
- * 		<li><var>%USER_PLUGIN_FOLDER%</var> to represent the root "plugin" folder.</li>
- * 		<li><var>%ZENFOLDER%</var> to represent the zp-core folder.</li>
+ * 		<li><var>&#37;WEBPATH&#37;</v> to represent the WEB path to the installation.</li>
+ * 		<li><var>&#37;SERVERPATH&#37;</var> to represent the server path to the installation.</li>
+ * 		<li><var>&#37;PLUGIN_FOLDER&#37;</var> to represent the "extensions" folder.</li>
+ * 		<li><var>&#37;USER_PLUGIN_FOLDER&#37;</var> to represent the root "plugin" folder.</li>
+ * 		<li><var>&#37;CORE_FOLDER&#37;</var> to represent the "core" folder.</li>
  * </ul>
  *
  * Pixastic effects:<br>
@@ -44,7 +44,7 @@
  * 	files and place in the image_effects folder (in the global plugins folder.)
  *
  * 	For instance, to add the <i>Reflex effect</i>, download <var>reflex.zip</var>, unzip it, and place <var>reflex.js</var>
- * 	in the folder. Check the image_effects foder in the zenphoto extensions to see if there is already
+ * 	in the folder. Check the image_effects foder in the extensions to see if there is already
  * 	header file. If not create one in the <var>plugins/image_effects</var> folder. Use as a model one of the other
  * 	Effenberger effects header files.
  *
@@ -54,22 +54,21 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage media
+ * @package plugins/image_effects
+ * @pluginCategory media
  */
 $plugin_description = gettext('Attaches “Image effects” to images and thumbnails.');
-$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'image_effects';
 
-zp_register_filter('standard_image_html', 'image_effects::std_images');
-zp_register_filter('custom_image_html', 'image_effects::custom_images');
-zp_register_filter('standard_album_thumb_html', 'image_effects::std_album_thumbs');
-zp_register_filter('standard_image_thumb_html', 'image_effects::std_image_thumbs');
-zp_register_filter('custom_album_thumb_html', 'image_effects::custom_album_thumbs');
+npgFilters::register('standard_image_html', 'image_effects::std_images');
+npgFilters::register('custom_image_html', 'image_effects::custom_images');
+npgFilters::register('standard_album_thumb_html', 'image_effects::std_album_thumbs');
+npgFilters::register('standard_image_thumb_html', 'image_effects::std_image_thumbs');
+npgFilters::register('custom_album_thumb_html', 'image_effects::custom_album_thumbs');
 
 if (defined('OFFSET_PATH') && OFFSET_PATH == 0) {
-	zp_register_filter('theme_head', 'image_effects::effectsJS');
+	npgFilters::register('theme_body_close', 'image_effects::effectsJS');
 }
 
 class image_effects {
@@ -205,9 +204,6 @@ class image_effects {
 			$invalid_effect = $effectdata && array_key_exists('error', $effectdata);
 		} while ($_image_effects_random && $invalid_effect);
 
-		if (!$_image_effects_random)
-			echo "<br />random effect empty!";
-
 		$selected_effects = array_unique(array(getOption('image_std_images'), getOption('image_custom_images'),
 				getOption('image_std_album_thumbs'), getOption('image_std_image_thumbs'),
 				getOption('image_custom_album_thumbs'), $_image_effects_random));
@@ -244,15 +240,13 @@ class image_effects {
 								$common_data = trim(substr($common_data, strlen($common_element)));
 								$common_element = trim($common_element);
 								if (!in_array($common_element, $common)) {
+									echo $common_element . "\n";
 									$common[] = $common_element;
 								}
 							}
 						}
 					}
 				}
-			}
-			if (!empty($common)) {
-				echo implode("\n", $common);
 			}
 		}
 	}
@@ -268,7 +262,7 @@ class image_effects {
 				if ($i !== false) {
 					$j = strpos($text, '</' . $tag . '>');
 					if ($j !== false) {
-						$effectdata[$tag] = str_replace('%ZENFOLDER%', ZENFOLDER, str_replace('%SERVERPATH%', SERVERPATH, str_replace('%USER_PLUGIN_FOLDER%', USER_PLUGIN_FOLDER, str_replace('%PLUGIN_FOLDER%', PLUGIN_FOLDER, str_replace('%WEBPATH%', WEBPATH, substr($text, $s = $i + strlen($tag) + 2, $j - $s))))));
+						$effectdata[$tag] = str_replace('%CORE_FOLDER%', CORE_FOLDER, str_replace('%SERVERPATH%', SERVERPATH, str_replace('%USER_PLUGIN_FOLDER%', USER_PLUGIN_FOLDER, str_replace('%PLUGIN_FOLDER%', PLUGIN_FOLDER, str_replace('%WEBPATH%', WEBPATH, substr($text, $s = $i + strlen($tag) + 2, $j - $s))))));
 					}
 				}
 			}

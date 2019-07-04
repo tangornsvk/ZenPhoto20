@@ -8,14 +8,17 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php
+		npgFilters::apply('theme_head');
 
-		<link rel="stylesheet" href="<?php echo pathurlencode($zenCSS); ?>" type="text/css" />
-		<link rel="stylesheet" href="<?php echo pathurlencode(dirname(dirname($zenCSS))); ?>/common.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
+		scriptLoader($zenCSS);
+		scriptLoader(dirname(dirname($zenCSS)) . '/common.css');
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 		<div id="main">
 			<div id="gallerytitle">
 				<?php
@@ -32,7 +35,22 @@ if (!defined('WEBPATH'))
 				</h2>
 			</div>
 			<div id="padbox">
+				<div class="image_header">
+					<p><?php echo gettext('Images By Date'); ?></p>
+				</div>
 				<div id="archive"><?php printAllDates(); ?></div>
+				<?php
+				if (extensionEnabled('zenpage')) {
+					if (hasNews()) {
+						?>
+						<div class="news_header">
+							<p><?php echo(NEWS_LABEL); ?></p>
+						</div>
+						<?php
+						printNewsArchive("archive");
+					}
+				}
+				?>
 				<div id="tag_cloud">
 					<p><?php echo gettext('Popular Tags'); ?></p>
 					<?php printAllTagsAs('cloud', 'tags'); ?>
@@ -53,7 +71,7 @@ if (!defined('WEBPATH'))
 			?>
 		</div>
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

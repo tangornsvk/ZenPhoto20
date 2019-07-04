@@ -9,10 +9,9 @@
  * There also must be a PNG image for the login button named <var>login_button.png</var>
  *
  * @author Stephen Billard (sbillard)
- * @Copyright 2017 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2017 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage users
+ * @package plugins/oAuthLogin
  */
 class oAuthLogin {
 
@@ -27,12 +26,12 @@ class oAuthLogin {
 	/**
 	 * common option handling
 	 *
-	 * @global type $_zp_authority
+	 * @global type $_authority
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		global $_zp_authority;
-		$admins = $_zp_authority->getAdministrators('groups');
+		global $_authority;
+		$admins = $_authority->getAdministrators('groups');
 		$ordered = array();
 		foreach ($admins as $key => $admin) {
 			if ($admin['name'] == 'group' && $admin['rights'] && !($admin['rights'] & ADMIN_RIGHTS)) {
@@ -56,7 +55,7 @@ class oAuthLogin {
 	static function alt_login_handler($handler_list) {
 		$class = get_called_class();
 		$oAuthAuthority = ucfirst(str_replace('Login', '', $class));
-		$link = FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . $class . '/' . strtolower($oAuthAuthority) . '.php';
+		$link = getAdminLink(PLUGIN_FOLDER . '/' . $class . '/' . strtolower($oAuthAuthority) . '.php');
 		$handler_list[$oAuthAuthority] = array('script' => $link, 'params' => array('request=login'));
 		return $handler_list;
 	}
@@ -66,7 +65,7 @@ class oAuthLogin {
 	 * Will log the user on if he exists. Otherwise it will create a user accoung and log
 	 * on that account.
 	 *
-	 * Redirects into zenphoto on success presuming there is a redirect link.
+	 * Redirects on success presuming there is a redirect link.
 	 *
 	 * @param $user
 	 * @param $email
@@ -74,16 +73,16 @@ class oAuthLogin {
 	 * @param $redirect
 	 */
 	static function credentials($user, $email, $name, $redirect) {
-		global $_zp_authority;
+		global $_authority;
 		$class = get_called_class();
 		$oAuthAuthority = ucfirst(str_replace('Login', '', $class));
-		if (is_valid_email_zp($email)) { // prefer email as user id
+		if (npgFunctions::is_valid_email($email)) { // prefer email as user id
 			$user = $email;
 		} else {
 			$user = $oAuthAuthority . '_User_' . $user;
 		}
 
-		$userobj = $_zp_authority->getAnAdmin(array('`user`=' => $user, '`valid`=' => 1));
+		$userobj = $_authority->getAnAdmin(array('`user`=' => $user, '`valid`=' => 1));
 		$more = false;
 		if ($userobj) { //	update if changed
 			$save = false;
@@ -107,13 +106,13 @@ class oAuthLogin {
 			}
 		} else { //	User does not exist, create him
 			$groupname = getOption($class . '_group');
-			$groupobj = $_zp_authority->getAnAdmin(array('`user`=' => $groupname, '`valid`=' => 0));
+			$groupobj = $_authority->getAnAdmin(array('`user`=' => $groupname, '`valid`=' => 0));
 			if ($groupobj) {
 				$group = NULL;
 				if ($groupobj->getName() != 'template') {
 					$group = $groupname;
 				}
-				$userobj = Zenphoto_Authority::newAdministrator('');
+				$userobj = npg_Authority::newAdministrator('');
 				$userobj->transient = false;
 				$userobj->setUser($user);
 				$credentials = array('auth' => $oAuthAuthority . 'OAuth', 'user' => 'user', 'email' => 'email');
@@ -138,22 +137,22 @@ class oAuthLogin {
 				$more = sprintf(gettext('Configuration error,%1$s login group %2$s does not exist.'), $class, $groupname);
 			}
 			if (!$more && getOption('register_user_notify')) {
-				$_notify = zp_mail(gettext('ZenPhoto20 Gallery registration'), sprintf(gettext('%1$s (%2$s) has registered for the zenphoto gallery providing an e-mail address of %3$s.'), $userobj->getName(), $userobj->getUser(), $userobj->getEmail()));
+				$_notify = npgFunctions::mail(gettext('netPhotoGraphics Gallery registration'), sprintf(gettext('%1$s (%2$s) has registered for the gallery providing an e-mail address of %3$s.'), $userobj->getName(), $userobj->getUser(), $userobj->getEmail()));
 			}
 		}
 		session_unset(); //	need to cleanse out stuff or subsequent logins will fail[sic]
 		if ($more) {
-			header('Location: ' . WEBPATH . '/' . ZENFOLDER . '/admin.php?_zp_login_error=' . html_encode($more));
-			exitZP();
+			header('Location: ' . getAdminLink('admin.php') . '?_login_error=' . html_encode($more));
+			exit();
 		}
-		zp_apply_filter('federated_login_attempt', true, $user, $oAuthAuthority . 'oAuth'); //	we will mascerade as federated logon for this filter
-		Zenphoto_Authority::logUser($userobj);
+		npgFilters::apply('federated_login_attempt', true, $user, $oAuthAuthority . 'oAuth'); //	we will mascerade as federated logon for this filter
+		npg_Authority::logUser($userobj);
 		if ($redirect) {
 			header("Location: " . $redirect);
 		} else {
 			header('Location: ' . FULLWEBPATH);
 		}
-		exitZP();
+		exit();
 	}
 
 	/**
@@ -166,17 +165,17 @@ class oAuthLogin {
 	 * @param $local_alterrights
 	 */
 	static function edit_admin($html, $userobj, $i, $background, $current, $local_alterrights) {
-		global $_zp_current_admin_obj;
+		global $_current_admin_obj;
 		$class = get_called_class();
 		$oAuthAuthority = ucfirst(str_replace('Login', '', $class));
-		if (empty($_zp_current_admin_obj) || !$userobj->getValid())
+		if (empty($_current_admin_obj) || !$userobj->getValid())
 			return $html;
 		$federated = $userobj->getCredentials(); //	came from federated logon, disable the e-mail field
 		if (!in_array($oAuthAuthority . 'OAuth', $federated)) {
 			$federated = false;
 		}
 
-		if ($userobj->getID() != $_zp_current_admin_obj->getID() && $federated) { //	The current logged on user
+		if ($userobj->getID() != $_current_admin_obj->getID() && $federated) { //	The current logged on user
 			$msg = sprintf(gettext("<strong>NOTE:</strong> This user was created by a %s Account logon."), $oAuthAuthority);
 			$myhtml = '<div class="user_left">' . "\n"
 							. '<p class="notebox">' . $msg . '</p>' . "\n"
@@ -191,11 +190,11 @@ class oAuthLogin {
 		$class = get_called_class();
 		$oAuthAuthority = ucfirst(str_replace('Login', '', $class));
 
-		if (!zp_loggedin()) {
+		if (!npg_loggedin()) {
 			?>
 			<span class="button">
-				<a href="<?php echo FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . $class . '/' . strtolower($oAuthAuthority) . '.php'; ?>?request=<?php echo $class; ?>&amp;redirect=/dev/index.php?userlog=1" title="<?php echo $oAuthAuthority; ?> login">
-					<img src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . $class; ?>/login_button.png" alt="<?php echo $oAuthAuthority; ?> login">
+				<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/' . $class . '/' . strtolower($oAuthAuthority) . '.php'); ?>?request=<?php echo $class; ?>&amp;redirect=/dev/index.php?userlog=1" title="<?php echo $oAuthAuthority; ?> login">
+					<img src="<?php echo WEBPATH . '/' . CORE_FOLDER . '/' . PLUGIN_FOLDER . '/' . $class; ?>/login_button.png" alt="<?php echo $oAuthAuthority; ?> login">
 				</a>
 			</span>
 			<?php

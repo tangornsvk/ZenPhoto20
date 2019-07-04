@@ -2,8 +2,8 @@
 /*
  * This plugin implements <i>tiny URLs</i> such as used by the tweet_news plugin
  *
- * <i>Tiny URLs</i> are short unique to zenphoto. They are short digital strings that
- * allow zenphoto to locate the object referenced. They are prefixed by <var>tiny/<var>
+ * <i>Tiny URLs</i> are short digital strings that
+ * allow location of the object referenced. They are prefixed by <var>tiny/<var>
  * if <i>mod_rewrite</i> is active otherwise they have the form <var>index.php?p=ddddd&t</var> .
  *
  * These can be useful if you want to minimize the length of URLs or if you want to
@@ -11,38 +11,35 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/tinyURL
+ * @pluginCategory admin
  */
 $plugin_is_filter = defaultExtension(5 | CLASS_PLUGIN);
-$plugin_description = gettext('Provides short URLs to zenphoto objects.');
-$plugin_author = "Stephen Billard (sbillard)";
-$plugin_disable = (MOD_REWRITE) ? '' : gettext('Shortened URLs require the <code>mod_rewrite</code> option be enabled.');
+if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
+	$plugin_description = gettext('Provides short URLs to gallery objects.');
+}
 
 $option_interface = 'tinyURL';
 
 if (getOption('tinyURL_agressive'))
-	zp_register_filter('getLink', 'tinyURL::getTinyURL');
+	npgFilters::register('getLink', 'tinyURL::getTinyURL');
 
 switch (OFFSET_PATH) {
 	case 0:
-		if (!$plugin_disable) {
-			zp_register_filter('load_request', 'tinyURL::parse');
-		}
+		npgFilters::register('load_request', 'tinyURL::parse');
 		break;
 	case 2:
 		setOptionDefault('tinyURL_agressive', 0);
-		setOptionDefault('tinyURL_text', 'tiny');
 		break;
 	default:
 		break;
 }
-$_zp_conf_vars['special_pages']['tiny'] = array('define'	 => '_TINY_', 'rewrite'	 => getOption('tinyURL_text'),
-				'option'	 => 'tinyURL_text', 'default'	 => 'tiny/');
-$_zp_conf_vars['special_pages'][] = array('define'	 => false, 'rewrite'	 => '^%TINY%([0-9]+)/*$',
-				'rule'		 => '%REWRITE% index.php?p=$1&t [L,QSA]');
-$_zp_conf_vars['special_pages'][] = array('define' => false, 'rewrite' => '^%TINY%([0-9]+)/([0-9]+)/*$', 'rule' => '%REWRITE% index.php?p=$1&page=$2&t [L,QSA]');
-$_zp_conf_vars['special_pages'][] = array('definition' => '%TINY%', 'rewrite' => '_TINY_');
+$_conf_vars['special_pages']['tiny'] = array('define' => '_TINY_', 'rewrite' => getOption('tinyURL_text'),
+		'option' => 'tinyURL_text', 'default' => 'tiny/');
+$_conf_vars['special_pages'][] = array('rewrite' => '^%TINY%([0-9]+)/*$',
+		'rule' => '%REWRITE% index.php?p=$1&t [NC,L,QSA]');
+$_conf_vars['special_pages'][] = array('rewrite' => '^%TINY%([0-9]+)/([0-9]+)/*$', 'rule' => '%REWRITE% index.php?p=$1&page=$2&t [NC,L,QSA]');
+$_conf_vars['special_pages'][] = array('definition' => '%TINY%', 'rewrite' => '_TINY_');
 
 class tinyURL {
 
@@ -62,10 +59,10 @@ class tinyURL {
 	function getOptionsSupported() {
 		$options = array();
 		$options[gettext('Use in themes for')] = array(
-						'key'		 => 'tinyURL_agressive',
-						'type'	 => OPTION_TYPE_CUSTOM,
-						'order'	 => 1,
-						'desc'	 => gettext('If an option is chosen, normal theme URLs will be replaced with <i>tinyURL</i>s for that object.')
+				'key' => 'tinyURL_agressive',
+				'type' => OPTION_TYPE_CUSTOM,
+				'order' => 1,
+				'desc' => gettext('If an option is chosen, normal theme URLs will be replaced with <i>tinyURL</i>s for that object.')
 		);
 
 		return $options;
@@ -73,16 +70,31 @@ class tinyURL {
 
 	function handleOption($option, $currentValue) {
 		?>
-		<label class="nowrap"><input type="checkbox" name="tinyURL_albums" value="<?php echo self::albums; ?>" <?php if ($currentValue & self::albums) echo 'checked="checked" '; ?>/><?php echo gettext('albums'); ?></label>
-		<label class="nowrap"><input type="checkbox" name="tinyURL_images" value="<?php echo self::images; ?>" <?php if ($currentValue & self::images) echo 'checked="checked" '; ?>/><?php echo gettext('images'); ?></label>
+		<label class="nowrap">
+			<input type="checkbox" name="tinyURL_albums" value="<?php echo self::albums; ?>" <?php if ($currentValue & self::albums) echo 'checked="checked" '; ?>/>
+			<?php echo gettext('albums'); ?>
+		</label>
+		<label class="nowrap">
+			<input type="checkbox" name="tinyURL_images" value="<?php echo self::images; ?>" <?php if ($currentValue & self::images) echo 'checked="checked" '; ?>/>
+			<?php echo gettext('images'); ?>
+		</label>
 		<?php
 		if (extensionEnabled('zenpage')) {
 			?>
-			<label class="nowrap"><input type="checkbox" name="tinyURL_news" value="<?php echo self::news; ?>" <?php if ($currentValue & self::news) echo 'checked="checked" '; ?>/><?php echo gettext('news'); ?></label>
+			<label class="nowrap">
+				<input type="checkbox" name="tinyURL_news" value="<?php echo self::news; ?>" <?php if ($currentValue & self::news) echo 'checked="checked" '; ?>/>
+				<?php echo gettext('news'); ?>
+			</label>
 
-			<label class="nowrap"><input type="checkbox" name="tinyURL_news_categories" value="<?php echo self::news_categories; ?>" <?php if ($currentValue & self::news_categories) echo 'checked="checked" '; ?>/><?php echo gettext('news categories'); ?></label>
+			<label class="nowrap">
+				<input type="checkbox" name="tinyURL_news_categories" value="<?php echo self::news_categories; ?>" <?php if ($currentValue & self::news_categories) echo 'checked="checked" '; ?>/>
+				<?php echo gettext('news categories'); ?>
+			</label>
 
-			<label class="nowrap"><input type="checkbox" name="tinyURL_pages" value="<?php echo self::pages; ?>" <?php if ($currentValue & self::pages) echo 'checked="checked" '; ?>/><?php echo gettext('pages'); ?></label>
+			<label class="nowrap">
+				<input type="checkbox" name="tinyURL_pages" value="<?php echo self::pages; ?>" <?php if ($currentValue & self::pages) echo 'checked="checked" '; ?>/>
+				<?php echo gettext('pages'); ?>
+			</label>
 			<?php
 		}
 	}
@@ -113,7 +125,7 @@ class tinyURL {
 		$tiny = ($obj->getID() << 3) | $asoc[$obj->table];
 		if (MOD_REWRITE) {
 			if ($page > 1)
-				$tiny.='/' . $page;
+				$tiny .= '/' . $page;
 			if (class_exists('seo_locale')) {
 				return seo_locale::localePath(false) . '/' . _TINY_ . $tiny;
 			} else {
@@ -121,7 +133,7 @@ class tinyURL {
 			}
 		} else {
 			if ($page > 1)
-				$tiny.= '&page=' . $page;
+				$tiny .= '&page=' . $page;
 			return WEBPATH . '/index.php?p=' . $tiny . '&t';
 		}
 	}
@@ -135,7 +147,7 @@ class tinyURL {
 	}
 
 	static function parse($success) {
-		if (isset($_GET['p']) && isset($_GET['t'])) { //	zenphoto tiny url
+		if (isset($_GET['p']) && isset($_GET['t'])) { //	tiny url
 			unset($_GET['t']);
 			$tiny = sanitize_numeric($_GET['p']);
 			$tbl = $tiny & 7;
@@ -162,9 +174,9 @@ class tinyURL {
 							$album = $_GET['album'] = $result['folder'];
 							unset($_GET['p']);
 							if (!empty($image)) {
-								$success = zp_load_image($album, $image);
+								$success = Controller::load_image($album, $image);
 							} else if (!empty($album)) {
-								$success = zp_load_album($album);
+								$success = Controller::load_album($album);
 							}
 							break;
 						case 'comments':
@@ -186,11 +198,11 @@ class tinyURL {
 									$redirect = 'index.php?p=pages&title=' . $result['titlelink'];
 									break;
 							}
-							$redirect .= '#zp_comment_id_' . $commentid;
+							$redirect .= '#_comment_id_' . $commentid;
 							header("HTTP/1.0 301 Moved Permanently");
 							header("Status: 301 Moved Permanently");
 							header('Location: ' . FULLWEBPATH . '/' . $redirect);
-							exitZP();
+							exit();
 							break;
 					}
 				}

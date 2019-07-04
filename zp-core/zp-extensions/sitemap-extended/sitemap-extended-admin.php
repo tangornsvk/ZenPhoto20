@@ -4,53 +4,64 @@
  *
  * Tool to generate sitemaps
  *
- * @package admin
+ * @package admin/sitemap-extended
  */
 define('OFFSET_PATH', 3);
 
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
-require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
+require_once(CORE_SERVERPATH . 'template-functions.php');
 
 admin_securityChecks(ADMIN_RIGHTS, currentRelativeURL());
 
-if (!zp_loggedin(OVERVIEW_RIGHTS)) { // prevent nefarious access to this page.
-	header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?from=' . currentRelativeURL());
-	exitZP();
+if (!npg_loggedin(OVERVIEW_RIGHTS)) { // prevent nefarious access to this page.
+	header('Location: ' . getAdminLink('admin.php') . '?from=' . currentRelativeURL());
+	exit();
 }
 if (isset($_GET['clearsitemapcache'])) {
-	clearSitemapCache();
-	header('location:' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/sitemap-extended/sitemap-extended-admin.php');
-	exitZP();
+	sitemap::clearCache();
+	$robots = file_get_contents(SERVERPATH . '/robots.txt');
+	if ($robots) {
+		$robots = str_replace(' sitemap:', '# sitemap:', $robots);
+		file_put_contents(SERVERPATH . '/robots.txt', $robots);
+	}
+	header('location:' . getAdminLink(PLUGIN_FOLDER . '/sitemap-extended/sitemap-extended-admin.php'));
+	exit();
 }
 
 printAdminHeader('overview', 'sitemap');
 if (isset($_GET['generatesitemaps'])) {
-	$_zp_loggedin = NULL;
-	$sitemap_number = sanitize_numeric($_GET['number']);
-	$sitemap_index = getSitemapIndexLinks();
-	$sitemap_albums = getSitemapAlbums();
-	$sitemap_images = getSitemapImages();
+	$_loggedin = NULL;
+	$_sitemap_number = sanitize_numeric($_GET['number']);
+	$sitemap_index = sitemap::getIndexLinks();
+	$sitemap_albums = sitemap::getAlbums();
+	$sitemap_images = sitemap::getImages();
 	if (extensionEnabled('zenpage')) {
-		$sitemap_newsindex = getSitemapNewsIndex();
-		$sitemap_articles = getSitemapNewsArticles();
-		$sitemap_categories = getSitemapNewsCategories();
-		$sitemap_pages = getSitemapPages();
+		$sitemap_newsindex = sitemap::getNewsIndex();
+		$sitemap_articles = sitemap::getNewsArticles();
+		$sitemap_categories = sitemap::getNewsCategories();
+		$sitemap_pages = sitemap::getPages();
 	}
 	$numberAppend = '';
 	if (isset($_GET['generatesitemaps']) && (!empty($sitemap_index) || !empty($sitemap_albums) || !empty($sitemap_images) || !empty($sitemap_newsindex) || !empty($sitemap_articles) || !empty($sitemap_categories) || !empty($sitemap_pages))) {
-		$numberAppend = '-' . $sitemap_number;
-		$metaURL = 'sitemap-extended-admin.php?generatesitemaps&amp;number=' . ($sitemap_number + SITEMAP_CHUNK);
+		$numberAppend = '-' . floor(($_sitemap_number / SITEMAP_CHUNK) + 1);
+		$metaURL = 'sitemap-extended-admin.php?generatesitemaps&amp;number=' . ($_sitemap_number + SITEMAP_CHUNK);
 	} else {
 		$metaURL = '';
 	}
-	if (!empty($metaURL)) {
+	if (empty($metaURL)) {
+		$robots = file_get_contents(SERVERPATH . '/robots.txt');
+		if ($robots && strpos($robots, 'http://www.yourdomain.com') === false) { //update the robots file if FULLWEBPATH is stored
+			$robots = str_replace('# sitemap:', ' sitemap:', $robots);
+			$robots_updated = file_put_contents(SERVERPATH . '/robots.txt', $robots);
+		}
+	} else {
 		?>
 		<meta http-equiv="refresh" content="1; url=<?php echo $metaURL; ?>" />
 		<?php
 	}
 } // if(isset($_GET['generatesitemaps']) end
+scriptLoader(CORE_SERVERPATH . 'admin-statistics.css');
 ?>
-<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin-statistics.css" type="text/css" media="screen" />
 <script type="text/javascript">
 	// <!-- <![CDATA[
 	window.addEventListener('load', function () {
@@ -67,26 +78,6 @@ if (isset($_GET['generatesitemaps'])) {
 </script>
 <?php
 echo '</head>';
-
-function sitemap_printAvailableSitemaps() {
-	$cachefolder = SERVERPATH . '/' . STATIC_CACHE_FOLDER . '/sitemap/';
-	$dirs = array_diff(scandir($cachefolder), array('.', '..', '.DS_Store', 'Thumbs.db', '.htaccess', '.svn'));
-	echo '<h2>' . gettext('Available sitemap files:') . '</h2>';
-	if (!$dirs) {
-		echo '<p>' . gettext('No sitemap files available.') . '</p>';
-	} else {
-		echo '<ol>';
-		foreach ($dirs as $dir) {
-			$filemtime = filemtime($cachefolder . $dir);
-			$lastchange = date('Y-m-d H:m:s', $filemtime);
-			?>
-			<li><a target="_blank" href="<?php echo FULLWEBPATH . '/' . STATIC_CACHE_FOLDER; ?>/sitemap/<?php echo $dir; ?>"><?php echo $dir; ?></a> (<small><?php echo $lastchange; ?>)</small>
-			</li>
-			<?php
-		}
-		echo '</ol>';
-	}
-}
 ?>
 
 <body>
@@ -98,14 +89,14 @@ function sitemap_printAvailableSitemaps() {
 		<?php printTabs();
 		?>
 		<div id="content">
-			<?php zp_apply_filter('admin_note', 'sitemap', ''); ?>
+			<?php npgFilters::apply('admin_note', 'sitemap', ''); ?>
 			<h1><?php echo gettext('Sitemap tools'); ?></h1>
 			<div class="tabbox">
 				<?php if (!isset($_GET['generatesitemaps']) && !isset($_GET['clearsitemapcache'])) { ?>
 					<p class="notebox"><?php echo gettext('<strong>NOTE:</strong> If your theme uses different custom settings instead of the backend options the sitemaps may not match your site.'); ?></p>
 					<p><?php echo gettext('This creates individual static xml sitemap files of the following items:'); ?></p>
 					<ul>
-						<li><strong><?php echo gettext('ZenPhoto20 items'); ?></strong>
+						<li><strong><?php echo gettext('netPhotoGraphics items'); ?></strong>
 							<ul>
 								<li><em><?php echo gettext('Index pages'); ?></em></li>
 								<li><?php echo gettext('<em>Albums</em>: These are split into multiple sitemaps.'); ?></li>
@@ -138,34 +129,34 @@ function sitemap_printAvailableSitemaps() {
 					<br style="clear: both" />
 					<br />
 					<?php
-					sitemap_printAvailableSitemaps();
+					sitemap::printAvailableSitemaps();
 				} // isset generate sitemaps / clearsitemap cache
 				if (isset($_GET['generatesitemaps'])) {
 
 					// clear cache before creating new ones
-					if ($sitemap_number == 1) {
-						clearSitemapCache();
+					if ($_sitemap_number == 1) {
+						sitemap::clearCache();
 					}
 					echo '<ul>';
-					generateSitemapCacheFile('sitemap-zenphoto-index', $sitemap_index);
-					generateSitemapCacheFile('sitemap-zenphoto-albums' . $numberAppend, $sitemap_albums);
-					generateSitemapCacheFile('sitemap-zenphoto-images' . $numberAppend, $sitemap_images);
+					sitemap::generateCacheFile('sitemap-zenphoto-index', $sitemap_index);
+					sitemap::generateCacheFile('sitemap-zenphoto-albums' . $numberAppend, $sitemap_albums);
+					sitemap::generateCacheFile('sitemap-zenphoto-images' . $numberAppend, $sitemap_images);
 					if (extensionEnabled('zenpage')) {
-						generateSitemapCacheFile('sitemap-zenpage-newsindex', $sitemap_newsindex);
-						generateSitemapCacheFile('sitemap-zenpage-news', $sitemap_articles);
-						generateSitemapCacheFile('sitemap-zenpage-categories', $sitemap_categories);
-						generateSitemapCacheFile('sitemap-zenpage-pages', $sitemap_pages);
+						sitemap::generateCacheFile('sitemap-zenpage-newsindex', $sitemap_newsindex);
+						sitemap::generateCacheFile('sitemap-zenpage-news', $sitemap_articles);
+						sitemap::generateCacheFile('sitemap-zenpage-categories', $sitemap_categories);
+						sitemap::generateCacheFile('sitemap-zenpage-pages', $sitemap_pages);
 					}
 					echo '</ul>';
 					if (!empty($metaURL)) {
-						echo '<p><img src="' . WEBPATH . '/' . ZENFOLDER . '/images/ajax-loader.gif" alt="" /><br /><br />' . gettext('Sitemap files are being generated...Patience please.') . '</p>';
+						echo '<p><img src="' . WEBPATH . '/' . CORE_FOLDER . '/images/ajax-loader.gif" alt="" /><br /><br />' . gettext('Sitemap files are being generated...Patience please.') . '</p>';
 					} else {
-						generateSitemapIndexCacheFile();
+						sitemap::generateIndexCacheFile();
 						?>
 						<script type="text/javascript">
 							// <!-- <![CDATA[
 							window.addEventListener('load', function () {
-								window.location = "<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/sitemap-extended/sitemap-extended-admin.php";
+								window.location = "<?php echo getAdminLink(PLUGIN_FOLDER . '/sitemap-extended/sitemap-extended-admin.php'); ?>";
 							}, false);
 							// ]]> -->
 						</script>
@@ -175,7 +166,7 @@ function sitemap_printAvailableSitemaps() {
 				?>
 			</div><!-- tabbox -->
 		</div><!-- content -->
+		<?php printAdminFooter(); ?>
 	</div><!-- main -->
-	<?php printAdminFooter(); ?>
 </body>
 <?php echo "</html>"; ?>

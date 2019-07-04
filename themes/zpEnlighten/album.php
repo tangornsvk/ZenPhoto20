@@ -4,13 +4,20 @@ if (!defined('WEBPATH'))
 ?>
 <!DOCTYPE html>
 <head>
-	<?php printZDRoundedCornerJS(); ?>
-	<?php zp_apply_filter('theme_head'); ?>
-	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-	<?php if (extensionEnabled('rss')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
+	<?php
+	printZDRoundedCornerJS();
+
+
+	npgFilters::apply('theme_head');
+
+	scriptLoader($_themeroot . '/style.css');
+
+	if (extensionEnabled('rss'))
+		printRSSHeaderLink('Album', getAlbumTitle());
+	?>
 </head>
 <body>
-	<?php zp_apply_filter('theme_body_open'); ?>
+	<?php npgFilters::apply('theme_body_open'); ?>
 
 	<div id="main">
 
@@ -20,7 +27,7 @@ if (!defined('WEBPATH'))
 			<div id="breadcrumb">
 				<h2>
 					<?php if (extensionEnabled('zenpage')) { ?>
-						<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php gettext('Index'); ?>"><?php echo gettext("Index"); ?></a>»
+						<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Index'); ?>"><?php echo gettext("Index"); ?></a>»
 					<?php } ?>
 					<a href="<?php echo htmlspecialchars(getCustomPageURl('gallery')); ?>" title="<?php echo gettext('Gallery'); ?>"><?php echo gettext("Gallery") . " » "; ?></a>
 					<?php printParentBreadcrumb(" » ", " » ", " » "); ?><strong><?php printAlbumTitle(true); ?></strong></h2>
@@ -52,7 +59,7 @@ if (!defined('WEBPATH'))
 					<?php endwhile; ?>
 					<?php while ($u % 2 != 0) : $u++; ?>
 						<div class="album" style="margin-left: 8px;">
-							<div class="thumb"><a><img style="width: 255px; height: 75px;  border: 1px #efefef solid;" src="<?= $_zp_themeroot ?>/images/trans.png" /></a></div>
+							<div class="thumb"><a><img style="width: 255px; height: 75px;  border: 1px #efefef solid;" src="<?= $_themeroot ?>/images/trans.png" /></a></div>
 							<div class="albumdesc">
 								<h3 style="color: transparent;">No album</h3>
 								<h3 class="date" style="color: transparent;">No Date</h3>
@@ -70,7 +77,7 @@ if (!defined('WEBPATH'))
 					<?php endwhile; ?>
 					<?php while ($u % 5 != 0) : $u++; ?>
 						<div class="image">
-							<div class="imagethumb"><a><img style="width:<?php echo getOption('thumb_size'); ?>px; height:<?php echo getOption('thumb_size'); ?>px;  outline: 1px #efefef solid;" src="<?= $_zp_themeroot ?>/images/trans.png" /></a></div>
+							<div class="imagethumb"><a><img style="width:<?php echo getOption('thumb_size'); ?>px; height:<?php echo getOption('thumb_size'); ?>px;  outline: 1px #efefef solid;" src="<?= $_themeroot ?>/images/trans.png" /></a></div>
 						</div>
 					<?php endwhile ?>
 				</div>
@@ -80,7 +87,7 @@ if (!defined('WEBPATH'))
 				<br style="clear:both;" /><br />
 				<?php
 				if (function_exists('printAddToFavorites')) {
-					printAddToFavorites($_zp_current_album);
+					printAddToFavorites($_current_album);
 					echo '<br/>';
 				}
 				?>
@@ -96,8 +103,8 @@ if (!defined('WEBPATH'))
 				if (function_exists('printRating')) {
 					printRating();
 				}
-				?>
-				<?php
+				simpleMap::printMap();
+
 				if (function_exists('printCommentForm')) {
 					?>
 					<div id="comments">
@@ -124,6 +131,6 @@ if (!defined('WEBPATH'))
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php zp_apply_filter('theme_body_close'); ?>
+	<?php npgFilters::apply('theme_body_close'); ?>
 </body>
 </html>

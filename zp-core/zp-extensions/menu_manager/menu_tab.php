@@ -1,4 +1,7 @@
 <?php
+/**
+ * @package plugins/menu_manager
+ */
 define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 require_once(dirname(dirname(dirname(__FILE__))) . '/template-functions.php');
@@ -7,33 +10,23 @@ if (extensionEnabled('zenpage')) {
 }
 require_once(dirname(dirname(dirname(__FILE__))) . '/' . PLUGIN_FOLDER . '/menu_manager/menu_manager-admin-functions.php');
 
-admin_securityChecks(NULL, currentRelativeURL());
+admin_securityChecks(ADMIN_RIGHTS, currentRelativeURL());
 
 $page = 'edit';
 
-$menuset = checkChosenMenuset('');
-if (empty($menuset)) { //	setup default menuset
-	$result = query_full_array("SELECT DISTINCT menuset FROM " . prefix('menu'));
-	if (is_array($result)) { // default to the first one
-		$set = array_shift($result);
-		$menuset = $set['menuset'];
-	} else {
-		$menuset = 'default';
-	}
-	$_GET['menuset'] = $menuset;
-}
+define('MENU_ITEM_TRUNCATION', 40);
 
-$reports = array();
+$reports = array('updated' => '<p class="messagebox fade-message">' . gettext('Nothing changed') . '</p>');
 if (isset($_POST['update'])) {
 	XSRFdefender('update_menu');
-	if ($_POST['checkallaction'] == 'noaction') {
-		$reports[] = updateItemsSortorder();
-	} else {
+	if ($report = updateItemsSortorder()) {
+		$reports[] = $report;
+	}
+	if ($_POST['checkallaction'] != 'noaction') {
 		$report = processMenuBulkActions();
 		if ($report) {
 			$reports[] = $report;
-		} else {
-			$reports[] = '<p class="notebox fade-message">' . gettext('Nothing changed') . '</p>';
+			unset($reports['updated']);
 		}
 	}
 }
@@ -45,40 +38,93 @@ if (isset($_GET['delete'])) {
 	if (empty($result)) {
 		$reports[] = "<p class='errorbox' >" . gettext('Menu item deleted failed') . "</p>";
 	} else {
-		$_GET['menuset'] = $menuset = $result['menuset'];
+		$menuset = $result['menuset'];
 		$sql = 'DELETE FROM ' . prefix('menu') . ' WHERE `id`=' . $result['id'];
 		query($sql);
 		$sql = 'DELETE FROM ' . prefix('menu') . ' WHERE `menuset`="' . $menuset . '" AND `sort_order` LIKE "' . $result['sort_order'] . '-%"';
 		query($sql);
 		$reports[] = "<p class='messagebox fade-message'>" . gettext('Menu item deleted') . "</p>";
 	}
+	unset($reports['updated']);
 }
+
 if (isset($_GET['deletemenuset'])) {
 	XSRFdefender('delete_menu');
 	$sql = 'DELETE FROM ' . prefix('menu') . ' WHERE `menuset`=' . db_quote(sanitize($_GET['deletemenuset']));
 	query($sql);
-	$_menu_manager_items = array();
+	purgeOption('menu_lastChanged');
 	$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Menu “%s” deleted"), html_encode(sanitize($_GET['deletemenuset']))) . "</p>";
+	unset($reports['updated']);
 }
-if (isset($_GET['dupmenuset'])) {
+
+if (isset($_GET['exportmenuset'])) {
 	XSRFdefender('dup_menu');
-	$oldmenuset = sanitize($_GET['dupmenuset']);
-	$_GET['menuset'] = $menuset = sanitize($_GET['targetname']);
-	$menuitems = query_full_array('SELECT * FROM ' . prefix('menu') . ' WHERE `menuset`=' . db_quote($oldmenuset) . ' ORDER BY `sort_order`');
-	foreach ($menuitems as $key => $item) {
-		$order = count(explode('-', $item['sort_order'])) - 1;
-		$menuitems[$key]['nesting'] = $order;
+	$menuEpxorted = sanitize($_GET['exportmenuset']);
+	$sql = 'SELECT * FROM ' . prefix('menu') . ' WHERE `menuset`=' . db_quote($menuEpxorted) . ' ORDER BY `sort_order`';
+	$menu = query_full_array($sql);
+
+	$lineEnd = '';
+	$text = '$menuset = array(<br />';
+
+	foreach ($menu as $menuItem) {
+		unset($menuItem['id']);
+		unset($menuItem['parentid']);
+		unset($menuItem['menuset']);
+		$text .= $lineEnd . '&nbsp;&nbsp;array(';
+		$comma = '';
+		foreach ($menuItem as $type => $value) {
+			if ($type == 'sort_order') {
+				$type = 'nesting';
+				$nest = explode('-', $value);
+				$value = count($nest) - 1;
+			}
+			$text .= $comma . "'" . $type . "' => " . "'" . html_encode(str_replace("'", "\\'", $value)) . "'";
+			$comma = ", ";
+		}
+		$text .= ')';
+		$lineEnd = ',<br />';
 	}
-	if (createMenuIfNotExists($menuitems, $menuset)) {
-		$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Menu “%s” duplicated"), html_encode($oldmenuset)) . "</p>";
-	} else {
-		$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Menu “%s” already exists"), html_encode($menuset)) . "</p>";
-	}
+	$text .= '<br />);<br />';
+	$reports[] = '<div class="messagebox">' .
+					'<h2>' . $menuEpxorted . '</h2>' .
+					$text .
+					'</div>';
+	unset($reports['updated']);
 }
+
+if (isset($_GET['dupmenuset'])) {
+	$menuset = sanitize($_GET['targetname']);
+	if (menuExists($menuset)) {
+		$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Menu “%s” already exists"), html_encode($menuset)) . "</p>";
+	} else {
+		XSRFdefender('dup_menu');
+		$oldmenuset = sanitize($_GET['dupmenuset']);
+		$menuitems = query_full_array('SELECT * FROM ' . prefix('menu') . ' WHERE `menuset`=' . db_quote($oldmenuset) . ' ORDER BY `sort_order`');
+		foreach ($menuitems as $key => $item) {
+			$order = count(explode('-', $item['sort_order'])) - 1;
+			$menuitems[$key]['nesting'] = $order;
+		}
+		createMenu($menuitems, $menuset);
+		$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Menu “%s” duplicated"), html_encode($oldmenuset)) . "</p>";
+	}
+	unset($reports['updated']);
+}
+
 // publish or un-publish page by click
 if (isset($_GET['publish'])) {
 	XSRFdefender('update_menu');
-	publishItem($_GET['id'], $_GET['show'], $menuset);
+	publishItem($_GET['id'], $_GET['show'], $_GET['menuset']);
+}
+
+$menuset = checkChosenMenuset();
+if (empty($menuset)) { //	setup default menuset
+	$result = query_full_array("SELECT DISTINCT menuset FROM " . prefix('menu') . ' ORDER BY `menuset`');
+	if (is_array($result)) { // default to the first one
+		$set = array_shift($result);
+		$menuset = $set['menuset'];
+	} else {
+		$menuset = '';
+	}
 }
 
 printAdminHeader('menu');
@@ -129,7 +175,7 @@ printSortableHead();
 				// ]]> -->
 			</script>
 			<?php
-			zp_apply_filter('admin_note', 'menu', '');
+			npgFilters::apply('admin_note', 'menu', '');
 			?>
 
 			<h1><?php
@@ -138,13 +184,13 @@ printSortableHead();
 				echo "</small>";
 				?></h1>
 			<div class="tabbox">
-				<form class="dirtylistening" onReset="setClean('update_form');" id="update_form" action="menu_tab.php?menuset=<?php echo $menuset; ?>" method="post" name="update" onsubmit="return confirmAction();" autocomplete="off">
+				<form class="dirtylistening" onReset="setClean('update_form');" id="update_form" action="<?php echo getAdminLink(PLUGIN_FOLDER . '/menu_manager/menu_tab.php'); ?>?menuset=<?php echo $menuset; ?>" method="post" name="update" onsubmit="return confirmAction();" autocomplete="off">
 					<?php XSRFToken('update_menu'); ?>
 					<p>
 						<?php echo gettext("Drag the items into the order and nesting you wish displayed. Place the menu on your theme pages by calling printCustomMenu()."); ?>
 					</p>
 					<p class="notebox">
-						<?php echo gettext("<strong>IMPORTANT:</strong> This menu’s order is completely independent from any order of albums or pages set on the other admin pages. Use with customized themes that do not wish the standard zenphoto display structure. zenphoto functions such as the breadcrumb functions and the next_album() loop will NOT reflect of this menu’s structure!"); ?>
+						<?php echo gettext("<strong>IMPORTANT:</strong> This menu’s order is completely independent from any order of albums or pages set on the other admin pages. Use with customized themes that do not wish the standard display structure. Functions such as the breadcrumb functions and the next_album() loop will NOT reflect of this menu’s structure!"); ?>
 					</p>
 					<?php
 					foreach ($reports as $report) {
@@ -160,7 +206,7 @@ printSortableHead();
 								<?php echo PLUS_ICON; ?>
 								<strong><?php echo gettext("New Menu"); ?></strong>
 							</a>
-							<a href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin-options.php?'page=options&amp;tab=plugin&amp;single=menu_manager#menu_manager">
+							<a href="<?php echo getAdminLink('admin-tabs/options.php'); ?>?page=options&amp;tab=plugin&amp;single=menu_manager#menu_manager">
 								<?php echo OPTIONS_ICON; ?>
 								<strong><?php echo gettext('Options') ?></strong>
 							</a>
@@ -173,6 +219,12 @@ printSortableHead();
 						<?php
 						$selector = getMenuSetSelector(true);
 						if ($selector) {
+							if (isset($_GET['visible'])) {
+								$visible = sanitize($_GET['visible']);
+							} else {
+								$visible = 'all';
+							}
+							$items = getMenuItems($menuset, $visible);
 							?>
 							<div class="headline-plain">
 								<strong><?php echo gettext("Edit the menu"); ?></strong>
@@ -191,7 +243,7 @@ printSortableHead();
 									if ($count > 0) {
 										?>
 										<span class="buttons">
-											<a href="javascript:dupMenuSet();" title="<?php printf(gettext('Duplicate %s menu'), $menuset); ?>"><img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/page_white_copy.png" alt="" /><strong><?php echo gettext("Duplicate menu"); ?></strong></a>
+											<a href="javascript:dupMenuSet();" title="<?php printf(gettext('Duplicate %s menu'), $menuset); ?>"><img src="<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/page_white_copy.png" alt="" /><strong><?php echo gettext("Duplicate menu"); ?></strong></a>
 										</span>
 										<span class="buttons">
 											<a href="javascript:deleteMenuSet();" title="<?php printf(gettext('Delete %s menu'), $menuset); ?>">
@@ -199,11 +251,17 @@ printSortableHead();
 												<strong><?php echo gettext("Delete menu"); ?></strong>
 											</a>
 										</span>
+										<span class="buttons">
+											<a href="?exportmenuset=<?php echo html_encode($menuset); ?>&amp;XSRFToken=<?php echo getXSRFToken('dup_menu') ?>" title="<?php printf(gettext('Export %s menu'), $menuset); ?>">
+												<img src="<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/stock_copy.png" alt="" />
+												<strong><?php echo gettext("Export menu"); ?></strong>
+											</a>
+										</span>
 										<?php
 									}
 									?>
 									<span class="buttons">
-										<a href="menu_tab_edit.php?add&amp;menuset=<?php echo urlencode($menuset); ?>">
+										<a href="<?php echo getAdminLink(PLUGIN_FOLDER . '/menu_manager/menu_tab_edit.php'); ?>?add&amp;menuset=<?php echo urlencode($menuset); ?>">
 											<?php echo PLUS_ICON; ?>
 											<strong><?php echo gettext("Add Menu Items"); ?></strong>
 										</a>
@@ -221,12 +279,6 @@ printSortableHead();
 							</div>
 							<ul class="page-list">
 								<?php
-								if (isset($_GET['visible'])) {
-									$visible = sanitize($_GET['visible']);
-								} else {
-									$visible = 'all';
-								}
-								$items = getMenuItems($menuset, $visible);
 								printItemsList($items);
 								?>
 							</ul>
@@ -269,8 +321,7 @@ printSortableHead();
 				</ul>
 			</div>
 		</div>
+		<?php printAdminFooter(); ?>
 	</div>
-	<?php printAdminFooter(); ?>
-
 </body>
 </html>

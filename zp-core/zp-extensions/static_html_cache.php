@@ -19,13 +19,16 @@
  * <var>ADMIN</var> privileges or if he is the manager of an album being viewed or whose images are
  * being viewed. Likewise, Zenpage News and Pages are not cached when viewed by the author.
  *
- * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage admin
+ * @author Malte Müller (acrylian), Stephen Billard (sbillard)
+ *
+ * @package plugins/static_html_cache
+ * @pluginCategory admin
  */
 $plugin_is_filter = 400 | CLASS_PLUGIN;
-$plugin_description = gettext("Adds static HTML cache functionality.");
-$plugin_author = "Malte Müller (acrylian), Stephen Billard (sbillard)";
+if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
+	$plugin_description = gettext("Adds static HTML cache functionality.");
+	$plugin_notice = TESTING_MODE ? gettext('Caching is disabled because <em>TESTING_MODE</em> is enabled.') : '';
+}
 
 $option_interface = 'static_html_cache';
 
@@ -49,8 +52,10 @@ if (OFFSET_PATH == 2) { //	clear the cache upon upgrade
 	static_html_cache::clearHTMLCache();
 }
 
-$_zp_HTML_cache = new static_html_cache();
-zp_register_filter('image_processor_uri', 'static_html_cache::_disable');
+if (!TESTING_MODE) {
+	$_HTML_cache = new static_html_cache();
+	npgFilters::register('image_processor_uri', 'static_html_cache::_disable');
+}
 
 class static_html_cache {
 
@@ -68,31 +73,31 @@ class static_html_cache {
 	 *
 	 */
 	function checkIfAllowedPage() {
-		global $_zp_gallery_page, $_zp_current_image, $_zp_current_album, $_zp_current_page,
-		$_zp_current_article, $_zp_current_admin_obj, $_zp_current_category, $_zp_authority;
-		if (zp_loggedin(ADMIN_RIGHTS)) { // don't cache for admin
+		global $_gallery_page, $_current_image, $_current_album, $_CMS_current_page,
+		$_CMS_current_article, $_current_admin_obj, $_CMS_current_category, $_authority;
+		if (npg_loggedin(ADMIN_RIGHTS)) { // don't cache for admin
 			return false;
 		}
-		switch ($_zp_gallery_page) {
+		switch ($_gallery_page) {
 			case "image.php": // does it really makes sense to exclude images and albums?
-				$obj = $_zp_current_album;
-				$title = $_zp_current_image->filename;
+				$obj = $_current_album;
+				$title = $_current_image->filename;
 				break;
 			case "album.php":
-				$obj = $_zp_current_album;
-				$title = $_zp_current_album->name;
+				$obj = $_current_album;
+				$title = $_current_album->name;
 				break;
 			case 'pages.php':
-				$obj = $_zp_current_page;
-				$title = $_zp_current_page->getTitlelink();
+				$obj = $_CMS_current_page;
+				$title = $_CMS_current_page->getTitlelink();
 				break;
 			case 'news.php':
-				if (in_context(ZP_ZENPAGE_NEWS_ARTICLE)) {
-					$obj = $_zp_current_article;
+				if (in_context(ZENPAGE_NEWS_ARTICLE)) {
+					$obj = $_CMS_current_article;
 					$title = $obj->getTitlelink();
 				} else {
-					if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
-						$obj = $_zp_current_category;
+					if (in_context(ZENPAGE_NEWS_CATEGORY)) {
+						$obj = $_CMS_current_category;
 						$title = $obj->getTitlelink();
 					} else {
 						$obj = NULL;
@@ -115,8 +120,8 @@ class static_html_cache {
 		$accessType = checkAccess();
 		if ($accessType) {
 			if (is_numeric($accessType)) {
-				$accessType = 'zp_user_auth';
-			} else if ($accessType == 'zp_public_access' && count($_zp_authority->getAuthCookies()) > 0) {
+				$accessType = 'user_auth';
+			} else if ($accessType == 'public_access' && count($_authority->getAuthCookies()) > 0) {
 				$accessType .= '1'; // logged in some sense
 			}
 		} else {
@@ -126,7 +131,7 @@ class static_html_cache {
 		$excludeList = array_merge(explode(",", getOption('static_cache_excludedpages')), array('404.php/', 'password.php/'));
 		foreach ($excludeList as $item) {
 			$page_to_exclude = explode("/", $item);
-			if ($_zp_gallery_page == trim($page_to_exclude[0])) {
+			if ($_gallery_page == trim($page_to_exclude[0])) {
 				$exclude = trim($page_to_exclude[1]);
 				if (empty($exclude) || $title == $exclude) {
 					return false;
@@ -141,14 +146,14 @@ class static_html_cache {
 	 *
 	 */
 	function startHTMLCache() {
-		global $_zp_gallery_page, $_zp_script_timer;
+		global $_gallery_page, $_themeScript_timer;
 		if ($this->enabled && $accessType = $this->checkIfAllowedPage()) {
-			$_zp_script_timer['static cache start'] = microtime();
+			$_themeScript_timer['static cache start'] = microtime();
 			$cachefilepath = $this->createCacheFilepath($accessType);
 			if (!empty($cachefilepath)) {
 				$cachefilepath = SERVERPATH . '/' . STATIC_CACHE_FOLDER . "/" . $cachefilepath;
 				if (file_exists($cachefilepath)) {
-					$lastmodified = filemtime($cachefilepath);
+					$lastmodified = @filemtime($cachefilepath);
 					// don't use cache if comment is posted or cache has expired
 					if (time() - $lastmodified < getOption("static_cache_expire")) {
 						//send the headers!
@@ -160,33 +165,31 @@ class static_html_cache {
 						echo file_get_contents($cachefilepath);
 
 						// cache statistics
-						list($usec, $sec) = explode(' ', $_zp_script_timer['start']);
+						list($usec, $sec) = explode(' ', $_themeScript_timer['start']);
 						$start = (float) $usec + (float) $sec;
-						list($usec, $sec) = explode(' ', $_zp_script_timer['static cache start']);
+						list($usec, $sec) = explode(' ', $_themeScript_timer['static cache start']);
 						$start_cache = (float) $usec + (float) $sec;
 						list($usec, $sec) = explode(' ', microtime());
 						$end = (float) $usec + (float) $sec;
 						echo "<!-- " . sprintf(gettext('Cached content of %3$s served by static_html_cache in %1$.4f seconds plus %2$.4f seconds unavoidable overhead.'), $end - $start_cache, $start_cache - $start, date('D, d M Y H:i:s', filemtime($cachefilepath))) . " -->\n";
-						exitZP();
+						exit();
 					}
+					$this->deletestatic_html_cacheFile($cachefilepath);
 				}
-				$this->deletestatic_html_cacheFile($cachefilepath);
 				if (ob_start()) {
 					$this->pageCachePath = $cachefilepath;
 				}
 			}
-			unset($_zp_script_timer['static cache start']); // leave it out of the summary page
+			unset($_themeScript_timer['static cache start']); // leave it out of the summary page
 		}
 	}
 
 	/**
 	 * Ends the caching: Ends the output buffering  and writes the html cache file from the buffer
 	 *
-	 * Place this function on zenphoto's root index.php file in the absolute last line
-	 *
 	 */
 	function endHTMLCache() {
-		global $_zp_script_timer, $_image_need_cache;
+		global $_themeScript_timer, $_image_need_cache;
 		$cachefilepath = $this->pageCachePath;
 		if (!empty($cachefilepath)) {
 			$pagecontent = ob_get_contents();
@@ -246,10 +249,10 @@ class static_html_cache {
 	 * @return string
 	 */
 	function createCacheFilepath($accessType) {
-		global $_zp_current_image, $_zp_current_album, $_zp_gallery_page, $_zp_authority,
-		$_zp_current_article, $_zp_current_category, $_zp_current_page, $_zp_gallery, $_zp_page, $_zp_current_search;
+		global $_current_image, $_current_album, $_gallery_page, $_authority,
+		$_CMS_current_article, $_CMS_current_category, $_CMS_current_page, $_gallery, $_current_page, $_current_search;
 		// just make sure these are really empty
-		$cachefilepath = $_zp_gallery->getCurrentTheme() . '_' . str_replace('zp_', '', $accessType) . '_';
+		$cachefilepath = $_gallery->getCurrentTheme() . '_' . $accessType . '_';
 		$album = "";
 		$image = "";
 		$searchfields = "";
@@ -262,7 +265,7 @@ class static_html_cache {
 		} else {
 			$locale = "_" . getOption('locale');
 		}
-		switch ($_zp_gallery_page) {
+		switch ($_gallery_page) {
 			case 'index.php':
 				$cachesubfolder = "pages";
 				$cachefilepath .= "index";
@@ -270,37 +273,37 @@ class static_html_cache {
 			case 'album.php':
 			case 'image.php':
 				$cachesubfolder = "albums";
-				$album = $_zp_current_album->name;
-				if (isset($_zp_current_image)) {
+				$album = $_current_album->name;
+				if (isset($_current_image)) {
 					$cachesubfolder = "images";
-					$image = "-" . $_zp_current_image->filename;
+					$image = "-" . $_current_image->filename;
 				}
 				$cachefilepath .= $album . $image;
-				if (in_context(ZP_SEARCH_LINKED)) {
-					$cachefilepath .= '_search_' . stripcslashes($_zp_current_search->codifySearchString());
+				if (in_context(SEARCH_LINKED)) {
+					$cachefilepath .= '_search_' . stripcslashes($_current_search->codifySearchString());
 				}
 				break;
 			case 'pages.php':
 				$cachesubfolder = "pages";
-				$cachefilepath .= 'page-' . $_zp_current_page->getTitlelink();
+				$cachefilepath .= 'page-' . $_CMS_current_page->getTitlelink();
 				break;
 			case 'news.php':
 				$cachesubfolder = "pages";
-				if (is_object($_zp_current_article)) {
-					$title = "-" . $_zp_current_article->getTitlelink();
+				if (is_object($_CMS_current_article)) {
+					$title = "-" . $_CMS_current_article->getTitlelink();
 				}
-				if (is_object($_zp_current_category)) {
-					$category = "_cat-" . $_zp_current_category->getTitlelink();
+				if (is_object($_CMS_current_category)) {
+					$category = "_cat-" . $_CMS_current_category->getTitlelink();
 				}
 				$cachefilepath .= 'news' . $category . $title;
 				break;
 			default:
 				// custom pages
 				$cachesubfolder = "pages";
-				$cachefilepath .= 'custom-' . stripSuffix($_zp_gallery_page);
+				$cachefilepath .= 'custom-' . stripSuffix($_gallery_page);
 				break;
 		}
-		$cachefilepath .= "_" . (int) $_zp_page;
+		$cachefilepath .= "_" . (int) $_current_page;
 
 		if (getOption('obfuscate_cache')) {
 			$cachefilepath = sha1($locale . HASH_SEED . $cachefilepath);
@@ -320,11 +323,12 @@ class static_html_cache {
 		if (file_exists($cachefilepath)) {
 			@chmod($cachefilepath, 0777);
 			@unlink($cachefilepath);
+			clearstatcache();
 		}
 	}
 
 	/**
-	 * Cleans out the cache folder. (Adpated from the zenphoto image cache)
+	 * Cleans out the cache folder. (Adpated from the image cache)
 	 *
 	 * @param string $cachefolder the sub-folder to clean
 	 */
@@ -332,19 +336,20 @@ class static_html_cache {
 		if (is_null($folder)) {
 			$cachesubfolders = array("index", "albums", "images", "pages");
 			foreach ($cachesubfolders as $cachesubfolder) {
-				zpFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER . "/" . $cachesubfolder, true);
+				npgFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER . "/" . $cachesubfolder, true);
 			}
 		} else {
-			zpFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER . "/" . $folder);
+			npgFunctions::removeDir(SERVERPATH . '/' . STATIC_CACHE_FOLDER . "/" . $folder);
 		}
+		clearstatcache();
 	}
 
 	/**
 	 * call to disable caching a page
 	 */
 	static function disable() {
-		global $_zp_HTML_cache;
-		$_zp_HTML_cache->enabled = false;
+		global $_HTML_cache;
+		$_HTML_cache->enabled = false;
 	}
 
 	function static_html_cache_options() {
@@ -370,8 +375,8 @@ class static_html_cache {
 	 * @return string
 	 */
 	static function _disable($uri, $args, $album, $image) {
-		global $_zp_HTML_cache, $_image_need_cache;
-		$_zp_HTML_cache->disable();
+		global $_HTML_cache, $_image_need_cache;
+		$_HTML_cache->disable();
 		$_image_need_cache[] = $uri;
 		return $uri;
 	}

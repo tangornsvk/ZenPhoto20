@@ -5,7 +5,7 @@
 			<?php include ("inc-search.php"); ?>
 			<?php if (is_NewsArticle()) { ?>
 				<h5><?php
-					printNewsIndexURL(gettext('News'));
+					printNewsIndexURL(NEWS_LABEL);
 					echo ' &raquo; ';
 					?>(<?php printNewsCategories(', ', '', 'taglist'); ?>)</h5>
 				<h1><?php printNewsTitle(); ?></h1>
@@ -21,21 +21,21 @@
 						<?php if (strlen($tagstring) > 0) { ?><li class="meta-tags"><?php printTags('links', '', 'taglist', ', '); ?></li><?php } ?>
 					</ul>
 				</div>
-			<?php } else if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) { ?>
+			<?php } else if (in_context(ZENPAGE_NEWS_CATEGORY)) { ?>
 				<h5><?php
-					printNewsIndexURL(gettext('News'));
+					printNewsIndexURL(NEWS_LABEL);
 					echo ' » ';
 					?></h5>
 				<h1><?php printCurrentNewsCategory(); ?></h1>
 				<p><?php printNewsCategoryDesc(); ?></p>
-			<?php } else if (in_context(ZP_ZENPAGE_NEWS_DATE)) { ?>
+			<?php } else if (in_context(ZENPAGE_NEWS_DATE)) { ?>
 				<h5><?php
-					printNewsIndexURL(gettext('News'));
+					printNewsIndexURL(NEWS_LABEL);
 					echo ' » ';
 					?></h5>
 				<h1><?php printCurrentNewsArchive(); ?></h1>
 			<?php } else { ?>
-				<h1><?php echo gettext('News'); ?></h1>
+				<h1><?php echo NEWS_LABEL; ?></h1>
 			<?php } ?>
 		</div>
 	</div>
@@ -102,7 +102,7 @@
 				</div>
 
 			<?php } ?>
-			<h3><?php echo gettext('News Categories'); ?></h3>
+			<h3><?php echo gettext('Categories'); ?></h3>
 			<?php printAllNewsCategories('', true, 'side-menu', 'active'); ?>
 		</div>
 	</div>
@@ -120,19 +120,16 @@
 			</div>
 		</div>
 	</div>
-	<?php if ((function_exists('printRating')) || (function_exists('printCommentForm'))) { ?>
+	<?php if (function_exists('printCommentForm')) { ?>
 		<div class="wrapper">
 			<div class="container">
 				<div class="sixteen columns">
-					<?php if (function_exists('printRating')) { ?>
-						<div id="rating"><?php printRating(); ?><hr /></div>
-						<?php } ?>
-						<?php
-						if (function_exists('printCommentForm')) {
-							printCommentForm();
-							echo '<hr />';
-						}
-						?>
+					<?php
+					if (function_exists('printCommentForm')) {
+						printCommentForm();
+						echo '<hr />';
+					}
+					?>
 				</div>
 			</div>
 		</div>

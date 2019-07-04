@@ -7,13 +7,13 @@
  * @author Stephen Billard (sbillard)
  */
 $MCEcss = 'dark_content.css';
-$MCEskin = "tundora";
+$MCEskin = "oxide-dark";
 $MCEselector = "textarea.textarea_inputbox, textarea.texteditor_comments";
 $MCEplugins = "advlist autolink lists link image charmap hr anchor pagebreak " .
 				"searchreplace visualblocks visualchars code " .
-				"insertdatetime media contextmenu directionality " .
+				"insertdatetime media directionality " .
 				"emoticons paste";
 $MCEtoolbars[1] = "undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image | searchreplace visualchars | emoticons | ltr rtl code";
 $MCEstatusbar = false;
 $MCEmenubar = false;
-include(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/tinymce/config/config.js.php');
+include(TINYMCE . '/config/config.js.php');

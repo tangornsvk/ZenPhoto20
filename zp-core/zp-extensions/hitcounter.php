@@ -3,47 +3,19 @@
  * Provides automatic hitcounter counting for gallery objects
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage theme
+ * @package plugins/hitcounter
+ * @pluginCategory theme
  */
 /** Reset hitcounters ********************************************************** */
 /* * ***************************************************************************** */
 
-if (!defined('OFFSET_PATH')) {
-	define('OFFSET_PATH', 3);
-	require_once(dirname(dirname(__FILE__)) . '/admin-functions.php');
-	if (isset($_GET['action'])) {
-		if (sanitize($_GET['action']) == 'reset_all_hitcounters') {
-			if (!zp_loggedin(ADMIN_RIGHTS)) {
-				// prevent nefarious access to this page.
-				header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?from=' . currentRelativeURL());
-				exitZP();
-			}
-			zp_session_start();
-			XSRFdefender('hitcounter');
-			$_zp_gallery->set('hitcounter', 0);
-			$_zp_gallery->save();
-			query('UPDATE ' . prefix('albums') . ' SET `hitcounter`= 0');
-			query('UPDATE ' . prefix('images') . ' SET `hitcounter`= 0');
-			query('UPDATE ' . prefix('news') . ' SET `hitcounter`= 0');
-			query('UPDATE ' . prefix('pages') . ' SET `hitcounter`= 0');
-			query('UPDATE ' . prefix('news_categories') . ' SET `hitcounter`= 0');
-			purgeOption('page_hitcounters');
-			query("DELETE FROM " . prefix('plugin_storage') . " WHERE `type` = 'hitcounter' AND `subtype`='rss'");
-			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?action=external&msg=' . gettext('All hitcounters have been set to zero.'));
-			exitZP();
-		}
-	}
-}
-
-$plugin_is_filter = defaultExtension(5 | ADMIN_PLUGIN | FEATURE_PLUGIN);
+$plugin_is_filter = defaultExtension(5 | FEATURE_PLUGIN);
 $plugin_description = gettext('Automatically increments hitcounters on gallery objects viewed by a <em>visitor</em>.');
-$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'hitcounter';
 
-zp_register_filter('load_theme_script', 'hitcounter::load_script');
-zp_register_filter('admin_utilities_buttons', 'hitcounter::button');
+npgFilters::register('load_theme_script', 'hitcounter::load_script');
+npgFilters::register('admin_utilities_buttons', 'hitcounter::button');
 
 $_scriptpage_hitcounters = getSerializedArray(getOption('page_hitcounters'));
 
@@ -116,7 +88,7 @@ class hitcounter {
 					var reset = "<?php echo $this->defaultbots; ?>";
 					function hitcounter_defaults() {
 						$('#hitcounter_ignoreIPList').val('');
-						$('#hitcounter_ip_button').removeAttr('disabled');
+						$('#hitcounter_ip_button').prop('disabled', false);
 						$('#__hitcounter_ignoreIPList_enable').prop('checked', false);
 						$('#__hitcounter_ignoreSearchCrawlers_enable').prop('checked', false);
 						$('#__hitcounter_searchCrawlerList').val(reset);
@@ -134,16 +106,16 @@ class hitcounter {
 					// <!-- <![CDATA[
 					function hitcounter_insertIP() {
 						if ($('#hitcounter_ignoreIPList').val() == '') {
-							$('#hitcounter_ignoreIPList').val('<?php echo getUserIP(); ?>');
+							$('#hitcounter_ignoreIPList').val('<?php echo getUserID(); ?>');
 						} else {
-							$('#hitcounter_ignoreIPList').val($('#hitcounter_ignoreIPList').val() + ',<?php echo getUserIP(); ?>');
+							$('#hitcounter_ignoreIPList').val($('#hitcounter_ignoreIPList').val() + ',<?php echo getUserID(); ?>');
 						}
-						$('#hitcounter_ip_button').attr('disabled', 'disabled');
+						$('#hitcounter_ip_button').prop('disabled', true);
 					}
-					jQuery(window).load(function () {
+					jQuery(window).on("load", function () {
 						var current = $('#hitcounter_ignoreIPList').val();
-						if (current.indexOf('<?php echo getUserIP(); ?>') < 0) {
-							$('#hitcounter_ip_button').removeAttr('disabled');
+						if (current.indexOf('<?php echo getUserID(); ?>') < 0) {
+							$('#hitcounter_ip_button').prop('disabled', false);
 						}
 					});
 					// ]]> -->
@@ -165,7 +137,7 @@ class hitcounter {
 		if ($script && $valid) {
 			if (getOption('hitcounter_ignoreIPList_enable')) {
 				$ignoreIPAddressList = explode(',', str_replace(' ', '', getOption('hitcounter_ignoreIPList')));
-				$skip = in_array(getUserIP(), $ignoreIPAddressList);
+				$skip = in_array(getUserID(), $ignoreIPAddressList);
 			} else {
 				$skip = false;
 			}
@@ -180,43 +152,43 @@ class hitcounter {
 			}
 
 			if (!$skip) {
-				global $_zp_gallery, $_zp_gallery_page, $_zp_current_album, $_zp_current_image, $_zp_current_article, $_zp_current_page, $_zp_current_category, $_scriptpage_hitcounters;
+				global $_gallery, $_gallery_page, $_current_album, $_current_image, $_CMS_current_article, $_CMS_current_page, $_CMS_current_category, $_scriptpage_hitcounters;
 				if (checkAccess()) {
 					// count only if permitted to access
-					switch ($_zp_gallery_page) {
+					switch ($_gallery_page) {
 						case'index.php':
-							if (!zp_loggedin()) {
-								$_zp_gallery->countHit();
+							if (!npg_loggedin(ADMIN_RIGHTS)) {
+								$_gallery->countHit();
 							}
 							break;
 						case 'album.php':
-							if (!$_zp_current_album->isMyItem(ALBUM_RIGHTS) && getCurrentPage() == 1) {
-								$_zp_current_album->countHit();
+							if (!$_current_album->isMyItem(ALBUM_RIGHTS) && getCurrentPage() == 1) {
+								$_current_album->countHit();
 							}
 							break;
 						case 'image.php':
-							if (!$_zp_current_album->isMyItem(ALBUM_RIGHTS)) {
+							if (!$_current_album->isMyItem(ALBUM_RIGHTS)) {
 								//update hit counter
-								$_zp_current_image->countHit();
+								$_current_image->countHit();
 							}
 							break;
 						case 'pages.php':
-							if (class_exists('CMS') && !zp_loggedin(ZENPAGE_PAGES_RIGHTS)) {
-								$_zp_current_page->countHit();
+							if (class_exists('CMS') && !$_CMS_current_page->isMyItem(ZENPAGE_PAGES_RIGHTS)) {
+								$_CMS_current_page->countHit();
 							}
 							break;
 						case 'news.php':
-							if (class_exists('CMS') && !zp_loggedin(ZENPAGE_NEWS_RIGHTS)) {
-								if (is_NewsArticle()) {
-									$_zp_current_article->countHit();
-								} else if (is_NewsCategory()) {
-									$_zp_current_category->countHit();
+							if (class_exists('CMS')) {
+								if (is_NewsArticle() && !$_CMS_current_article->isMyItem(ZENPAGE_NEWS_RIGHTS)) {
+									$_CMS_current_article->countHit();
+								} else if (is_NewsCategory() && !$_CMS_current_category->isMyItem(ZENPAGE_NEWS_RIGHTS)) {
+									$_CMS_current_category->countHit();
 								}
 							}
 							break;
 						default:
-							if (!zp_loggedin()) {
-								$page = stripSuffix($_zp_gallery_page);
+							if (!npg_loggedin(ADMIN_RIGHTS)) {
+								$page = stripSuffix($_gallery_page);
 								$_scriptpage_hitcounters[$page] = @$_scriptpage_hitcounters[$page] + 1;
 								setOption('page_hitcounters', serialize($_scriptpage_hitcounters));
 							}
@@ -235,7 +207,7 @@ class hitcounter {
 				'enable' => true,
 				'button_text' => gettext('Reset all hitcounters'),
 				'formname' => 'reset_all_hitcounters.php',
-				'action' => FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/hitcounter.php?action=reset_all_hitcounters',
+				'action' => getAdminLink(PLUGIN_FOLDER . '/hitcounter/reset_hitcounts.php') . '?action=reset_all_hitcounters',
 				'icon' => RECYCLE_ICON,
 				'alt' => '',
 				'title' => gettext('Reset all hitcounters to zero'),
@@ -254,32 +226,32 @@ class hitcounter {
  * @return string
  */
 function getHitcounter($obj = NULL) {
-	global $_zp_current_album, $_zp_current_image, $_zp_gallery, $_zp_gallery_page, $_zp_current_article, $_zp_current_page, $_zp_current_category, $_scriptpage_hitcounters;
+	global $_current_album, $_current_image, $_gallery, $_gallery_page, $_CMS_current_article, $_CMS_current_page, $_CMS_current_category, $_scriptpage_hitcounters;
 	if (is_null($obj)) {
-		switch ($_zp_gallery_page) {
+		switch ($_gallery_page) {
 			case'index.php';
-				$obj = $_zp_gallery;
+				$obj = $_gallery;
 				break;
 			case 'album.php':
-				$obj = $_zp_current_album;
+				$obj = $_current_album;
 				break;
 			case 'image.php':
-				$obj = $_zp_current_image;
+				$obj = $_current_image;
 				break;
 			case 'pages.php':
-				$obj = $_zp_current_page;
+				$obj = $_CMS_current_page;
 				break;
 			case 'news.php':
-				if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
-					$obj = $_zp_current_category;
+				if (in_context(ZENPAGE_NEWS_CATEGORY)) {
+					$obj = $_CMS_current_category;
 				} else {
-					$obj = $_zp_current_article;
+					$obj = $_CMS_current_article;
 				}
 				if (is_null($obj))
 					return 0;
 				break;
 			default:
-				$page = stripSuffix($_zp_gallery_page);
+				$page = stripSuffix($_gallery_page);
 				return @$_scriptpage_hitcounters[$page];
 		}
 	}

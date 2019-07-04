@@ -5,14 +5,18 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		
-		<?php zp_apply_filter('theme_head'); ?>
-		
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
+
+		<?php
+		npgFilters::apply('theme_head');
+
+		scriptLoader($_themeroot . '/zen.css');
+
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		?>
 	</head>
 	<body class="sidebars">
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 		<div id="navigation"></div>
 		<div id="wrapper">
 			<div id="container">
@@ -45,9 +49,9 @@ if (!defined('WEBPATH'))
 										<p><?php echo gettext('Images By Date'); ?></p>
 										<?php printAllDates(); ?>
 										<?php
-										if (function_exists("printNewsArchive")) {
+										if (extensionEnabled('zenpage') && hasNews()) {
 											?>
-											<p><?php echo(gettext('News archive')); ?></p><?php printNewsArchive("archive"); ?>
+											<p><?php echo(NEWS_LABEL); ?></p><?php printNewsArchive("archive"); ?>
 											<?php
 										}
 										?>
@@ -71,7 +75,7 @@ if (!defined('WEBPATH'))
 			</div><!-- /container -->
 		</div>
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

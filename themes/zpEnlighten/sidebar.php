@@ -1,50 +1,44 @@
-<?php if (function_exists('printCustomMenu') && getOption('zenpage_custommenu')) { ?>
+<?php
+if (function_exists("printAllNewsCategories")) {
+	?>
 	<div class="menu">
-		<?php printCustomMenu('zenpage', 'list', '', "menu-active", "submenu", "menu-active", 2); ?>
+		<h3><?php echo NEWS_LABEL; ?></h3>
+		<?php printAllNewsCategories(gettext("All"), TRUE, "", "menu-active"); ?>
 	</div>
-	<?php
-} else {
-	if (function_exists("printAllNewsCategories")) {
-		?>
-		<div class="menu">
-			<h3><?php echo gettext("News articles"); ?></h3>
-			<?php printAllNewsCategories(gettext("All news"), TRUE, "", "menu-active"); ?>
-		</div>
-	<?php } ?>
+<?php } ?>
 
-	<?php if (function_exists("printAlbumMenu")) { ?>
-		<div class="menu">
-			<?php
-			if (extensionEnabled('zenpage')) {
-				if ($_zp_gallery_page == 'index.php' || $_zp_gallery_page != 'gallery.php') {
-					?>
-					<h3>
-						<a href="<?php echo html_encode(getCustomPageURL('gallery')); ?>" title="<?php echo gettext('Album index'); ?>"><?php echo gettext("Gallery"); ?></a>
-					</h3>
-					<?php
-				} else {
-					?>
-					<h3><?php echo gettext("Gallery"); ?></h3>
-					<?php
-				}
+<?php if (function_exists("printAlbumMenu")) { ?>
+	<div class="menu">
+		<?php
+		if (extensionEnabled('zenpage')) {
+			if ($_gallery_page == 'index.php' || $_gallery_page != 'gallery.php') {
+				?>
+				<h3>
+					<a href="<?php echo html_encode(getCustomPageURL('gallery')); ?>" title="<?php echo gettext('Album index'); ?>"><?php echo gettext("Gallery"); ?></a>
+				</h3>
+				<?php
 			} else {
 				?>
 				<h3><?php echo gettext("Gallery"); ?></h3>
 				<?php
 			}
-			printAlbumMenu("list", false, "", "menu-active", "submenu", "menu-active", '');
+		} else {
 			?>
-		</div>
-	<?php } ?>
+			<h3><?php echo gettext("Gallery"); ?></h3>
+			<?php
+		}
+		printAlbumMenu("list", false, "", "menu-active", "submenu", "menu-active", '');
+		?>
+	</div>
+<?php } ?>
 
-	<?php if (function_exists("printPageMenu")) { ?>
-		<div class="menu">
-			<h3><?php echo gettext("Pages"); ?></h3>
-			<?php printPageMenu("list", "", "menu-active", "submenu", "menu-active"); ?>
-		</div>
-		<?php
-	}
-} // custom menu check end
+<?php if (function_exists("printPageMenu")) { ?>
+	<div class="menu">
+		<h3><?php echo gettext("Pages"); ?></h3>
+		<?php printPageMenu("list", "", "menu-active", "submenu", "menu-active"); ?>
+	</div>
+	<?php
+}
 ?>
 
 <?php if (extensionEnabled('zenpage')) { ?>
@@ -70,20 +64,29 @@
 		if (function_exists('printFavoritesURL')) {
 			printFavoritesURL(NULL, '<li>', '</li><li>', '</li>');
 		}
-		?>		<?php
-		if ($_zp_gallery_page == "archive.php") {
+
+		if ($_gallery_page == "archive.php") {
 			echo "<li class='menu-active'>" . gettext("Site archive view") . "</li>";
 		} else {
 			echo "<li>";
 			printCustomPageURL(gettext("Site archive view"), "archive");
 			echo "</li>";
 		}
-		if (extensionEnabled('rss')) {
-			if (!is_null($_zp_current_album)) {
-				printRSSLink('Album', '<li>', gettext('Album RSS feed'), '</li>', false);
+		if (extensionEnabled('daily-summary')) {
+			if ($_gallery_page == "summary.php") {
+				echo "<li class='menu-active'>" . gettext("Daily summary") . "</li>";
+			} else {
+				echo "<li>";
+				printDailySummaryLink(gettext('Daily summary'), '', '', '');
+				echo "</li>";
 			}
-			printRSSLink('Gallery', '<li>', 'Gallery RSS feed', '</li>', false);
-			printRSSLink("News", "<li>", gettext("Notes RSS feed"), '</li>', false);
+		}
+		if (extensionEnabled('rss')) {
+			if (!is_null($_current_album)) {
+				printRSSLink('Album', '<li>', gettext('Albums'), '</li>', false);
+			}
+			printRSSLink('Gallery', '<li>', 'Gallery', '</li>', false);
+			printRSSLink("News", "<li>", NEWS_LABEL, '</li>', false);
 		}
 		?>
 	</ul>
@@ -98,7 +101,7 @@ if (getOption("zenpage_contactpage") && function_exists('printContactForm')) {
 		<ul>
 			<li>
 				<?php
-				if ($_zp_gallery_page != 'contact.php') {
+				if ($_gallery_page != 'contact.php') {
 					printCustomPageURL(gettext('Contact us'), 'contact', '', '');
 				} else {
 					echo gettext("Contact us");
@@ -110,13 +113,13 @@ if (getOption("zenpage_contactpage") && function_exists('printContactForm')) {
 }
 ?>
 <?php
-if (!zp_loggedin() && function_exists('printRegistrationForm')) {
+if (!npg_loggedin() && function_exists('printRegistrationForm')) {
 	?>
 	<div class="menu">
 		<ul>
 			<li>
 				<?php
-				if ($_zp_gallery_page != 'register.php') {
+				if ($_gallery_page != 'register.php') {
 					printCustomPageURL(gettext('Register for this site'), 'register', '', '');
 				} else {
 					echo gettext("Register for this site");
@@ -133,7 +136,7 @@ if (!zp_loggedin() && function_exists('printRegistrationForm')) {
 if (function_exists("printUserLogin_out")) {
 	?>
 	<?php
-	if (zp_loggedin()) {
+	if (npg_loggedin()) {
 		?>
 		<div class="menu">
 			<ul>
@@ -141,7 +144,7 @@ if (function_exists("printUserLogin_out")) {
 					<?php
 				}
 				printUserLogin_out("", "");
-				if (zp_loggedin()) {
+				if (npg_loggedin()) {
 					?>
 				</li>
 			</ul>

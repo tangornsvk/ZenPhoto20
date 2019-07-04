@@ -11,9 +11,9 @@ class Utils {
 			$limit = 3;
 		$t_images = prefix("images");
 		$t_albums = prefix("albums");
-		$query = "SELECT i.filename, i.title, a.folder FROM $t_images i " .
+		$query = "SELECT i.id, i.filename, i.title, a.folder FROM $t_images i " .
 						"LEFT JOIN $t_albums a ON i.albumid=a.id " .
-						"ORDER BY i.date DESC LIMIT $limit";
+						"ORDER BY i.date DESC";
 		$result = query($query);
 		return filterImageQueryList($result, NULL, $limit, false);
 	}
@@ -85,9 +85,10 @@ function printZDToggleClass($option, $c, $number_to_show) {
 }
 
 function printZDRoundedCornerJS() {
-	global $_zp_themeroot;
+	global $_themeroot;
+	scriptLoader($_themeroot . '/js/jquery.corner.js');
 	?>
-	<script type="text/javascript" src="<?php echo $_zp_themeroot; ?>/js/jquery.corner.js"></script>
+
 	<script type="text/javascript">
 		//<!-- <![CDATA[
 		window.addEventListener('load', function () {
@@ -162,9 +163,9 @@ if (!function_exists('getCommentCount')) {
 if (!OFFSET_PATH) {
 	enableExtension('print_album_menu', 1 | THEME_PLUGIN, false);
 	setOption('user_logout_login_form', 2, false);
-	$_zp_page_check = 'my_checkPageValidity';
+	$_current_page_check = 'my_checkPageValidity';
 	if (extensionEnabled('zenpage') && getOption('zenpage_zp_index_news')) { // only one index page if zenpage plugin is enabled & displaying
-		zp_register_filter('getLink', 'newsOnIndex');
+		npgFilters::register('getLink', 'newsOnIndex');
 	}
 }
 ?>

@@ -6,13 +6,17 @@ if (class_exists('favorites')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
-			<?php zp_apply_filter('theme_head'); ?>
+			<?php
+			npgFilters::apply('theme_head');
 
-			<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
-			<?php if (class_exists('RSS')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
+			scriptLoader($_themeroot . '/zen.css');
+
+			if (class_exists('RSS'))
+				printRSSHeaderLink('Album', getAlbumTitle());
+			?>
 		</head>
 		<body class="sidebars">
-			<?php zp_apply_filter('theme_body_open'); ?>
+			<?php npgFilters::apply('theme_body_open'); ?>
 			<div id="navigation"></div>
 			<div id="wrapper">
 				<div id="container">
@@ -58,7 +62,7 @@ if (class_exists('favorites')) {
 														</h3>
 														<br />
 														<small><?php printAlbumDate(); ?></small>
-														<?php printAddToFavorites($_zp_current_album, '', gettext('Remove')); ?>
+														<?php printAddToFavorites($_current_album, '', gettext('Remove')); ?>
 													</div>
 													<p style="clear: both;"></p>
 												</div>
@@ -76,7 +80,7 @@ if (class_exists('favorites')) {
 												<div class="image">
 													<div class="imagethumb">
 														<a href="<?php echo html_encode(getImageURL()); ?>" title="<?php echo html_encode(getBareImageTitle()); ?>"><?php printImageThumb(getImageTitle()); ?></a>
-														<?php printAddToFavorites($_zp_current_image, '', gettext('Remove')); ?>
+														<?php printAddToFavorites($_current_image, '', gettext('Remove')); ?>
 													</div>
 												</div>
 												<?php
@@ -113,7 +117,7 @@ if (class_exists('favorites')) {
 								if ($nextalbum) {
 									?>
 									<div id="nextalbum" class="slides">
-										<a href="<?php echo html_encode(getNextAlbumURL()); ?>" title="<?php echo gettext('Next album'); ?>"><?php echo gettext('Next album »'); ?><br /><img src="<?php echo html_encode(pathurlencode($nextalbum->getThumb())); ?>" /></a>
+										<a href="<?php echo html_encode(getNextAlbumURL()); ?>" title="<?php echo gettext('Next album'); ?>"><?php echo gettext('Next album »'); ?><br /><img src="<?php echo html_encode($nextalbum->getThumb()); ?>" /></a>
 									</div>
 									<br />
 									<?php
@@ -121,7 +125,7 @@ if (class_exists('favorites')) {
 								if ($prevalbum) {
 									?>
 									<div id="prevalbum" class="slides">
-										<a href="<?php echo html_encode(getPrevAlbumURL()); ?>" title="<?php echo gettext('Prev Album'); ?>"><?php echo gettext('« Prev Album'); ?><br /><img src="<?php echo html_encode(pathurlencode($prevalbum->getThumb())); ?>" /></a>
+										<a href="<?php echo html_encode(getPrevAlbumURL()); ?>" title="<?php echo gettext('Prev Album'); ?>"><?php echo gettext('« Prev Album'); ?><br /><img src="<?php echo html_encode($prevalbum->getThumb()); ?>" /></a>
 									</div>
 									<?php
 								}
@@ -133,12 +137,12 @@ if (class_exists('favorites')) {
 				<span class="clear"></span>
 			</div><!-- wrapper -->
 			<?php
-			zp_apply_filter('theme_body_close');
+			npgFilters::apply('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
+	include(CORE_SERVERPATH . '404.php');
 }
 ?>

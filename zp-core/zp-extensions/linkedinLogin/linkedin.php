@@ -5,18 +5,17 @@
  * by Stephen Billard
  *
  * @author Stephen Billard (sbillard)
- * @Copyright 2017 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2017 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage users
+ * @package plugins/linkedinLogin
  */
 if (!defined('OFFSET_PATH'))
 	define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-functions.php');
 
-zp_session_start();
+npg_session_start();
 
-$callbackURL = FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/linkedinLogin/linkedin.php';
+$callbackURL = getAdminLink(PLUGIN_FOLDER . '/linkedinLogin/linkedin.php');
 $linkedinApiKey = getOption('linkedinLogin_ClientID');
 $linkedinApiSecret = getOption('linkedinLogin_ClientSecret');
 $linkedinScope = 'r_basicprofile r_emailaddress';
@@ -29,8 +28,8 @@ if (isset($_REQUEST['redirect'])) {
 	}
 }
 
-include_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . "/common/oAuth/http.php");
-include_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . "/common/oAuth/oauth_client.php");
+include_once(CORE_SERVERPATH .  PLUGIN_FOLDER . "/common/oAuth/http.php");
+include_once(CORE_SERVERPATH .  PLUGIN_FOLDER . "/common/oAuth/oauth_client.php");
 
 $client = new oauth_client_class;
 
@@ -61,13 +60,13 @@ if (($success = $client->Initialize())) {
 	$success = $client->Finalize($success);
 }
 if ($client->exit) {
-	exitZP();
+	exit();
 }
 if ($success) {
 	linkedinLogin::credentials($user->id, $user->emailAddress, $user->firstName . ' ' . $user->lastName, $_SESSION['redirect']);
 } else {
 	session_unset();
-	header('Location: ' . WEBPATH . '/' . ZENFOLDER . '/admin.php?_zp_login_error=' . html_encode($client->error));
-	exitZP();
+	header('Location: ' . getAdminLink('admin.php') . '?_login_error=' . html_encode($client->error));
+	exit();
 }
 ?>

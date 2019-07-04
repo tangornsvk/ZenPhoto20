@@ -7,12 +7,12 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php npgFilters::apply('theme_head'); ?>
 
 	</head>
 
 	<body onload="blurAnchors()">
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<!-- Wrap Header -->
 		<div id="header">
@@ -63,9 +63,9 @@ if (!defined('WEBPATH'))
 						<p><?php echo gettext('Images By Date'); ?></p>
 						<?php printAllDates('archive', 'year', 'month', 'desc'); ?>
 						<?php
-						if (function_exists("printNewsArchive")) {
+						if ($zenpage && hasNews()) {
 							?>
-							<p><?php echo(gettext('News archive')); ?></p><?php printNewsArchive("archive"); ?>
+							<p><?php echo(NEWS_LABEL); ?></p><?php printNewsArchive("archive"); ?>
 							<?php
 						}
 						?>
@@ -89,7 +89,7 @@ if (!defined('WEBPATH'))
 
 		<?php
 		printFooter();
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 
 	</body>

@@ -1,11 +1,9 @@
 <?php
 // force UTF-8 Ø
 
-zp_register_filter('themeSwitcher_head', 'switcher_head');
-zp_register_filter('themeSwitcher_Controllink', 'switcher_controllink');
-zp_register_filter('iconColor', 'iconColor');
-zp_register_filter('theme_head', 'EF_head', 0);
-zp_register_filter('load_theme_script', 'fourOhFour');
+npgFilters::register('themeSwitcher_head', 'switcher_head');
+npgFilters::register('themeSwitcher_Controllink', 'switcher_controllink');
+npgFilters::register('theme_head', 'EF_head', 0);
 
 define('ALBUM_THMB_WIDTH', 170);
 define('ALBUM_THUMB_HEIGHT', 80);
@@ -23,80 +21,80 @@ foreach ($persona as $personality) {
 		$personalities[ucfirst(str_replace('_', ' ', $personality))] = $personality;
 }
 
-$personality = strtolower(getOption('effervescence_personality'));
-if (!in_array($personality, $personalities)) {
-	$persona = $personalities;
-	$personality = array_shift($persona);
-}
+
 
 chdir(SERVERPATH . "/themes/" . basename(dirname(__FILE__)) . "/styles");
 $filelist = safe_glob('*.txt');
+if (file_exists(SERVERPATH . "/themes/" . basename(dirname(__FILE__)) . "/data")) {
+	chdir(SERVERPATH . "/themes/" . basename(dirname(__FILE__)) . "/data");
+	$userlist = safe_glob('*.txt');
+	$filelist = array_merge($filelist, $userlist);
+}
 $themecolors = array();
 foreach ($filelist as $file) {
 	$themecolors[basename($file)] = stripSuffix(filesystemToInternal($file));
 }
 chdir($cwd);
 
-if (!OFFSET_PATH) {
-	if (extensionEnabled('themeSwitcher')) {
-		if (isset($_GET['themeColor'])) {
-			$new = $_GET['themeColor'];
-		} else {
-			$new = zp_getCookie('themeSwitcher_color');
-		}
-		if (in_array($new, $themecolors)) {
-			$themeColor = $new;
-		} else {
-			$themeColor = NULL;
-		}
-		zp_setCookie('themeSwitcher_color', $themeColor, false);
-
-		if (!$themeColor) {
-			$themeColor = getOption('Theme_colors');
-		}
-
-		$personality = zp_getCookie('themeSwitcher_personality');
-		if (isset($_GET['themePersonality'])) {
-			$new = $_GET['themePersonality'];
-			if (in_array($new, $personalities)) {
-				zp_setCookie('themeSwitcher_personality', $new, false);
-				$personality = $new;
-			}
-		}
-		if ($personality) {
-			setOption('effervescence_personality', $personality, false);
-		} else {
-			$personality = strtolower(getOption('effervescence_personality'));
-		}
+if (class_exists('themeSwitcher')) {
+	$themeColor = themeSwitcher::themeSelection('themeColor', $themecolors);
+	if (!$themeColor) {
+		$themeColor = getOption('Theme_colors');
 	}
 
-	if (($_ef_menu = getOption('effervescence_menu')) == 'effervescence' || $_ef_menu == 'zenpage') {
-		enableExtension('print_album_menu', 1 | THEME_PLUGIN, false);
+	$personality = themeSwitcher::themeSelection('themePersonality', $personalities);
+	if ($personality) {
+		setOption('effervescence_personality', $personality, false);
+	} else {
+		$personality = strtolower(getOption('effervescence_personality'));
 	}
-	require_once(SERVERPATH . '/' . THEMEFOLDER . '/effervescence+/' . $personality . '/functions.php');
-	$_oneImagePage = $handler->onePage();
-	$_zp_page_check = 'my_checkPageValidity';
+} else {
+	$personality = strtolower(getOption('effervescence_personality'));
 }
+
+if (!in_array($personality, $personalities)) {
+	$persona = $personalities;
+	$personality = array_shift($persona);
+}
+
+if (($_ef_menu = getOption('effervescence_menu')) == 'effervescence' || $_ef_menu == 'zenpage') {
+	enableExtension('print_album_menu', 1 | THEME_PLUGIN, false);
+}
+require_once(SERVERPATH . '/' . THEMEFOLDER . '/effervescence+/' . $personality . '/functions.php');
+$_oneImagePage = $handler->onePage();
+$_current_page_check = 'my_checkPageValidity';
+
 define('_IMAGE_PATH', WEBPATH . '/' . THEMEFOLDER . '/effervescence+/images/');
 
-function EF_head($ignore) {
+function EF_head() {
 	global $themeColor;
 	if (!$themeColor) {
 		$themeColor = getOption('Theme_colors');
 	}
 	$basePath = SERVERPATH . '/' . THEMEFOLDER . '/effervescence+/';
 	$csfile = $basePath . 'data/styles/' . $themeColor . '.css';
-	if (!file_exists($csfile) || ($mtime = filemtime($csfile) < filemtime($basePath . 'styles/' . $themeColor . '.txt')) || $mtime < filemtime($basePath . '/base.css')) {
-		eval(file_get_contents($basePath . 'styles/' . $themeColor . '.txt'));
+	$genfile = $basePath . 'styles/' . $themeColor . '.txt';
+	if (!file_exists($genfile)) {
+		$genfile = $basePath . 'data/' . $themeColor . '.txt';
+	}
+
+	if (!file_exists($csfile) || ($mtime = filemtime($csfile) < filemtime($genfile)) || $mtime < filemtime($basePath . '/base.css')) {
+		eval(file_get_contents($genfile));
 		$css = file_get_contents($basePath . '/base.css');
 		$css = strtr($css, $tr);
 		$css = preg_replace('|\.\./images/|', WEBPATH . '/' . THEMEFOLDER . '/effervescence+/images/', $css);
+		$common = file_get_contents(SERVERPATH . '/' . THEMEFOLDER . '/effervescence+/common.css');
+		$common = preg_replace('|images/|', WEBPATH . '/' . THEMEFOLDER . '/effervescence+/images/', $common);
+
+		$buffer = preg_replace('~/\*[^*]*\*+([^/][^*]*\*+)*/~', '', $common . $css);
+		$buffer = str_replace(': ', ':', $buffer);
+		$buffer = preg_replace('/\s+/', ' ', $buffer);
+
 		mkdir_recursive($basePath . '/data/styles', FOLDER_MOD);
-		file_put_contents($csfile, $css);
+		file_put_contents($csfile, $buffer);
 	}
+	scriptLoader(SERVERPATH . '/' . THEMEFOLDER . '/effervescence+/data/styles/' . $themeColor . '.css');
 	?>
-	<link rel="stylesheet" href="<?php echo WEBPATH . '/' . THEMEFOLDER; ?>/effervescence+/common.css" type="text/css" />
-	<link rel="stylesheet" href="<?php echo WEBPATH . '/' . THEMEFOLDER; ?>/effervescence+/data/styles/<?php echo $themeColor; ?>.css" type="text/css" />
 	<script type="text/javascript">
 		// <!-- <![CDATA[
 		function blurAnchors() {
@@ -112,7 +110,6 @@ function EF_head($ignore) {
 		// ]]> -->
 	</script>
 	<?php
-	return $ignore;
 }
 
 function iconColor($icon) {
@@ -148,8 +145,8 @@ function switcher_head($ignore) {
 }
 
 function switcher_controllink($ignore) {
-	global $personalities, $themecolors, $_zp_gallery_page, $themeColor;
-	$themeColor = zp_getCookie('themeSwitcher_color');
+	global $personality, $personalities, $themecolors, $_gallery_page, $themeColor;
+	$themeColor = getNPGCookie('themeSwitcher_themeColor');
 	if (!$themeColor) {
 		list($personality, $themeColor) = getPersonality();
 	}
@@ -162,7 +159,6 @@ function switcher_controllink($ignore) {
 			</select>
 		</span>
 		<?php
-		$personality = zp_getCookie('themeSwitcher_personality');
 		if (!$personality) {
 			$personality = getOption('effervescence_personality');
 		}
@@ -182,8 +178,8 @@ function switcher_controllink($ignore) {
 
 function get_subalbum_count() {
 	$where = "WHERE parentid IS NOT NULL";
-	if (!zp_loggedin()) {
-		$where .= " AND `show` = 1";
+	if (!npg_loggedin()) {
+		$where .= " AND `show`=1";
 	} /* exclude the un-published albums */
 	return db_count('albums', $where);
 }
@@ -193,15 +189,15 @@ function show_sub_count_index() {
 }
 
 function printHeadingImage($randomImage) {
-	global $_zp_themeroot, $_zp_current_album;
-	if ($_zp_current_album) {
-		$id = $_zp_current_album->getId();
+	global $_themeroot, $_current_album;
+	if ($_current_album) {
+		$id = $_current_album->getId();
 	} else {
 		$id = 0;
 	}
 	echo '<div id="randomhead">';
 	if (is_null($randomImage)) {
-		echo '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/zen-logo.png" title="' . gettext('There were no images from which to select the random heading.') . '" />';
+		printSiteLogoImage(gettext('There were no images from which to select the random heading.'));
 	} else {
 		$randomAlbum = $randomImage->getAlbum();
 		$randomAlt1 = $randomAlbum->getTitle();
@@ -221,12 +217,12 @@ function printHeadingImage($randomImage) {
 			$high = min(180, $randomImage->getHeight());
 		}
 		echo "<a href='" . $randomImageURL . "' title='" . gettext('Random picture...') . "'>";
-		$html = "<img src='" . html_encode(pathurlencode($randomImage->getCustomImage(NULL, $wide, $high, $wide, $high, NULL, NULL, !getOption('Watermark_head_image')))) .
+		$html = "<img src='" . html_encode($randomImage->getCustomImage(NULL, $wide, $high, $wide, $high, NULL, NULL, !getOption('Watermark_head_image'))) .
 						"' width='$wide' height='$high' alt=" . '"' .
 						html_encode($randomAlt1) .
 						":\n" . html_encode($randomImage->getTitle()) .
 						'" />';
-		$html = zp_apply_filter('custom_image_html', $html, false);
+		$html = npgFilters::apply('custom_image_html', $html, false);
 		echo $html;
 		echo '</a>';
 	}
@@ -236,14 +232,14 @@ function printHeadingImage($randomImage) {
 /* Custom caption functions */
 
 function getCustomAlbumDesc() {
-	if (!in_context(ZP_ALBUM))
+	if (!in_context(NPG_ALBUM))
 		return false;
-	global $_zp_current_album;
-	$desc = $_zp_current_album->getDesc();
+	global $_current_album;
+	$desc = $_current_album->getDesc();
 	if (strlen($desc) == 0) {
-		$desc = $_zp_current_album->getTitle();
+		$desc = $_current_album->getTitle();
 	} else {
-		$desc = $_zp_current_album->getTitle() . "\n" . $desc;
+		$desc = $_current_album->getTitle() . "\n" . $desc;
 	}
 	return $desc;
 }
@@ -295,25 +291,27 @@ function getPersonality() {
 }
 
 function printThemeInfo() {
-	list($personality, $themeColor) = getPersonality();
-	if ($themeColor == 'effervescence') {
-		$themeColor = '';
-	}
-	if ($personality == 'Image page') {
-		$personality = '';
-	} else if (($personality == 'Simpleviewer' && !class_exists('simpleviewer')) ||
-					($personality == 'Colorbox' && !zp_has_filter('admin_head', 'colorbox::css'))) {
-		$personality = "<strike>$personality</strike>";
-	}
-	$personality = str_replace('_', ' ', $personality);
-	if (empty($themeColor) && empty($personality)) {
-		echo '<p><small>Effervescence</small></p>';
-	} else if (empty($themeColor)) {
-		echo '<p><small>' . sprintf(gettext('Effervescence %s'), $personality) . '</small></p>';
-	} else if (empty($personality)) {
-		echo '<p><small>' . sprintf(gettext('Effervescence %s'), $themeColor) . '</small></p>';
-	} else {
-		echo '<p><small>' . sprintf(gettext('Effervescence %1$s %2$s'), $themeColor, $personality) . '</small></p>';
+	if (getThemeOption('display_theme_info')) {
+		list($personality, $themeColor) = getPersonality();
+		if ($themeColor == 'effervescence') {
+			$themeColor = '';
+		}
+		if ($personality == 'Image page') {
+			$personality = '';
+		} else if (($personality == 'Simpleviewer' && !class_exists('simpleviewer')) ||
+						($personality == 'Colorbox' && !npgFilters::has_filter('admin_head', 'colorbox::css'))) {
+			$personality = "<strike>$personality</strike>";
+		}
+		$personality = str_replace('_', ' ', $personality);
+		if (empty($themeColor) && empty($personality)) {
+			echo '<p><small>Effervescence</small></p>';
+		} else if (empty($themeColor)) {
+			echo '<p><small>' . sprintf(gettext('Effervescence %s'), $personality) . '</small></p>';
+		} else if (empty($personality)) {
+			echo '<p><small>' . sprintf(gettext('Effervescence %s'), $themeColor) . '</small></p>';
+		} else {
+			echo '<p><small>' . sprintf(gettext('Effervescence %1$s %2$s'), $themeColor, $personality) . '</small></p>';
+		}
 	}
 }
 
@@ -323,40 +321,42 @@ function printLinkWithQuery($url, $query, $text) {
 }
 
 function printLogo() {
-	global $_zp_themeroot;
+	global $_themeroot;
+	$name = get_language_string(getOption('Theme_logo'));
 	if ($img = getOption('Graphic_logo')) {
 		$fullimg = '/' . UPLOAD_FOLDER . '/images/' . $img . '.png';
 		if (file_exists(SERVERPATH . $fullimg)) {
-			echo '<img src="' . html_encode(pathurlencode(WEBPATH . $fullimg)) . '" alt="Logo"/>';
+			echo '<img src="' . pathurlencode(WEBPATH . $fullimg) . '" alt="Logo"/>';
 		} else {
-			echo '<img src="' . $_zp_themeroot . '/images/effervescence.png" alt="Logo"/>';
+			echo '<img src="' . $_themeroot . '/images/effervescence.png" alt="Logo"/>';
 		}
 	} else {
-		$name = get_language_string(getOption('Theme_logo'));
 		if (empty($name)) {
 			$name = sanitize($_SERVER['HTTP_HOST']);
 		}
-		echo "<h1><a>$name</a></h1>";
+	}
+	if (!empty($name)) {
+		echo "<h1>$name</h1>";
 	}
 }
 
 function annotateAlbum() {
-	global $_zp_current_album;
+	global $_current_album;
 	$tagit = '';
-	$pwd = $_zp_current_album->getPassword();
-	if (zp_loggedin() && !empty($pwd)) {
+	$pwd = $_current_album->getPassword();
+	if (npg_loggedin() && !empty($pwd)) {
 		$tagit = "\n" . gettext('The album is password protected.');
 	}
-	if (!$_zp_current_album->getShow()) {
+	if (!$_current_album->getShow()) {
 		$tagit .= "\n" . gettext('The album is not published.');
 	}
 	return sprintf(gettext('View the Album: %s'), getBareAlbumTitle()) . getImage_AlbumCount() . $tagit;
 }
 
 function annotateImage() {
-	global $_zp_current_image;
-	if (is_object($_zp_current_image)) {
-		if (!$_zp_current_image->getShow()) {
+	global $_current_image;
+	if (is_object($_current_image)) {
+		if (!$_current_image->getShow()) {
 			$tagit = "\n" . gettext('The image is marked not visible.');
 		} else {
 			$tagit = '';
@@ -366,7 +366,7 @@ function annotateImage() {
 }
 
 function printFooter($admin = true) {
-	global $_zp_themeroot, $_zp_gallery, $_zp_gallery_page;
+	global $_themeroot, $_gallery, $_gallery_page;
 	$h = NULL;
 	?>
 	<!-- Footer -->
@@ -380,7 +380,7 @@ function printFooter($admin = true) {
 			</p>
 			<?php
 		}
-		if ($_zp_gallery_page == 'gallery.php') {
+		if ($_gallery_page == 'gallery.php') {
 			?>
 			<p>
 				<small>
@@ -410,17 +410,17 @@ function printFooter($admin = true) {
 		?>
 
 		<?php printThemeInfo(); ?>
-		<?php printZenphotoLink(); ?>
+		<?php print_SW_Link(); ?>
 		<br />
 		<?php
-		if (function_exists('printFavoritesURL') && $_zp_gallery_page != 'password.php' && $_zp_gallery_page != 'favorites.php') {
+		if (function_exists('printFavoritesURL') && $_gallery_page != 'password.php' && $_gallery_page != 'favorites.php') {
 			printFavoritesURL(NULL, '', ' | ', '<br />');
 		}
 		?>
 		<?php
-		if ($_zp_gallery_page == 'gallery.php') {
+		if ($_gallery_page == 'gallery.php') {
 			if (class_exists('RSS'))
-				printRSSLink('Gallery', '', 'Gallery RSS', '');
+				printRSSLink('Gallery', '', 'Gallery', '');
 			echo '<br />';
 		}
 		?>
@@ -428,13 +428,13 @@ function printFooter($admin = true) {
 		@call_user_func('printUserLogin_out', '', '<br />');
 		?>
 		<?php
-		if ($_zp_gallery_page != 'contact.php' && extensionEnabled('contact_form') && ($_zp_gallery_page != 'password.php' || $_zp_gallery->isUnprotectedPage('contact'))) {
+		if ($_gallery_page != 'contact.php' && extensionEnabled('contact_form') && ($_gallery_page != 'password.php' || $_gallery->isUnprotectedPage('contact'))) {
 			printCustomPageURL(gettext('Contact us'), 'contact', '', '');
 			echo '<br />';
 		}
 		?>
 		<?php
-		if ($_zp_gallery_page != 'register.php' && function_exists('printRegisterURL') && !zp_loggedin() && ($_zp_gallery_page != 'password.php' || $_zp_gallery->isUnprotectedPage('register'))) {
+		if ($_gallery_page != 'register.php' && function_exists('printRegisterURL') && !npg_loggedin() && ($_gallery_page != 'password.php' || $_gallery->isUnprotectedPage('register'))) {
 			printRegisterURL(gettext('Register for this site'), '');
 			echo '<br />';
 		}
@@ -448,9 +448,9 @@ function printFooter($admin = true) {
 }
 
 function commonNewsLoop($paged) {
-	$newstypes = array('album' => gettext('album'), 'image' => gettext('image'), 'video' => gettext('video'), 'news' => gettext('news'));
+	$newstypes = array('album' => gettext('album'), 'image' => gettext('image'), 'video' => gettext('video'), 'news' => NEWS_LABEL);
 	while (next_news()) {
-		$newstypedisplay = gettext('news');
+		$newstypedisplay = NEWS_LABEL;
 		if (stickyNews()) {
 			$newstypedisplay .= ' <small><em>' . gettext('sticky') . '</em></small>';
 		}

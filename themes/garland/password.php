@@ -5,14 +5,17 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
-		
-		
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot ?>/zen.css" type="text/css" />
-<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
+		<?php
+		npgFilters::apply('theme_head');
+
+		scriptLoader($_themeroot . '/zen.css');
+
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		?>
 	</head>
 	<body class="sidebars">
-<?php zp_apply_filter('theme_body_open'); ?>
+<?php npgFilters::apply('theme_body_open'); ?>
 		<div id="navigation"></div>
 		<div id="wrapper">
 			<div id="container">
@@ -36,12 +39,22 @@ if (!defined('WEBPATH'))
 								<div class="main section" id="main">
 									<h2 id="gallerytitle">
 										<?php printHomeLink('', ' » '); ?>
-										<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Gallery Index'); ?>"><?php printGalleryTitle(); ?></a> »
-<?php echo "<em>" . gettext('Password required') . "</em>"; ?>
+										<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Gallery Index'); ?>"><?php printGalleryTitle(); ?></a>	<?php
+										if (isset($hint)) {
+											?>
+											»	<?php
+											echo "<em>" . gettext('Password required') . "</em>";
+										}
+										?>
 									</h2>
-									<h3><?php echo gettext('A password is required to access this page.') ?></h3>
-									<?php printPasswordForm($hint, $show, false); ?>
-<?php footer(); ?>
+									<?php if (isset($hint)) {
+										?>
+										<h3><?php echo gettext('A password is required to access this page.') ?></h3>
+										<?php
+									}
+									printPasswordForm(isset($hint) ? $hint : NULL, isset($show) ? $show : TRUE, false, isset($hint) ? WEBPATH : NULL);
+									footer();
+									?>
 									<p style="clear: both;"></p>
 								</div>
 								<!-- end content -->
@@ -53,7 +66,7 @@ if (!defined('WEBPATH'))
 			</div><!-- /container -->
 		</div>
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

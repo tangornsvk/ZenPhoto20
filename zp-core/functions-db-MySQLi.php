@@ -22,41 +22,53 @@ define('DATABASE_DESIRED_VERSION', '5.6.0');
  * @param bool $errorstop set to false to omit error messages
  * @return true if successful connection
  */
-function db_connect($config, $errorstop = true) {
-	global $_zp_DB_connection, $_zp_DB_details;
-	$_zp_DB_details = unserialize(DB_NOT_CONNECTED);
+function db_connect($config, $errorstop = E_USER_ERROR) {
+	global $_DB_connection, $_DB_details;
+	$_DB_details = unserialize(DB_NOT_CONNECTED);
 	if (function_exists('mysqli_connect')) {
-		$_zp_DB_connection = @mysqli_connect($config['mysql_host'], $config['mysql_user'], $config['mysql_pass']);
+		if (is_object($_DB_connection)) {
+			$_DB_connection->close(); //	don't want to leave connections open
+		}
+		for ($i = 1; $i <= MYSQL_CONNECTION_RETRIES; $i++) {
+			$_DB_connection = @mysqli_connect($config['mysql_host'], $config['mysql_user'], $config['mysql_pass']);
+			$e = mysqli_connect_errno();
+			$er = $e . ': ' . mysqli_connect_error();
+			if (is_object($_DB_connection) || !in_array($e, array(ER_TOO_MANY_USER_CONNECTIONS, ER_CON_COUNT_ERROR, ER_SERVER_GONE))) {
+				break;
+			}
+			sleep($i);
+		}
 	} else {
-		$_zp_DB_connection = NULL;
+		$er = gettext('"extension not loaded"');
 	}
-	if (!$_zp_DB_connection) {
+	if (!is_object($_DB_connection)) {
 		if ($errorstop) {
-			zp_error(gettext('MySQLi Error: ZenPhoto20 could not instantiate a connection.'));
+			trigger_error(sprintf(gettext('MySQLi Error: netPhotoGraphics received the error %s when connecting to the database server.'), $er), $errorstop);
+		}
+		$_DB_connection = false;
+		return false;
+	}
+	$_DB_details['mysql_host'] = $config['mysql_host'];
+	if (!$_DB_connection->select_db($config['mysql_database'])) {
+		if ($errorstop) {
+			trigger_error(sprintf(gettext('MySQLi Error: MySQLi returned the error %1$s when netPhotoGraphics tried to select the database %2$s.'), $_DB_connection->error, $config['mysql_database']), $errorstop);
 		}
 		return false;
 	}
-	$_zp_DB_details['mysql_host'] = $config['mysql_host'];
-	if (!$_zp_DB_connection->select_db($config['mysql_database'])) {
-		if ($errorstop) {
-			zp_error(sprintf(gettext('MySQLi Error: MySQLi returned the error %1$s when ZenPhoto20 tried to select the database %2$s.'), $_zp_DB_connection->error, $config['mysql_database']));
-		}
-		return false;
-	}
-	$_zp_DB_details = $config;
+	$_DB_details = $config;
 
 	//set character set protocol
 	$software = db_software();
 	$version = $software['version'];
 	if (version_compare($version, '5.5.3', '>=')) {
-		$_zp_DB_connection->set_charset("utf8mb4");
+		$_DB_connection->set_charset("utf8mb4");
 	} else {
-		$_zp_DB_connection->set_charset("utf8");
+		$_DB_connection->set_charset("utf8");
 	}
 
 	// set the sql_mode to relaxed (if possible)
-	@$_zp_DB_connection->query('SET SESSION sql_mode="";');
-	return $_zp_DB_connection;
+	@$_DB_connection->query('SET SESSION sql_mode="";');
+	return $_DB_connection;
 }
 
 /**
@@ -66,20 +78,20 @@ function db_connect($config, $errorstop = true) {
  * @return results of the sql statements
  * @since 0.6
  */
-function query($sql, $errorstop = true) {
-	global $_zp_DB_connection, $_zp_DB_details;
-	if ($_zp_DB_connection) {
+function db_query($sql, $errorstop = true) {
+	global $_DB_connection;
+	if ($_DB_connection) {
 		if (EXPLAIN_SELECTS && strpos($sql, 'SELECT') !== false) {
-			$result = $_zp_DB_connection->query('EXPLAIN ' . $sql);
+			$result = $_DB_connection->query('EXPLAIN ' . $sql);
 			if ($result) {
 				$explaination = array();
 				while ($row = $result->fetch_assoc()) {
 					$explaination[] = $row;
 				}
-				debugLogVar("EXPLAIN $sql", $explaination);
+				debugLogVar(["EXPLAIN $sql" => $explaination]);
 			}
 		}
-		if ($result = @$_zp_DB_connection->query($sql)) {
+		if ($result = @$_DB_connection->query($sql)) {
 			return $result;
 		}
 	}
@@ -98,7 +110,7 @@ function query($sql, $errorstop = true) {
  * @since 0.6
  */
 function query_single_row($sql, $errorstop = true) {
-	global $_zp_DB_connection;
+	global $_DB_connection;
 	$result = query($sql, $errorstop);
 	if (is_object($result)) {
 		$row = $result->fetch_assoc();
@@ -118,7 +130,7 @@ function query_single_row($sql, $errorstop = true) {
  * @since 0.6
  */
 function query_full_array($sql, $errorstop = true, $key = NULL) {
-	global $_zp_DB_connection;
+	global $_DB_connection;
 	$result = query($sql, $errorstop);
 	if (is_object($result)) {
 		$allrows = array();
@@ -145,9 +157,9 @@ function query_full_array($sql, $errorstop = true, $key = NULL) {
  * @return string
  */
 function db_escape($string) {
-	global $_zp_DB_connection;
-	if ($_zp_DB_connection) {
-		return $_zp_DB_connection->real_escape_string($string);
+	global $_DB_connection;
+	if ($_DB_connection) {
+		return $_DB_connection->real_escape_string($string);
 	} else {
 		return addslashes($string);
 	}
@@ -158,8 +170,8 @@ function db_escape($string) {
  */
 
 function db_insert_id() {
-	global $_zp_DB_connection;
-	return $_zp_DB_connection->insert_id;
+	global $_DB_connection;
+	return $_DB_connection->insert_id;
 }
 
 /*
@@ -174,16 +186,28 @@ function db_fetch_assoc($resource) {
 }
 
 /*
- * Returns the text of the error message from previous operation
+ * 	returns the error number from the previous operation
  */
 
-function db_error() {
-	global $_zp_DB_connection;
-	if (is_object($_zp_DB_connection)) {
-		return mysqli_error($_zp_DB_connection);
+function db_errorno() {
+	global $_DB_connection;
+	if (is_object($_DB_connection)) {
+		return mysqli_errno($_DB_connection);
 	}
-	if (!$msg = mysqli_connect_error())
+	return mysqli_connect_errno();
+}
+
+/**
+ * Returns the text of the error message from previous operation
+ */
+function db_error() {
+	global $_DB_connection;
+	if (is_object($_DB_connection)) {
+		return mysqli_error($_DB_connection);
+	}
+	if (!$msg = mysqli_connect_error()) {
 		$msg = sprintf(gettext('%s not connected'), DATABASE_SOFTWARE);
+	}
 	return $msg;
 }
 
@@ -192,8 +216,8 @@ function db_error() {
  */
 
 function db_affected_rows() {
-	global $_zp_DB_connection;
-	return $_zp_DB_connection->affected_rows;
+	global $_DB_connection;
+	return $_DB_connection->affected_rows;
 }
 
 /*
@@ -219,13 +243,13 @@ function db_num_rows($result) {
  * Closes the database
  */
 function db_close() {
-	global $_zp_DB_connection;
-	if ($_zp_DB_connection) {
-		$rslt = $_zp_DB_connection->close();
+	global $_DB_connection;
+	if ($_DB_connection) {
+		$rslt = $_DB_connection->close();
 	} else {
 		$rslt = true;
 	}
-	$_zp_DB_connection = NULL;
+	$_DB_connection = NULL;
 	return $rslt;
 }
 
@@ -234,9 +258,13 @@ function db_close() {
  */
 
 function db_software() {
-	global $_zp_DB_connection;
-	$dbversion = trim(@$_zp_DB_connection->get_server_info());
-	preg_match('/[0-9,\.]*/', $dbversion, $matches);
+	global $_DB_connection;
+	if (is_object($_DB_connection)) {
+		$dbversion = trim($_DB_connection->get_server_info());
+		preg_match('/[0-9,\.]*/', $dbversion, $matches);
+	} else {
+		$matches[0] = '?.?.?';
+	}
 	return array('application' => DATABASE_SOFTWARE, 'required' => DATABASE_MIN_VERSION, 'desired' => DATABASE_DESIRED_VERSION, 'version' => $matches[0]);
 }
 
@@ -244,8 +272,8 @@ function db_software() {
  * create the database
  */
 function db_create() {
-	global $_zp_DB_details;
-	$sql = 'CREATE DATABASE IF NOT EXISTS ' . '`' . $_zp_DB_details['mysql_database'] . '` CHARACTER SET utf8 COLLATE utf8_unicode_ci';
+	global $_DB_details;
+	$sql = 'CREATE DATABASE IF NOT EXISTS ' . '`' . $_DB_details['mysql_database'] . '` CHARACTER SET utf8 COLLATE utf8_unicode_ci';
 	return query($sql, false);
 }
 
@@ -253,8 +281,8 @@ function db_create() {
  * Returns user's permissions on the database
  */
 function db_permissions() {
-	global $_zp_DB_details;
-	$sql = "SHOW GRANTS FOR " . $_zp_DB_details['mysql_user'] . ";";
+	global $_DB_details;
+	$sql = "SHOW GRANTS FOR " . $_DB_details['mysql_user'] . ";";
 	$result = query($sql, false);
 	if (!$result) {
 		$result = query("SHOW GRANTS;", false);
@@ -298,40 +326,40 @@ function db_table_update(&$sql) {
 }
 
 function db_show($what, $aux = '') {
-	global $_zp_DB_details;
+	global $_DB_details;
 	switch ($what) {
 		case 'tables':
-			$sql = "SHOW TABLES FROM `" . $_zp_DB_details['mysql_database'] . "` LIKE '" . db_LIKE_escape($_zp_DB_details['mysql_prefix']) . "%'";
+			$sql = "SHOW TABLES FROM `" . $_DB_details['mysql_database'] . "` LIKE '" . db_LIKE_escape($_DB_details['mysql_prefix']) . "%'";
 			return query($sql, false);
 		case 'columns':
-			$sql = 'SHOW FULL COLUMNS FROM `' . $_zp_DB_details['mysql_prefix'] . $aux . '`';
+			$sql = 'SHOW FULL COLUMNS FROM `' . $_DB_details['mysql_prefix'] . $aux . '`';
 			return query($sql, false);
 		case 'variables':
 			$sql = "SHOW VARIABLES LIKE '$aux'";
 			return query_full_array($sql);
 		case 'index':
-			$sql = "SHOW INDEX FROM `" . $_zp_DB_details['mysql_database'] . '`.' . $aux;
+			$sql = "SHOW INDEX FROM `" . $_DB_details['mysql_database'] . '`.' . $aux;
 			return query_full_array($sql, false);
 	}
 }
 
 function db_list_fields($table) {
-	global $tableFields;
-	if (!isset($tableFields[$table])) {
-		$tableFields[$table] = array();
+	global $_tableFields;
+	if (!isset($_tableFields[$table])) {
+		$_tableFields[$table] = array();
 		$result = db_show('columns', $table);
 		if (is_object($result)) {
 			while ($row = db_fetch_assoc($result)) {
-				$tableFields[$table][] = $row;
+				$_tableFields[$table][$row['Field']] = $row;
 			}
 		}
 	}
-	return $tableFields[$table];
+	return $_tableFields[$table];
 }
 
 function db_truncate_table($table) {
-	global $_zp_DB_details;
-	$sql = 'TRUNCATE ' . $_zp_DB_details['mysql_prefix'] . $table;
+	global $_DB_details;
+	$sql = 'TRUNCATE ' . $_DB_details['mysql_prefix'] . $table;
 	return query($sql, false);
 }
 

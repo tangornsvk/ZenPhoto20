@@ -1,5 +1,4 @@
 <?php
-
 /**
  *
  * Displays a "plugin usage" document based on the plugin's doc comment block.
@@ -12,7 +11,9 @@
  * <var> mono-spaced text
  * <code> code blocks (Note: PHPDocs will create an ordered list of the enclosed text)
  * <hr> horizontal rule
- * <ul><li>, <ol><li> lists
+ * <ul><li> bulleted list
+ * <ol><li> lists
+ * <super></super> superscript
  * <pre>
  * <br> line break
  * </code>
@@ -23,24 +24,31 @@
  * The definitions for folder names and paths are represented by <var>%define%</var> (e.g. <var>%WEBPATH%</var>). The
  * document processor will substitute the actual value for these tags when it renders the document.
  * Image URIs are also processed. Use the appropriate definition tokens to cause the URI to point
- * to the actual image. E.g. <var><img src="%WEBPATH%/%ZENFOLDER%/images/zen-logo.png" /></var>
+ * to the actual image. E.g. <var><img src="%WEBPATH%/%CORE_FOLDER%/images/admin-logo.png" /></var>
  *
  * @author Stephen Billard (sbillard)
  *
  * @package admin
- * @subpackage development
+ * @pluginCategory development
  */
 // force UTF-8 Ø
 
+global $_CMS;
+
 function processCommentBlock($commentBlock) {
-	global $plugin_author, $subpackage;
+	global $plugin_author, $plugin_copyright, $subpackage;
 	$markup = array(
+			'&amp;gt;' => '>',
+			'&amp;lt;' => '<',
+			'&amp;percnt;' => '%',
 			'&lt;i&gt;' => '<em>',
 			'&lt;/i&gt;' => '</em>',
 			'&lt;b&gt;' => '<strong>',
 			'&lt;/b&gt;' => '</strong>',
 			'&lt;code&gt;' => '<span class="inlinecode">',
 			'&lt;/code&gt;' => '</span>',
+			'&lt;sup&gt;' => '<span class="superscript">',
+			'&lt;/sup&gt;' => '</span>',
 			'&lt;hr&gt;' => '<hr />',
 			'&lt;ul&gt;' => '<ul>',
 			'&lt;/ul&gt;' => '</ul>',
@@ -60,9 +68,13 @@ function processCommentBlock($commentBlock) {
 			'&lt;var&gt;' => '<span class="inlinecode">',
 			'&lt;/var&gt;' => '</span>'
 	);
-	$const_tr = array('%ZENFOLDER%' => ZENFOLDER,
+	$const_tr = array(
+			'%CORE_FOLDER%' => CORE_FOLDER,
 			'%PLUGIN_FOLDER%' => PLUGIN_FOLDER,
+			'%CORE_PATH%' => CORE_PATH,
+			'%PLUGIN_PATH%' => PLUGIN_PATH,
 			'%USER_PLUGIN_FOLDER%' => USER_PLUGIN_FOLDER,
+			'%USER_PLUGIN_PATH%' => USER_PLUGIN_PATH,
 			'%ALBUMFOLDER%' => ALBUMFOLDER,
 			'%THEMEFOLDER%' => THEMEFOLDER,
 			'%BACKUPFOLDER%' => BACKUPFOLDER,
@@ -72,14 +84,18 @@ function processCommentBlock($commentBlock) {
 			'%UPLOAD_FOLDER%' => UPLOAD_FOLDER,
 			'%STATIC_CACHE_FOLDER%' => STATIC_CACHE_FOLDER,
 			'%FULLWEBPATH%' => FULLWEBPATH,
-			'%WEBPATH%' => WEBPATH
+			'%WEBPATH%' => WEBPATH,
+			'%RW_SUFFIX%' => RW_SUFFIX,
+			'%GITHUB_ORG%' => GITHUB_ORG,
+			'%GITHUB%' => GITHUB,
+			'%LOCALE%' => i18n::getUserLocale()
 	);
 	$body = $doc = '';
 	$par = false;
 	$empty = false;
 	$lines = explode("\n", strtr($commentBlock, $const_tr));
 	foreach ($lines as $line) {
-		$line = trim(preg_replace('/^\s*\*/', '', $line));
+		$line = trim(preg_replace('~^\s*\*~', '', $line));
 		if (empty($line)) {
 			if (!$empty) {
 				if ($par) {
@@ -92,9 +108,24 @@ function processCommentBlock($commentBlock) {
 			if (strpos($line, '@') === 0) {
 				preg_match('/@(.*?)\s/', $line, $matches);
 				if (!empty($matches)) {
-					switch ($matches[1]) {
+					switch (strtolower($matches[1])) {
 						case 'author':
 							$plugin_author = trim(substr($line, 8));
+							break;
+						case 'copyright':
+							$plugin_copyright = trim(substr($line, 10));
+							preg_match('~{@link(.*)}~', $plugin_copyright, $matches);
+							if (!empty($matches)) {
+								$line = trim($matches[1]);
+								$l = strpos($line, ' ');
+								if ($l === false) {
+									$text = $line;
+								} else {
+									$text = substr($line, $l + 1);
+									$line = substr($line, 0, $l);
+								}
+								$plugin_copyright = str_replace($matches[0], '<a href="' . $line . '">' . $text . '</a>', $plugin_copyright);
+							}
 							break;
 						case 'subpackage':
 							$subpackage = trim(substr($line, 11));
@@ -140,10 +171,12 @@ function processCommentBlock($commentBlock) {
 					}
 				}
 				$doc .= strtr(html_encodeTagged($line), array_merge($tags, $markup)) . ' ';
+
 				$empty = false;
 			}
 		}
 	}
+
 	if ($par) {
 		$doc .= '</p>';
 		$body .= $doc;
@@ -155,29 +188,29 @@ function processCommentBlock($commentBlock) {
 if (!defined('OFFSET_PATH')) {
 	define('OFFSET_PATH', 2);
 	require_once(dirname(__FILE__) . '/admin-globals.php');
-	require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
+	require_once(CORE_SERVERPATH . 'template-functions.php');
 
 	$extension = sanitize($_GET['extension']);
 	if (!in_array($extension, array_keys(getPluginFiles('*.php')))) {
 		exit();
 	}
 
-	header('Last-Modified: ' . ZP_LAST_MODIFIED);
+	header('Last-Modified: ' . NPG_LAST_MODIFIED);
 	header('Content-Type: text/html; charset=' . LOCAL_CHARSET);
 
-	$real_locale = getUserLocale();
+	$real_locale = i18n::getUserLocale();
 
 	$pluginType = @$_GET['type'];
-
 	if ($pluginType) {
 		$pluginToBeDocPath = SERVERPATH . '/' . USER_PLUGIN_FOLDER . '/' . $extension . '.php';
 	} else {
-		$pluginToBeDocPath = SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . $extension . '.php';
+		$pluginToBeDocPath = CORE_SERVERPATH . PLUGIN_FOLDER . '/' . $extension . '.php';
 	}
 	$plugin_description = '';
 	$plugin_notice = '';
 	$plugin_disable = '';
 	$plugin_author = '';
+	$plugin_copyright = '';
 	$plugin_version = '';
 	$plugin_is_filter = '';
 	$plugin_URL = '';
@@ -188,14 +221,20 @@ if (!defined('OFFSET_PATH')) {
 
 	$macro_params = array($plugin_description, $plugin_notice, $plugin_disable, $plugin_author, $plugin_version, $plugin_is_filter, $plugin_URL, $option_interface, $doclink);
 
-	$buttonlist = zp_apply_filter('admin_utilities_buttons', array());
+	$buttonlist = npgFilters::apply('admin_utilities_buttons', array());
 	foreach ($buttonlist as $key => $button) {
 		$buttonlist[$key]['enable'] = false;
 	}
-	$imagebuttons = preg_replace('/<a href=[^>]*/i', '<a', zp_apply_filter('edit_image_utilities', '', $_zp_missing_image, 0, '', '', ''));
-	$albumbuttons = preg_replace('/<a href=[^>]*/i', '<a', zp_apply_filter('edit_album_utilities', '', $_zp_missing_album, ''));
+	$imagebuttons = preg_replace('/<a href=[^>]*/i', '<a', npgFilters::apply('edit_image_utilities', '', $_missing_image, 0, '', '', ''));
+	if (!preg_match('~class\s*=.+button~', $imagebuttons)) {
+		$imagebuttons = NULL;
+	}
+	$albumbuttons = preg_replace('/<a href=[^>]*/i', '<a', npgFilters::apply('edit_album_utilities', ' ', $_missing_album, ''));
+	if (!preg_match('~class\s*=.+button~', $albumbuttons)) {
+		$albumbuttons = NULL;
+	}
 
-	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/macroList.php');
+	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/macroList.php');
 
 	list($plugin_description, $plugin_notice, $plugin_disable, $plugin_author, $plugin_version, $plugin_is_filter, $plugin_URL, $option_interface, $doclink) = $macro_params;
 
@@ -207,11 +246,9 @@ if (!defined('OFFSET_PATH')) {
 		}
 	}
 
-	$pluginStream = @file_get_contents($pluginToBeDocPath);
+	$pluginStream = str_replace('/* LegacyConverter was here */', '', @file_get_contents($pluginToBeDocPath));
 	$i = strpos($pluginStream, '/*');
 	$j = strpos($pluginStream, '*/');
-
-	$links = array();
 
 	if ($i !== false && $j !== false) {
 		$commentBlock = substr($pluginStream, $i + 2, $j - $i - 2);
@@ -224,7 +261,7 @@ if (!defined('OFFSET_PATH')) {
 				if (file_exists($path)) {
 					$ico = str_replace(SERVERPATH, WEBPATH, $path);
 				} else {
-					$ico = 'images/placeholder.png';
+					$ico = WEBPATH . '/' . CORE_FOLDER . '/images/placeholder.png';
 				}
 				break;
 			case 'supplemental':
@@ -232,14 +269,14 @@ if (!defined('OFFSET_PATH')) {
 					$sublink = $subpackage . '/';
 				}
 				$whose = 'Supplemental plugin';
-				$ico = 'images/zp.png';
+				$ico = WEBPATH . '/' . CORE_FOLDER . '/images/np_blue.png';
 				break;
 			default:
 				if ($subpackage) {
 					$sublink = $subpackage . '/';
 				}
 				$whose = 'Official plugin';
-				$ico = 'images/zp_gold.png';
+				$ico = WEBPATH . '/' . CORE_FOLDER . '/images/np_gold.png';
 				break;
 		}
 
@@ -247,17 +284,16 @@ if (!defined('OFFSET_PATH')) {
 			$doclink = sprintf('See also the <a href="%1$s">%2$s</a>', $plugin_URL, $extension);
 		}
 		$pluginusage = gettext('Plugin usage information');
-		$pagetitle = sprintf(gettext('%1$s %2$s: %3$s'), html_encode($_zp_gallery->getTitle()), gettext('admin'), html_encode($extension));
-		setupCurrentLocale('en_US');
+		$pagetitle = sprintf(gettext('%1$s %2$s: %3$s'), html_encode($_gallery->getTitle()), gettext('admin'), html_encode($extension));
+		i18n::setupCurrentLocale('en_US');
 		?>
 		<!DOCTYPE html>
 		<html xmlns="http://www.w3.org/1999/xhtml" />
 		<head>
 			<?php printStandardMeta(); ?>
 			<title><?php echo $pagetitle; ?></title>
-			<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.css?ZenPhoto20_<?PHP ECHO ZENPHOTO_VERSION; ?>" type="text/css" />
+			<?php scriptLoader(CORE_SERVERPATH . 'admin.css'); ?>
 			<style>
-
 				#heading {
 					height: 15px;
 				}
@@ -281,7 +317,7 @@ if (!defined('OFFSET_PATH')) {
 					width: 200px;
 					margin: 0 7px 0 0;
 					background-color: #f5f5f5;
-					background-image: url(images/admin-buttonback.jpg);
+					background-image: url(../images/admin-buttonback.jpg);
 					background-repeat: repeat-x;
 					border: 1px solid #dedede;
 					border-top: 1px solid #eee;
@@ -298,20 +334,17 @@ if (!defined('OFFSET_PATH')) {
 				.buttons .tip {
 					text-align: left;
 				}
-
 				dl {
 					display: block;
 					clear: both;
 					width: 100%;
 				}
-
 				dt,dd {
 					vertical-align: top;
 					display: inline-block;
 					width: 90%;
 					margin: 0;
 				}
-
 				dt {
 					font-weight: bold;
 				}
@@ -319,9 +352,11 @@ if (!defined('OFFSET_PATH')) {
 					width: 90%;
 					margin-left: 3em;
 				}
-
-
-				ul, ol {
+				ul {
+					list-style: bullet;
+					padding: 0;
+				}
+				ol {
 					list-style: none;
 					padding: 0;
 				}
@@ -338,6 +373,12 @@ if (!defined('OFFSET_PATH')) {
 					list-style: none;
 					margin-left: 1.5em;
 					padding-bottom: 0.5em;
+				}
+				.superscript {
+					vertical-align: super;
+				}
+				.nowrap {
+					white-space: nowrap;
 				}
 			</style>
 		</head>
@@ -358,12 +399,12 @@ if (!defined('OFFSET_PATH')) {
 				<br class="clearall" />
 
 				<div id="plugin-content">
-					<h1><img class="zp_logoicon" src="<?php echo $ico; ?>" alt="logo" title="<?php echo $whose; ?>" /><?php echo html_encode($extension); ?></h1>
+					<h1><img class="npg_logoicon" src="<?php echo $ico; ?>" alt="logo" title="<?php echo $whose; ?>" /><?php echo html_encode($extension); ?></h1>
 					<div class="border">
 						<?php echo $plugin_description; ?>
 					</div>
 					<?php
-					if ($pluginType == 'thirdparty') {
+					if ($pluginType == 'thirdparty' && $plugin_version) {
 						?>
 						<h3><?php printf('Version: %s', $plugin_version); ?></h3>
 						<?php
@@ -373,10 +414,10 @@ if (!defined('OFFSET_PATH')) {
 						<h3><?php printf('Author: %s', html_encode($plugin_author)); ?></h3>
 						<?php
 					}
-					foreach ($links as $key => $link) {
-						if ($key)
-							echo "<br />";
-						echo '<a href="' . html_encode($link['link']) . '">' . html_encode($link['text']) . '</a>';
+					if ($plugin_copyright) {
+						?>
+						<h3><?php echo '© ' . html_encodeTagged($plugin_copyright); ?></h3>
+						<?php
 					}
 					?>
 					<div>
@@ -409,44 +450,52 @@ if (!defined('OFFSET_PATH')) {
 								$options = array_keys($options);
 							} else {
 								$options = array_keys($supportedOptions);
-								natcasesort($options);
+								sort($options, SORT_NATURAL | SORT_FLAG_CASE);
 							}
-							$notes = array();
-							?>
-							<hr />
-							<p>
-								<?php echo ngettext('Option:', 'Options:', count($options)); ?>
-								<ul class="options">
-									<?php
-									foreach ($options as $option) {
-										if (array_key_exists($option, $supportedOptions)) {
-											$row = $supportedOptions[$option];
-											if ($row['type'] == OPTION_TYPE_NOTE) {
-												$notes[] = $row;
-											} else {
-												if (false !== $i = stripos($option, chr(0))) {
-													$option = substr($option, 0, $i);
-												}
-												if ($option) {
-													?>
-													<li><code><?php echo $option; ?></code></li>
-													<?php
-												}
+
+							foreach ($options as $key => $option) {
+								if (array_key_exists($option, $supportedOptions)) {
+									$row = $supportedOptions[$option];
+									if ($row['type'] == OPTION_TYPE_NOTE) {
+										$n = getBare($row['desc']);
+										if (!empty($n)) {
+											$options[$key] = $n;
+										}
+									} else {
+										if (false !== $i = stripos($option, chr(0))) {
+											$option = substr($option, 0, $i);
+										}
+										if (!$option) {
+											unset($options[$key]);
+										}
+										$options[$key] = '<code>' . $option . '</code>';
+									}
+								} else {
+									unset($options[$key]);
+								}
+							}
+							if (!empty($options)) {
+								?>
+								<hr />
+								<p>
+									<?php echo ngettext('Option:', 'Options:', count($options)); ?>
+									<ol class="options">
+										<?php
+										foreach ($options as $option) {
+											if (false !== $i = stripos($option, chr(0))) {
+												$option = substr($option, 0, $i);
+											}
+											if ($option) {
+												?>
+												<li><?php echo $option; ?></li>
+												<?php
 											}
 										}
-									}
-									foreach ($notes as $note) {
-										$n = getBare($note['desc']);
-										if (!empty($n)) {
-											?>
-											<li><code><?php echo $note['desc']; ?></li>
-											<?php
-										}
-									}
-									?>
-								</ul>
-							</p>
-							<?php
+										?>
+									</ol>
+								</p>
+								<?php
+							}
 						}
 						if (!empty($buttonlist) || !empty($albumbuttons) || !empty($imagebuttons)) {
 							?>
@@ -479,12 +528,13 @@ if (!defined('OFFSET_PATH')) {
 											<div class="moc_button tip" title="<?php echo @$button['title']; ?>" >
 												<?php
 												if (!empty($button_icon)) {
-													if (preg_match('~\&.*?\;~', $button_icon)) {
-														echo $button_icon . ' ';
-													} else {
+													if (strpos($button_icon, 'images/') === 0) {
+														// old style icon image
 														?>
 														<img src="<?php echo $button_icon; ?>" alt="<?php echo html_encode($button['alt']); ?>" />
 														<?php
+													} else {
+														echo $button_icon . ' ';
 													}
 												}
 												echo html_encode(@$button['button_text']);

@@ -15,7 +15,7 @@
  * instantiated, only used for subclasses. This cannot be enforced, but please
  * follow it!
  *
- * A child class should run the follwing in its constructor:
+ * A child class should run the following in its constructor:
  *
  * $new = $this->instantiate('tablename',
  *   array('uniquestring'=>$value, 'uniqueid'=>$uniqueid));
@@ -32,7 +32,7 @@
  * **************************************************************************** */
 
 // The query cache
-$_zp_object_cache = array();
+$_object_cache = array();
 define('OBJECT_CACHE_DEPTH', 150); //	how many objects to hold for each object class
 // ABSTRACT
 
@@ -53,7 +53,7 @@ class PersistentObject {
 	/**
 	  }
 	 *
-	 * Prime instantiator for zenphoto objects
+	 * Prime instantiator for objects
 	 * @param $tablename	The name of the database table
 	 * @param $unique_set	An array of unique fields
 	 * @param $cache_by
@@ -63,11 +63,11 @@ class PersistentObject {
 	 * @return bool will be true if the unique_set does not already exist
 	 */
 	function instantiate($tablename, $unique_set, $cache_by = NULL, $use_cache = true, $is_transient = false, $allowCreate = true) {
-		global $_zp_object_cache;
+		global $_object_cache;
 		//	insure a cache entry
 		$classname = get_class($this);
-		if (!isset($_zp_object_cache[$classname])) {
-			$_zp_object_cache[$classname] = array();
+		if (!isset($_object_cache[$classname])) {
+			$_object_cache[$classname] = array();
 		}
 		// Initialize the variables.
 		// Load the data into the data array using $this->load()
@@ -91,9 +91,9 @@ class PersistentObject {
 	 * @param $entry
 	 */
 	private function getFromCache() {
-		global $_zp_object_cache;
-		if (isset($_zp_object_cache[$c = get_class($this)]) && isset($_zp_object_cache[$c][$this->cache_by])) {
-			return $_zp_object_cache[$c][$this->cache_by];
+		global $_object_cache;
+		if (isset($_object_cache[$c = get_class($this)]) && isset($_object_cache[$c][$this->cache_by])) {
+			return $_object_cache[$c][$this->cache_by];
 		}
 		return NULL;
 	}
@@ -104,12 +104,12 @@ class PersistentObject {
 	 * @param $entry
 	 */
 	private function addToCache($entry) {
-		global $_zp_object_cache;
+		global $_object_cache;
 		if ($entry) {
-			if (count($_zp_object_cache[$classname = get_class($this)]) >= OBJECT_CACHE_DEPTH) {
-				array_shift($_zp_object_cache[$classname]); //	discard the oldest
+			if (count($_object_cache[$classname = get_class($this)]) >= OBJECT_CACHE_DEPTH) {
+				array_shift($_object_cache[$classname]); //	discard the oldest
 			}
-			$_zp_object_cache[$classname][$this->cache_by] = $entry;
+			$_object_cache[$classname][$this->cache_by] = $entry;
 		}
 	}
 
@@ -150,7 +150,7 @@ class PersistentObject {
 		$new_unique_set = array_change_key_case($new_unique_set, CASE_LOWER);
 		$result = query_single_row('SELECT * FROM ' . prefix($this->table) . getWhereClause($new_unique_set) . ' LIMIT 1;');
 		if (!$result || $result['id'] == $this->id) { //	we should not find an entry for the new unique set!
-			if (!zp_apply_filter('move_object', true, $this, $new_unique_set)) {
+			if (!npgFilters::apply('move_object', true, $this, $new_unique_set)) {
 				return false;
 			}
 			$sql = 'UPDATE ' . prefix($this->table) . getSetClause($new_unique_set) . ' ' . getWhereClause($this->unique_set);
@@ -175,7 +175,7 @@ class PersistentObject {
 		$result = query('SELECT * FROM ' . prefix($this->table) . getWhereClause($new_unique_set) . ' LIMIT 1;');
 
 		if ($result && db_num_rows($result) == 0) {
-			if (!zp_apply_filter('copy_object', true, $this, $new_unique_set)) {
+			if (!npgFilters::apply('copy_object', true, $this, $new_unique_set)) {
 				return false;
 			}
 			// Note: It's important for $new_unique_set to come last, as its values should override.
@@ -208,7 +208,7 @@ class PersistentObject {
 			$sql .= ');';
 			$success = query($sql);
 			if ($success && db_affected_rows() == 1) {
-				return zp_apply_filter('copy_object', db_insert_id(), $this);
+				return npgFilters::apply('copy_object', db_insert_id(), $this);
 			}
 		}
 		return false;
@@ -220,7 +220,7 @@ class PersistentObject {
 	 * @return bool
 	 */
 	function remove() {
-		if (!zp_apply_filter('remove_object', true, $this)) {
+		if (!npgFilters::apply('remove_object', true, $this)) {
 			return false;
 		}
 		$id = $this->id;
@@ -269,7 +269,7 @@ class PersistentObject {
 		} else if (array_key_exists($var, $this->tempdata)) {
 			return $this->tempdata[$var];
 		} else {
-			return null;
+			return NULL;
 		}
 	}
 
@@ -317,7 +317,6 @@ class PersistentObject {
 				$new = true;
 				$this->save();
 				$entry = query_single_row($sql);
-
 				// If we still don't have an entry, something went wrong...
 				if (!$entry)
 					return null;
@@ -337,26 +336,36 @@ class PersistentObject {
 	 * true if successful, false if not.
 	 */
 	function save() {
-		if ($this->transient)
-			return false; // If this object isn't supposed to be persisted, don't save it.
-		if (!$this->unique_set) { // If we don't have a unique set, then this is incorrect. Don't attempt to save.
-			zp_error('empty $this->unique set is empty');
-			return false;
+		global $_current_admin_obj, $_authority;
+		if ($_current_admin_obj) {
+			$updateUser = $_current_admin_obj;
+		} else {
+			$updateUser = $_authority->getMasterUser();
 		}
-		if (!zp_apply_filter('save_object', true, $this)) {
+		if ($this->transient)
+			return 0; // If this object isn't supposed to be persisted, don't save it.
+		if (!$this->unique_set) { // If we don't have a unique set, then this is incorrect. Don't attempt to save.
+			trigger_error('empty $this->unique set is empty', E_USER_ERROR);
+			return 0;
+		}
+		if (!npgFilters::apply('save_object', TRUE, $this)) {
 			// filter aborted the save
-			return false;
+			return 0;
 		}
 
 		if (!$this->id) {
 			//	prevent recursive save form default processing
-			$this->transient = true;
+			$this->transient = TRUE;
 			$this->setDefaults();
-			$this->transient = false;
+			$this->transient = FALSE;
 			$insert_data = array_merge($this->unique_set, $this->updates);
 			if (empty($insert_data)) {
-				return true;
+				return 2;
 			}
+			if (array_key_exists('lastchange', $this->data)) { //	if the object has these keys, provide the data
+				$insert_data = array_merge($insert_data, array('lastchange' => date('Y-m-d H:i:s'), 'lastchangeuser' => $updateUser->getUser()));
+			}
+
 			$cols = $vals = '';
 			foreach ($insert_data as $col => $value) {
 				if (!empty($cols)) {
@@ -373,7 +382,7 @@ class PersistentObject {
 			$sql = 'INSERT INTO ' . prefix($this->table) . ' (' . $cols . ') VALUES (' . $vals . ')';
 			$success = query($sql);
 			if (!$success || db_affected_rows() != 1) {
-				return false;
+				return 0;
 			}
 			foreach ($insert_data as $key => $value) { // copy over any changes
 				$this->data[$key] = $value;
@@ -381,37 +390,43 @@ class PersistentObject {
 			$this->updates = array();
 
 			$this->data['id'] = $this->id = (int) db_insert_id(); // so 'get' will retrieve it!
-			$this->loaded = true;
+			$this->loaded = TRUE;
 		} else {
 			// Save the existing object (updates only) based on the existing id.
 			if (empty($this->updates)) {
-				return true;
+				return 2;
 			} else {
 				$sql = '';
 				foreach ($this->updates as $col => $value) {
-					if ($sql) {
-						$sql .= ",";
+					if ($this->data[$col] != $value) {
+						if ($sql) {
+							$sql .= ",";
+						}
+						if (is_null($value)) {
+							$sql .= " `$col` = NULL";
+						} else {
+							$sql .= " `$col` = " . db_quote($value);
+						}
+						$this->data[$col] = $value;
 					}
-					if (is_null($value)) {
-						$sql .= " `$col` = NULL";
-					} else {
-						$sql .= " `$col` = " . db_quote($value);
+				}
+				if (empty($sql)) {
+					$success = 2;
+				} else {
+					if (array_key_exists('lastchange', $this->data)) { //	if the object has these keys, provide the data
+						$sql .= ',`lastchange`=' . db_quote(date('Y-m-d H:i:s')) . ',`lastchangeuser`=' . db_quote($updateUser->getUser());
 					}
-					$this->data[$col] = $value;
-				}
-				$sql = 'UPDATE ' . prefix($this->table) . ' SET' . $sql . ' WHERE id=' . $this->id . ';';
-				$success = query($sql);
-				if (!$success || db_affected_rows() != 1) {
-					return false;
-				}
-				foreach ($this->updates as $key => $value) {
-					$this->data[$key] = $value;
+					$sql = 'UPDATE ' . prefix($this->table) . ' SET' . $sql . ' WHERE id=' . $this->id . ';';
+					$success = (int) query($sql);
+					if (!$success || db_affected_rows() != 1) {
+						return 0;
+					}
 				}
 				$this->updates = array();
 			}
 		}
 		$this->addToCache($this->data);
-		return true;
+		return $success;
 	}
 
 	/**
@@ -420,7 +435,11 @@ class PersistentObject {
 	 * @return string
 	 */
 	public function __toString() {
-		return $this->table . " (" . $this->id . ")";
+		if ($this->table) {
+			return $this->table . " (" . $this->id . ")";
+		} else {
+			return get_class($this) . ' ' . gettext('Object');
+		}
 	}
 
 	/**
@@ -438,16 +457,20 @@ class PersistentObject {
 		$result = NULL;
 		switch ($how) {
 			case 'get':
-				$result = $this->get($what);
+				if (array_key_exists($what, $this->updates)) {
+					return $this->updates[$what];
+				} else if (array_key_exists($what, $this->data)) {
+					return $this->data[$what];
+				} else if (array_key_exists($what, $this->tempdata)) {
+					return $this->tempdata[$what];
+				}
 				break;
 			case 'set':
-				$result = $this->set($what, $arg);
-				break;
-			default:
-				throw new Exception(sprintf(gettext('Call to undefined method Image::%s()'), $method));
-				break;
+				return $this->set($what, $arg);
 		}
-		return $result;
+		$caller = debug_backtrace();
+		$caller = array_shift($caller);
+		throw new Exception(sprintf(gettext('Call to undefined method %1$s() in %2$s on line %3$s'), get_class($this) . '::' . $method, $caller['file'], $caller['line']));
 	}
 
 }
@@ -504,7 +527,7 @@ class ThemeObject extends PersistentObject {
 		if ($locale !== 'all') {
 			$text = get_language_string($text, $locale);
 		}
-		$text = zpFunctions::unTagURLs($text);
+		$text = npgFunctions::unTagURLs($text);
 		return $text;
 	}
 
@@ -514,7 +537,7 @@ class ThemeObject extends PersistentObject {
 	 * @param string $title the title
 	 */
 	function setTitle($title) {
-		$this->set('title', zpFunctions::tagURLs($title));
+		$this->set('title', npgFunctions::tagURLs($title));
 	}
 
 	/**
@@ -566,14 +589,14 @@ class ThemeObject extends PersistentObject {
 	 * @param bool $show True if the album is published
 	 */
 	function setShow($show) {
-		$old_show = $this->get('show');
+		$old_show = (int) ($this->get('show') && true);
 		$new_show = (int) ($show && true);
-		if ($old_show != $new_show) {
-			$this->set('show', $new_show);
+		$this->set('show', $new_show);
+		if ($old_show !== $new_show) {
 			if ($this->get('id')) {
-				zp_apply_filter('show_change', $this);
+				npgFilters::apply('show_change', $this);
 			}
-			if ($this->get('show') == $new_show) { //	filter did not reverse the change
+			if ((int) ($this->get('show') && true) === $new_show) { //	filter did not reverse the change
 				$p = $this->get("publishdate");
 				$d = date('Y-m-d H:i:s');
 				if ($new_show) { //	going from unpublished to published
@@ -660,7 +683,7 @@ class ThemeObject extends PersistentObject {
 	 * @return array
 	 */
 	function getCodeblock() {
-		return zpFunctions::unTagURLs($this->get("codeblock"));
+		return npgFunctions::unTagURLs($this->get("codeblock"));
 	}
 
 	/**
@@ -668,36 +691,7 @@ class ThemeObject extends PersistentObject {
 	 *
 	 */
 	function setCodeblock($cb) {
-		$this->set('codeblock', zpFunctions::tagURLs($cb));
-	}
-
-	/**
-	 * returns the custom data field
-	 *
-	 * @return string
-	 */
-	function getCustomData($locale = NULL) {
-		if (class_exists('deprecated_functions')) {
-			deprecated_functions::notify(gettext('Use customFieldExtender to define unique fields'));
-		}
-		$text = $this->get('custom_data');
-		if ($locale !== 'all') {
-			$text = get_language_string($text, $locale);
-		}
-		$text = zpFunctions::unTagURLs($text);
-		return $text;
-	}
-
-	/**
-	 * Sets the custom data field
-	 *
-	 * @param string $val the value to be put in custom_data
-	 */
-	function setCustomData($val) {
-		if (class_exists('deprecated_functions')) {
-			deprecated_functions::notify(gettext('Use customFieldExtender to define unique fields'));
-		}
-		$this->set('custom_data', zpFunctions::tagURLs($val));
+		$this->set('codeblock', npgFunctions::tagURLs($cb));
 	}
 
 	/**
@@ -727,7 +721,7 @@ class ThemeObject extends PersistentObject {
 	 * @return array
 	 */
 	function getComments($moderated = false, $private = false, $desc = false) {
-		$sql = "SELECT *, (date + 0) AS date FROM " . prefix("comments") .
+		$sql = "SELECT * FROM " . prefix("comments") .
 						" WHERE `type`='" . $this->table . "' AND `ownerid`='" . $this->getID() . "'";
 		if (!$moderated) {
 			$sql .= " AND `inmoderation`=0";
@@ -763,7 +757,7 @@ class ThemeObject extends PersistentObject {
 	 * @return object
 	 */
 	function addComment($name, $email, $website, $comment, $code, $code_ok, $ip, $private, $anon, $customdata) {
-		$goodMessage = zp_apply_filter('object_addComment', $name, $email, $website, $comment, $code, $code_ok, $this, $ip, $private, $anon, $customdata);
+		$goodMessage = npgFilters::apply('object_addComment', $name, $email, $website, $comment, $code, $code_ok, $this, $ip, $private, $anon, $customdata);
 		return $goodMessage;
 	}
 
@@ -789,13 +783,13 @@ class ThemeObject extends PersistentObject {
 	 * @param bit $action what the caller wants to do
 	 */
 	function isMyItem($action) {
-		if (zp_loggedin($this->manage_rights)) {
+		if (npg_loggedin($this->manage_rights)) {
 			return true;
 		}
-		if ($action == LIST_RIGHTS && zp_loggedin($this->access_rights)) {
+		if ($action == LIST_RIGHTS && npg_loggedin($this->access_rights)) {
 			return true;
 		}
-		if (zp_apply_filter('check_credentials', false, $this, $action)) {
+		if (npgFilters::apply('check_credentials', false, $this, $action)) {
 			return true;
 		}
 		return NULL;
@@ -912,9 +906,9 @@ class MediaObject extends ThemeObject {
 	function getDesc($locale = NULL) {
 		$text = $this->get('desc');
 		if ($locale == 'all') {
-			return zpFunctions::unTagURLs($text);
+			return npgFunctions::unTagURLs($text);
 		} else {
-			return applyMacros(zpFunctions::unTagURLs(get_language_string($text, $locale)));
+			return applyMacros(npgFunctions::unTagURLs(get_language_string($text, $locale)));
 		}
 	}
 
@@ -924,7 +918,7 @@ class MediaObject extends ThemeObject {
 	 * @param string $desc description text
 	 */
 	function setDesc($desc) {
-		$desc = zpFunctions::tagURLs($desc);
+		$desc = npgFunctions::tagURLs($desc);
 		$this->set('desc', $desc);
 	}
 
@@ -996,7 +990,7 @@ class MediaObject extends ThemeObject {
 		if ($locale !== 'all') {
 			$text = get_language_string($text, $locale);
 		}
-		$text = zpFunctions::unTagURLs($text);
+		$text = npgFunctions::unTagURLs($text);
 		return $text;
 	}
 
@@ -1006,7 +1000,43 @@ class MediaObject extends ThemeObject {
 	 * @param string $hint the hint text
 	 */
 	function setPasswordHint($hint) {
-		$this->set('password_hint', zpFunctions::tagURLs($hint));
+		$this->set('password_hint', npgFunctions::tagURLs($hint));
+	}
+
+	/**
+	 * returns the owner of the object
+	 *
+	 * @return string
+	 */
+	function getOwner() {
+		return $this->get('owner');
+	}
+
+	/**
+	 * sets the owner of an the object
+	 *
+	 * @param string $user
+	 */
+	function setOwner($user) {
+		$this->set('owner', $user);
+	}
+
+	/**
+	 * Returns the last change date
+	 *
+	 * @return string
+	 */
+	function getLastchange() {
+		return $this->get("lastchange");
+	}
+
+	/**
+	 * Returns the last change user
+	 *
+	 * @return string
+	 */
+	function getlastchangeuser() {
+		return $this->get("lastchangeuser");
 	}
 
 }

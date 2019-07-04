@@ -5,23 +5,22 @@
  * by Stephen Billard
  *
  * @author Stephen Billard (sbillard)
- * @Copyright 2017 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2017 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage users
+ * @package plugins/googleLogin
  */
 if (!defined('OFFSET_PATH'))
 	define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-functions.php');
 
-zp_session_start();
+npg_session_start();
 
 //Google API PHP Library includes
-require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/common/googleAPI/autoload.php');
+require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/common/googleAPI/autoload.php');
 // Fill CLIENT ID, CLIENT SECRET ID, REDIRECT URI from Google Developer Console
 $client_id = getOption('googleLogin_ClientID');
 $client_secret = getOption('googleLogin_ClientSecret');
-$redirect_uri = FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/googleLogin/google.php';
+$redirect_uri = getAdminLink(PLUGIN_FOLDER . '/googleLogin/google.php');
 $simple_api_key = getOption('gmap_map_api_key');
 
 //Create Client Request to access Google API
@@ -33,7 +32,7 @@ if (isset($_SERVER['SERVER_ADDR'])) {
 		$client->setHttpClient($http);
 	}
 }
-$client->setApplicationName("ZenPhoto20 Google OAuth Login");
+$client->setApplicationName("netPhotoGraphics Google OAuth Login");
 $client->setClientId($client_id);
 $client->setClientSecret($client_secret);
 $client->setRedirectUri($redirect_uri);
@@ -71,7 +70,7 @@ if ($client->getAccessToken()) {
 		$email = $userData->email;
 		$name = $userData->name;
 		$googleid = $userData->id;
-		//don't need the Google access anymore as we will be using the zenphoto user mechanism
+		//don't need the Google access anymore as we will be using the native user mechanism
 		$accessToken = $client->getAccessToken();
 		$client->revokeToken($accessToken);
 

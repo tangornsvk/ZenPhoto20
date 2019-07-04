@@ -7,12 +7,17 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
+		<?php
+		npgFilters::apply('theme_head');
+
+		scriptLoader($_themeroot . '/style.css');
+
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Album', getAlbumTitle());
+		?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<div id="main">
 
@@ -20,7 +25,7 @@ if (!defined('WEBPATH'))
 				<h1><?php printGalleryTitle(); ?></h1>
 				<?php
 				if (getOption('Allow_search')) {
-					$album_list = array('albums' => array($_zp_current_album->name), 'pages' => '0', 'news' => '0');
+					$album_list = array('albums' => array($_current_album->name), 'pages' => '0', 'news' => '0');
 					printSearchForm(NULL, 'search', gettext('Search within album'), gettext('Search'), NULL, NULL, $album_list);
 				}
 				?>
@@ -50,7 +55,7 @@ if (!defined('WEBPATH'))
 									<?php
 									if (function_exists('printAddToFavorites')) {
 										echo "<br />";
-										printAddToFavorites($_zp_current_album);
+										printAddToFavorites($_current_album);
 									}
 									?>
 								</div>
@@ -74,13 +79,6 @@ if (!defined('WEBPATH'))
 					?>
 					<br style="clear:both;" /><br />
 					<?php
-					if (function_exists('printGoogleMap')) {
-						echo '<p id="maplink">';
-						printGoogleMap();
-						echo '</p>';
-					}
-					?>
-					<?php
 					if (function_exists('printSlideShowLink')) {
 						echo '<span id="slideshowlink">';
 						printSlideShowLink();
@@ -90,8 +88,10 @@ if (!defined('WEBPATH'))
 					<br style="clear:both;" />
 					<?php
 					if (function_exists('printAddToFavorites'))
-						printAddToFavorites($_zp_current_album);
+						printAddToFavorites($_current_album);
 					@call_user_func('printRating');
+					simpleMap::printMap();
+
 					@call_user_func('printCommentForm');
 					?>
 				</div><!-- content left-->
@@ -112,7 +112,7 @@ if (!defined('WEBPATH'))
 
 		</div><!-- main -->
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

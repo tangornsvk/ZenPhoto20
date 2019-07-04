@@ -1,14 +1,15 @@
 <?php
 // force UTF-8 Ø
-if (!defined('WEBPATH'))
+if (!isset($zenpage)) {
 	die();
+}
 ?>
 <!DOCTYPE html>
 <html>
 	<head>
 
 		<?php
-		zp_apply_filter('theme_head');
+		npgFilters::apply('theme_head');
 		if (getOption('effervescence_daily_album_image_effect')) {
 			setOption('image_custom_images', getOption('effervescence_daily_album_image_effect'), false);
 		}
@@ -17,7 +18,7 @@ if (!defined('WEBPATH'))
 	</head>
 
 	<body onload="blurAnchors()">
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<!-- Wrap Header -->
 		<div id="header">
@@ -27,7 +28,7 @@ if (!defined('WEBPATH'))
 				<div id="logo">
 					<?php
 					if (getOption('Allow_search')) {
-						printSearchForm(NULL, 'search', $_zp_themeroot . '/images/search.png', gettext('Search gallery'));
+						printSearchForm(NULL, 'search', $_themeroot . '/images/search.png', gettext('Search gallery'));
 					}
 					printLogo();
 					?>
@@ -38,7 +39,7 @@ if (!defined('WEBPATH'))
 			<div id="wrapnav">
 				<div id="navbar">
 					<span><?php
-						if ($_zp_gallery->getWebsiteURL())
+						if ($_gallery->getWebsiteURL())
 							printHomeLink('', ' | ');
 						printGalleryTitle();
 						?></span>
@@ -79,7 +80,7 @@ if (!defined('WEBPATH'))
 					</a>
 					<?php
 				} else {
-					echo '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/zen-logo.png" width="310" height="90" alt="' . gettext('There were no images from which to select the random heading.') . '" />';
+					printSiteLogoImage(gettext('There were no images from which to select the random heading.'));
 				}
 				?>
 			</div>
@@ -122,7 +123,7 @@ if (!defined('WEBPATH'))
 
 		<?php
 		printFooter();
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 
 	</body>

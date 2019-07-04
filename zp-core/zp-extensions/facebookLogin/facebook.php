@@ -7,17 +7,16 @@
  * by Stephen Billard
  *
  * @author Stephen Billard (sbillard)
- * @Copyright 2017 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2017 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage users
+ * @package plugins/facebookLogin
  *
  */
 if (!defined('OFFSET_PATH'))
 	define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-functions.php');
 
-zp_session_start();
+npg_session_start();
 
 if (isset($_REQUEST['redirect'])) {
 	$_SESSION['redirect'] = filter_var($_REQUEST['redirect'], FILTER_SANITIZE_URL);
@@ -44,7 +43,7 @@ use Facebook\HttpClients\FacebookHttpable;
 // init app with app id and secret
 FacebookSession::setDefaultApplication(getOption('facebookLogin_APPID'), getOption('facebookLogin_APPSecret'));
 // login helper with redirect_uri
-$helper = new FacebookRedirectLoginHelper(FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/facebookLogin/facebook.php');
+$helper = new FacebookRedirectLoginHelper(getAdminLink(PLUGIN_FOLDER . '/facebookLogin/facebook.php'));
 try {
 	$session = $helper->getSessionFromRedirect();
 } catch (FacebookRequestException $ex) {

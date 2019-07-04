@@ -6,13 +6,13 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		
-		<?php zp_apply_filter('theme_head'); ?>
-		
+
+		<?php npgFilters::apply('theme_head'); ?>
+
 	</head>
 
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<!-- Wrap Header -->
 		<div id="header">
@@ -28,8 +28,15 @@ if (!defined('WEBPATH'))
 			<div id="wrapnav">
 				<div id="navbar">
 					<?php printHomeLink('', ' | '); ?>
-					<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Index'); ?>"><?php printGalleryTitle(); ?></a></span>  |
-					<?php echo gettext('A password is required for the page you requested'); ?>
+
+					<a href="<?php echo html_encode(getGalleryIndexURL()); ?>" title="<?php echo gettext('Index'); ?>"><?php printGalleryTitle(); ?></a></span>
+					<?php
+					if (isset($hint)) {
+						?>
+						|	<?php
+						echo gettext('A password is required for the page you requested');
+					}
+					?>
 				</div>
 			</div>
 
@@ -39,13 +46,13 @@ if (!defined('WEBPATH'))
 		<div id="content">
 			<small>&nbsp;</small>
 			<div id="main">
-				<?php printPasswordForm($hint, $show, false); ?>
+				<?php printPasswordForm(isset($hint) ? $hint : NULL, isset($show) ? $show : TRUE, false, isset($hint) ? WEBPATH : NULL); ?>
 			</div>
 		</div>
 
 		<?php
 		printFooter(false);
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 
 	</body>

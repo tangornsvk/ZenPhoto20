@@ -18,7 +18,7 @@ class _Authority {
 	protected $master_userObj = NULL;
 	static $preferred_version = 4;
 	static $supports_version = 4;
-	static $hashList = array('pbkdf2' => 3, 'pbkdf2*' => 2, 'sha1' => 1, 'md5' => 0);
+	static $hashList = array('md5' => 0, 'sha1' => 1, 'pbkdf2*' => 2, 'pbkdf2' => 3, 'Bcrypt' => 4, 'Argon2i' => 5, 'Argon2id' => 6 /* default => 9 */);
 
 	/**
 	 * class instantiation function
@@ -27,11 +27,11 @@ class _Authority {
 	 */
 	function __construct() {
 		if (OFFSET_PATH == 2) {
-			setOptionDefault('password_strength', 10);
-			setOptionDefault('min_password_lenght', 6);
-			setOptionDefault('user_album_edit_default', 1);
-			setOptionDefault('challenge_foil_enabled', 1);
-			setOptionDefault('libauth_version', self::$preferred_version);
+			setOptionDefault('password_strength ', 10);
+			setOptionDefault('min_password_lenght ', 6);
+			setOptionDefault('user_album_edit_default ', 1);
+			setOptionDefault('challenge_foil_enabled ', 1);
+			setOptionDefault('libauth_version ', self::$preferred_version);
 		}
 		$this->admin_all = $this->admin_groups = $this->admin_users = $this->admin_other = array();
 
@@ -64,7 +64,7 @@ class _Authority {
 
 	function getMasterUser() {
 		if (!is_object($this->master_userObj)) {
-			$this->master_userObj = new Zenphoto_Administrator($this->master_user, 1);
+			$this->master_userObj = new npg_Administrator($this->master_user, 1);
 		}
 		return $this->master_userObj;
 	}
@@ -78,34 +78,90 @@ class _Authority {
 	}
 
 	/**
+	 * returns a list of allowable hashing algorithms
+	 *
+	 * @param bool $full_list set to true to include all algorithms
+	 * @return array
+	 */
+	static function getHashAlgorithms($fullList = false) {
+		$encodings = self::$hashList;
+		if (!$fullList) {
+			unset($encodings['pbkdf2*']); // don't use this one any more
+		}
+		if (function_exists('password_hash')) {
+			$default = 3 + PASSWORD_DEFAULT;
+		} else {
+			$default = 3;
+		}
+		$encodings = array_reverse(array_merge(array_slice($encodings, 0, $default, true), array(gettext('default') . ' (' . array_search($default, $encodings) . ')' => 9), array_slice($encodings, $default, NULL, true)));
+
+		$full = $encodings;
+
+		if (function_exists('password_hash')) {
+			$exists = $encodings['Argon2id'];
+			//	deprecate these encodings
+			if (!defined('PASSWORD_ARGON2ID')) {
+				unset($encodings['Argon2id']);
+				$exists--;
+			}
+			if (!defined('PASSWORD_ARGON2I')) {
+				unset($encodings['Argon2i']);
+				$exists--;
+			}
+
+			unset($encodings['pbkdf2']);
+			unset($encodings['sha1']);
+			unset($encodings['md5']);
+		}
+		if ($fullList) {
+			$full = array_flip($full);
+			$full[2] = '<del>' . $full[2] . '</del>';
+			foreach ($full as $key => $name) {
+				if ($key > $exists && $key != 9) {
+					$full[$key] = '<del>' . $full[$key] . '</del>';
+				}
+			}
+			return array_flip($full);
+		} else {
+			return $encodings;
+		}
+	}
+
+	/**
 	 * Declares options used by lib-auth
 	 *
 	 * @return array
 	 */
 	function getOptionsSupported() {
-		$encodings = self::$hashList;
-		unset($encodings['pbkdf2*']); // don't use this one any more
-		if (!function_exists('hash')) {
-			unset($encodings['pbkdf2']);
-		}
-		$options = array(gettext('Primary album edit') => array('key' => 'user_album_edit_default', 'type' => OPTION_TYPE_CHECKBOX,
+		$encodings = self::getHashAlgorithms();
+
+		$options = array(
+				gettext('Primary album edit') => array('key' => 'user_album_edit_default', 'type' => OPTION_TYPE_CHECKBOX,
 						'order' => 0,
-						'desc' => gettext('Check if you want <em>edit rights</em> automatically assigned when a user <em>primary album</em> is created.')),
+						'desc' => gettext('Check if you want <em>edit rights</em> automatically assigned when a user <em>primary album</em> is created.'
+						)),
 				gettext('Minimum password strength') => array('key' => 'password_strength', 'type' => OPTION_TYPE_CUSTOM,
 						'order' => 1,
 						'desc' => sprintf(gettext('Users must provide passwords a strength of at least %s. The repeat password field will be disabled until this floor is met.'), '<span id="password_strength_display">' . getOption('password_strength') . '</span>')),
-				gettext('Password hash algorithm') => array('key' => 'strong_hash', 'type' => OPTION_TYPE_SELECTOR,
-						'order' => 3,
+				gettext('Password hash algorithm') => array('key' => 'strong_hash', 'type' => OPTION_TYPE_ORDERED_SELECTOR,
+						'order' => 2,
 						'selections' => $encodings,
-						'desc' => sprintf(gettext('The hashing algorithm to be used. In order of robustness the choices are %s'), '<code>' . implode('</code> > <code>', array_flip($encodings)) . '</code>')),
+						'desc' => sprintf(gettext('The hashing algorithm to be used. In order of robustness the choices are %s'), '<code>' . implode('</code> > <code>', array_keys($encodings)) . '</code>') . '<br />' . gettext('Note: The <code>default</code> choice  is designed to change over time as new and stronger algorithms are added to PHP.')),
 				gettext('Enable Challenge phrase') => array('key' => 'challenge_foil_enabled', 'type' => OPTION_TYPE_CHECKBOX,
-						'order' => 3,
+						'order' => 4,
 						'desc' => gettext('Check to allow password reset by challenge phrase responses.'))
 		);
 		if (getOption('challenge_foil_enabled')) {
 			$options[gettext('Challenge phrase foils')] = array('key' => 'challenge_foil', 'type' => OPTION_TYPE_CUSTOM,
-					'order' => 4,
+					'order' => 5,
 					'desc' => gettext('These <em>foil</em> challenge phrases will be presented randomly. This list should not be empty, otherwise hackers can discover valid user IDs and know that there is an answer to any presented challenge phrase.'));
+		}
+		if (getOption('strong_hash') < (3 + (int) function_exists('password_hash'))) {
+
+			$options[NULL] = array('key' => 'lib_auth_note', 'type' => OPTION_TYPE_NOTE,
+					'order' => 2,
+					'desc' => '<span class="warningbox">' . gettext('You should use a more robust hashing algorithm.') . '</span>'
+			);
 		}
 		return $options;
 	}
@@ -114,7 +170,7 @@ class _Authority {
 	 * Dummy for object inheritance purposes
 	 */
 	function handleOption($option, $currentValue) {
-		global $_zp_current_admin_obj;
+		global $_current_admin_obj;
 		switch ($option) {
 			case 'password_strength':
 				?>
@@ -122,17 +178,22 @@ class _Authority {
 				<script type="text/javascript">
 					// <!-- <![CDATA[
 					function sliderColor(strength) {
-						var url = 'url(<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/strengths/strength' + strength + '.png)';
+						var url = 'url(<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/strengths/strength' + strength + '.png)';
 						$('#slider-password_strength').css('background-image', url);
 					}
 					$(function () {
+						var handle = $("#strength-handle");
 						$("#slider-password_strength").slider({
 				<?php $v = getOption('password_strength'); ?>
 							startValue: <?php echo $v; ?>,
 							value: <?php echo $v; ?>,
 							min: 1,
 							max: 30,
+							create: function () {
+								handle.text($(this).slider("value"));
+							},
 							slide: function (event, ui) {
+								handle.text(ui.value);
 								$("#password_strength").val(ui.value);
 								$('#password_strength_display').html(ui.value);
 								sliderColor(ui.value);
@@ -145,7 +206,9 @@ class _Authority {
 					});
 					// ]]> -->
 				</script>
-				<div id="slider-password_strength"></div>
+				<div id="slider-password_strength">
+					<div id="strength-handle" class="ui-slider-handle"></div>
+				</div>
 				<?php
 				break;
 			case 'challenge_foil':
@@ -183,33 +246,63 @@ class _Authority {
 	}
 
 	/**
-	 * Returns the hash of the zenphoto password
+	 * Returns the hash of the password
 	 *
 	 * @param string $user
 	 * @param string $pass
 	 * @return string
 	 */
-	static function passwordHash($user, $pass, $hash_type = NULL) {
+	static function passwordHash($user, $pass, $hash_type = NULL, $debug = true) {
 		if (is_null($hash_type)) {
 			$hash_type = getOption('strong_hash');
 		}
+		if ($hash_type == 9) { //	default
+			if (function_exists('password_hash')) {
+				$hash_type = 3 + PASSWORD_DEFAULT;
+			} else {
+				$hash_type = 3;
+			}
+		};
+		$hash = NULL;
 		switch ($hash_type) {
+			case 0:
+				$hash = md5($user . $pass . HASH_SEED);
+				break;
 			case 1:
 				$hash = sha1($user . $pass . HASH_SEED);
 				break;
 			case 2:
-				//	deprecated beause of possible "+" in the text
+				//	deprecated because of possible "+" in the text
 				$hash = base64_encode(self::pbkdf2($pass, $user . HASH_SEED));
 				break;
 			case 3:
 				$hash = str_replace('+', '-', base64_encode(self::pbkdf2($pass, $user . HASH_SEED)));
 				break;
-			default:
-				$hash = md5($user . $pass . HASH_SEED);
+			case 4:
+				if (defined('PASSWORD_BCRYPT')) {
+					$hash = password_hash($pass, PASSWORD_BCRYPT);
+				}
 				break;
+			case 5:
+				if (defined('PASSWORD_ARGON2I')) {
+					$hash = password_hash($pass, PASSWORD_ARGON2I);
+				}
+				break;
+			case 6:
+				if (defined('PASSWORD_ARGON2ID')) {
+					$hash = password_hash($pass, PASSWORD_ARGON2ID);
+				}
+				break;
+			default:
+				$hash = NULL; //	current PHP version does not support the algorithm.
 		}
-		if (DEBUG_LOGIN) {
-			debugLog("passwordHash($user, $pass, $hash_type)[ " . HASH_SEED . " ]:$hash");
+		if ($debug && (DEBUG_LOGIN || !$hash)) {
+			$hashNames = array_flip(self::$hashList);
+			$algorithm = $hashNames[$hash_type];
+			if (!$hash) {
+				$hash = gettext('No PHP support');
+			}
+			debugLog("passwordHash($user, $algorithm)[ " . HASH_SEED . " ]:$hash");
 		}
 		return $hash;
 	}
@@ -238,7 +331,7 @@ class _Authority {
 	/**
 	 * Returns an admin object from the $pat:$criteria
 	 * @param array $criteria [ match => criteria ]
-	 * @return Zenphoto_Administrator
+	 * @return npg_Administrator
 	 */
 	function getAnAdmin($criteria) {
 		$find = array();
@@ -293,46 +386,57 @@ class _Authority {
 	 * @return bit
 	 */
 	function checkAuthorization($authCode, $id) {
-		global $_zp_current_admin_obj;
+		global $_current_admin_obj;
 		if (DEBUG_LOGIN) {
 			debugLogBacktrace("checkAuthorization($authCode, $id)");
 		}
-
 		$admins = $this->getAdministrators();
 		if (count($admins) == 0) {
 			if (DEBUG_LOGIN) {
 				debugLog("checkAuthorization: no admins");
 			}
-			$_zp_current_admin_obj = new Zenphoto_Administrator('', 1);
-			$_zp_current_admin_obj->set('id', 0);
-			$_zp_current_admin_obj->reset = true;
+			$_current_admin_obj = new npg_Administrator('', 1);
+			$_current_admin_obj->set('id', 0);
+			$_current_admin_obj->reset = true;
 			return ADMIN_RIGHTS;
 		}
-		if (is_object($_zp_current_admin_obj) && $_zp_current_admin_obj->reset) {
+		if (is_object($_current_admin_obj) && $_current_admin_obj->reset) {
 			if (DEBUG_LOGIN) {
 				debugLog("checkAuthorization: reset request");
 			}
-			return $_zp_current_admin_obj->getRights();
+			return $_current_admin_obj->getRights();
 		}
 
-		$_zp_current_admin_obj = NULL;
+		$_current_admin_obj = NULL;
 		if (empty($authCode) || empty($id))
 			return 0; //  so we don't "match" with an empty password
 		if (DEBUG_LOGIN) {
-			debugLogVar("checkAuthorization: admins", $admins);
+			debugLogVar(["checkAuthorization: admins" => $admins]);
 		}
 		$rights = 0;
 		$criteria = array('`pass`=' => $authCode, '`id`=' => (int) $id, '`valid`=' => 1);
 		$user = $this->getAnAdmin($criteria);
 		if (is_object($user)) {
-			$_zp_current_admin_obj = $user;
-			$rights = $user->getRights();
-			if (DEBUG_LOGIN) {
-				debugLog(sprintf('checkAuthorization: from %1$s->%2$X', $authCode, $rights));
+			//	force new logon to update password hash if his algorithm is deprecated
+			$userdata = $user->getData();
+			if (isset($userdata['passhash'])) {
+				if (($strong_hash = getOption('strong_hash')) == 9) { //	default
+					$strong_hash = 3;
+					if (function_exists('password_hash')) {
+						$strong_hash = $strong_hash + PASSWORD_DEFAULT;
+					}
+				}
+				if ($userdata['passhash'] >= $strong_hash) {
+					$_current_admin_obj = $user;
+					$rights = $user->getRights();
+					if (DEBUG_LOGIN) {
+						debugLog(sprintf('checkAuthorization: from %1$s->%2$X', $authCode, $rights));
+					}
+					return $rights;
+				}
 			}
-			return $rights;
 		}
-		$_zp_current_admin_obj = NULL;
+		$_current_admin_obj = NULL;
 		if (DEBUG_LOGIN) {
 			debugLog("checkAuthorization: no match");
 		}
@@ -351,33 +455,32 @@ class _Authority {
 	function checkLogon($user, $pass) {
 		$userobj = $this->getAnAdmin(array('`user`=' => $user, '`valid`=' => 1));
 		if ($userobj) {
-			$hash = self::passwordHash($user, $pass, $userobj->get('passhash'));
-			if ($hash != $userobj->getPass()) {
-				//	maybe not yet updated passhash field
-				foreach (self::$hashList as $hashv) {
-					$hash = self::passwordHash($user, $pass, $hashv);
-					if ($hash == $userobj->getPass()) {
-						break;
-					} else {
-						$hash = -1;
-					}
-				}
-				if ($hash === -1) {
+			$hash = $userobj->getPass();
+			$type = $userobj->get('passhash');
+			if (!(function_exists('password_verify') && password_verify($pass, $hash))) {
+				$hash = self::passwordHash($user, $pass, $type);
+				if ($hash != $userobj->getPass()) {
 					$userobj = NULL;
 				}
 			}
+			if ($userobj && $type < getOption('strong_hash')) {
+				//	update his password hash to more modern one
+				$userobj->setPass($pass);
+				$userobj->save();
+			}
 		} else {
-			$hash = -1;
+			$hash = 'FALSE';
 		}
 
 		if (DEBUG_LOGIN) {
 			if ($userobj) {
 				$rights = sprintf('%X', $userobj->getRights());
 			} else {
-				$rights = false;
+				$rights = 'FALSE';
 			}
 			debugLog(sprintf('checkLogon(%1$s, %2$s)->%3$s', $user, $hash, $rights));
 		}
+
 		return $userobj;
 	}
 
@@ -394,7 +497,7 @@ class _Authority {
 		$emails = array();
 		$admins = $this->getAdministrators();
 		foreach ($admins as $user) {
-			if (($user['rights'] & $rights) && is_valid_email_zp($user['email'])) {
+			if (($user['rights'] & $rights) && npgFunctions::is_valid_email($user['email'])) {
 				$name = $user['name'];
 				if (empty($name)) {
 					$name = $user['user'];
@@ -412,7 +515,7 @@ class _Authority {
 	 */
 	function migrateAuth($to) {
 		if ($to > self::$supports_version || $to < self::$preferred_version - 1) {
-			zp_error(sprintf(gettext('Cannot migrate rights to version %1$s (Zenphoto_Authority supports only %2$s and %3$s.)'), $to, self::$supports_version, self::$preferred_version), E_USER_NOTICE);
+			trigger_error(sprintf(gettext('Cannot migrate rights to version %1$s (_Authority supports only %2$s and %3$s.)'), $to, self::$supports_version, self::$preferred_version), E_USER_NOTICE);
 			return false;
 		}
 		$success = true;
@@ -522,7 +625,7 @@ class _Authority {
 	 * @return object
 	 */
 	static function newAdministrator($name, $valid = 1, $allowCreate = true) {
-		$user = new Zenphoto_Administrator($name, $valid, $allowCreate);
+		$user = new npg_Administrator($name, $valid, $allowCreate);
 		return $user;
 	}
 
@@ -655,7 +758,7 @@ class _Authority {
 	}
 
 	function validateTicket($ticket, $user) {
-		global $_zp_current_admin_obj;
+		global $_current_admin_obj;
 		$admins = $this->getAdministrators();
 		foreach ($admins as $tuser) {
 			if ($tuser['user'] == $user) {
@@ -666,8 +769,8 @@ class _Authority {
 					if ($ref === $ticket) {
 						if (time() <= ($request_date + (3 * 24 * 60 * 60))) {
 							// limited time offer
-							$_zp_current_admin_obj = new Zenphoto_Administrator($user, 1);
-							$_zp_current_admin_obj->reset = true;
+							$_current_admin_obj = new npg_Administrator($user, 1);
+							$_current_admin_obj->reset = true;
 						}
 					}
 					break;
@@ -684,35 +787,33 @@ class _Authority {
 		$user->set('lastloggedin', $user->get('loggedin'));
 		$user->set('loggedin', date('Y-m-d H:i:s'));
 		$user->save();
-		zp_setCookie("zp_user_auth", $user->getPass() . '.' . $user->getID());
+		setNPGCookie("user_auth", $user->getPass() . '.' . $user->getID());
 	}
 
 	/**
 	 * User authentication support
 	 */
 	function handleLogon() {
-		global $_zp_current_admin_obj, $_zp_login_error, $_zp_captcha, $_zp_loggedin;
+		global $_current_admin_obj, $_login_error, $_captcha, $_loggedin;
 		if (isset($_POST['login'])) {
 			$post_user = sanitize(@$_POST['user'], 0);
 			$post_pass = sanitize(@$_POST['pass'], 0);
-			$_zp_loggedin = false;
+			$_loggedin = false;
 
 			switch (@$_POST['password']) {
 				default:
 					if (isset($_POST['user'])) { //	otherwise must be a guest logon, don't even try admin path
 						$user = self::checkLogon($post_user, $post_pass);
 						if ($user) {
-							$_zp_loggedin = $user->getRights();
+							$_loggedin = $user->getRights();
 						}
-						$_zp_loggedin = zp_apply_filter('admin_login_attempt', $_zp_loggedin, $post_user, $post_pass);
-						if ($_zp_loggedin) {
+						$_loggedin = npgFilters::apply('admin_login_attempt', $_loggedin, $post_user, $post_pass, $user);
+						if ($_loggedin) {
 							self::logUser($user);
-							$_zp_current_admin_obj = $user;
-							zp_session_destroy();
-							zp_session_start();
+							$_current_admin_obj = $user;
 						} else {
-							zp_clearCookie("zp_user_auth"); // Clear the cookie, just in case
-							$_zp_login_error = 1;
+							clearNPGCookie("user_auth"); // Clear the cookie, just in case
+							$_login_error = 1;
 						}
 					}
 					break;
@@ -722,26 +823,28 @@ class _Authority {
 						$info = $user->getChallengePhraseInfo();
 						if ($post_pass && $info['response'] == $post_pass) {
 							$ref = self::getResetTicket($post_user, $user->getPass());
-							header('location:' . WEBPATH . '/' . ZENFOLDER . '/admin-users.php?ticket=' . $ref . '&user=' . $post_user);
-							exitZP();
+							header('location:' . getAdminLink('admin-tabs/users.php') . '?ticket=' . $ref . '&user=' . $post_user);
+							exit();
 						}
 					}
-					$_zp_login_error = gettext('Sorry, that is not the answer.');
+					$_login_error = gettext('Sorry, that is not the answer.');
 					$_REQUEST['logon_step'] = 'challenge';
 					break;
 				case 'captcha':
-					if ($_zp_captcha->checkCaptcha(trim(@$_POST['code']), sanitize(@$_POST['code_h'], 3))) {
+					if ($_captcha->checkCaptcha(trim(@$_POST['code']), sanitize(@$_POST['code_h'], 3))) {
 						require_once(dirname(__FILE__) . '/load_objectClasses.php'); // be sure that the plugins are loaded for the mail handler
 						if (empty($post_user)) {
-							$requestor = gettext('You are receiving this e-mail because of a password reset request on your ZenPhoto20 gallery.');
+							$requestor = gettext('You are receiving this e-mail because of a password reset request on your gallery.');
 						} else {
-							$requestor = sprintf(gettext("You are receiving this e-mail because of a password reset request on your ZenPhoto20 gallery from a user who tried to log in as %s."), $post_user);
+							$requestor = sprintf(gettext("You are receiving this e-mail because of a password reset request on your gallery from a user who tried to log in as %s."), $post_user);
 						}
 						$admins = $this->getAdministrators();
 						$mails = array();
 						$user = NULL;
 						foreach ($admins as $key => $tuser) {
-							if (!empty($tuser['email'])) {
+							if (empty($tuser['email'])) {
+								unset($admins[$key]); // we want to ignore groups and users with no email address here!
+							} else {
 								if (!empty($post_user) && ($tuser['user'] == $post_user || $tuser['email'] == $post_user)) {
 									$name = $tuser['name'];
 									if (empty($name)) {
@@ -755,11 +858,9 @@ class _Authority {
 										unset($admins[$key]); // eliminate any peons from the list
 									}
 								}
-							} else {
-								unset($admins[$key]); // we want to ignore groups and users with no email address here!
 							}
 						}
-
+						$found = !empty($mails);
 						$cclist = array();
 						foreach ($admins as $tuser) {
 							$name = $tuser['name'];
@@ -773,29 +874,34 @@ class _Authority {
 								$cclist[$name] = $tuser['email'];
 							}
 						}
+
 						if (is_null($user)) {
-							$_zp_login_error = gettext('There was no one to which to send the reset request.');
+							$_login_error = gettext('There was no one to which to send the reset request.');
 						} else {
 							$ref = self::getResetTicket($user['user'], $user['pass']);
-							$msg = "\n" . $requestor .
-											"\n" . sprintf(gettext("To reset your Admin passwords visit: %s"), FULLWEBPATH . "/" . ZENFOLDER . "/admin-users.php?ticket=$ref&user=" . $user['user']) .
-											"\n" . gettext("If you do not wish to reset your passwords just ignore this message. This ticket will automatically expire in 3 days.");
-							$err_msg = zp_mail(gettext("The ZenPhoto20 information you requested"), $msg, $mails, $cclist, NULL, NULL, sprintf(gettext('%1$s password reset request mail failed.'), $user['user']));
+							$msg = "\n" . $requestor;
+							if ($found) {
+								$msg .= "\n" . sprintf(gettext("To reset your Admin passwords visit: %s"), getAdminLink('admin-tabs/users.php') . '?ticket=$ref&user=' . $user['user']) .
+												"\n" . gettext("If you do not wish to reset your passwords just ignore this message. This ticket will automatically expire in 3 days.");
+							} else {
+								$msg .= "\n" . gettext('No matching user was found.');
+							}
+							$err_msg = npgFunctions::mail(gettext("The information you requested"), $msg, $mails, $cclist, NULL, NULL, sprintf(gettext('%1$s password reset request mail failed.'), $user['user']));
 							if (empty($err_msg)) {
-								$_zp_login_error = 2;
+								$_login_error = 2;
 							} else {
 								debugLog($err_msg);
-								$_zp_login_error = gettext('Reset request failed.');
+								$_login_error = gettext('Reset request failed.');
 							}
 						}
 					} else {
-						$_zp_login_error = gettext('Your input did not match the captcha');
+						$_login_error = gettext('CAPTCHA verification failed.');
 						$_REQUEST['logon_step'] = 'captcha';
 					}
 					break;
 			}
 		}
-		return $_zp_loggedin;
+		return $_loggedin;
 	}
 
 	/**
@@ -803,7 +909,7 @@ class _Authority {
 	 * returns an array of the active "password" cookies
 	 *
 	 * NOTE: this presumes the general form of an authrization cookie is:
-	 * zp_xxxxx_auth{_dddd) where xxxxx is the authority (e.g. gallery, image, search, ...)
+	 * npg_xxxxx_auth{_dddd) where xxxxx is the authority (e.g. gallery, image, search, ...)
 	 * and dddd if present is the object id.
 	 *
 	 */
@@ -828,15 +934,15 @@ class _Authority {
 	 *
 	 */
 	static function handleLogout($location) {
-		global $_zp_loggedin, $_zp_pre_authorization, $_zp_current_admin_obj;
-		$location = zp_apply_filter('zp_logout', $location, $_zp_current_admin_obj);
+		global $_loggedin, $_pre_authorization, $_current_admin_obj;
+		$location = npgFilters::apply('logout', $location, $_current_admin_obj);
 		foreach (self::getAuthCookies() as $cookie => $value) {
-			zp_clearCookie($cookie);
+			clearNPGCookie($cookie);
 		}
-		zp_clearCookie('zenphoto_ssl');
-		$_zp_loggedin = false;
-		$_zp_pre_authorization = array();
-		zp_session_destroy();
+		clearNPGCookie('ssl_state');
+		$_loggedin = false;
+		$_pre_authorization = array();
+		npg_session_destroy();
 		return $location;
 	}
 
@@ -844,33 +950,41 @@ class _Authority {
 	 * Checks saved cookies to see if a user is logged in
 	 */
 	function checkCookieCredentials() {
-		list($auth, $id) = explode('.', zp_getCookie('zp_user_auth') . '.');
-		$loggedin = $this->checkAuthorization($auth, (int) $id);
-		$loggedin = zp_apply_filter('authorization_cookie', $loggedin, $auth, $id);
+		$auth = $cookie = getNPGCookie('user_auth');
+		$idLoc = strrpos($cookie, '.');
+		if ($idLoc) {
+			$id = (int) substr($cookie, $idLoc + 1);
+			$auth = substr($cookie, 0, $idLoc);
+		} else {
+			$id = 0;
+		}
+		$loggedin = $this->checkAuthorization($auth, $id);
+		$loggedin = npgFilters::apply('authorization_cookie', $loggedin, $auth, $id);
 		if ($loggedin) {
 			return $loggedin;
 		}
-		zp_clearCookie("zp_user_auth");
+
+		clearNPGCookie("user_auth");
 		return NULL;
 	}
 
 	/**
-	 * Print the login form for ZP. This will take into account whether mod_rewrite is enabled or not.
+	 * Print the login form . This will take into account whether mod_rewrite is enabled or not.
 	 *
 	 * @param string $redirect URL to return to after login
-	 * @param bool $logo set to true to display the ADMIN zenphoto logo.
+	 * @param bool $logo set to true to display the ADMIN logo.
 	 * @param bool $showUserField set to true to display the user input
 	 * @param bool [deprecated] $deprecated set to false to not display the forgot password captcha.
 	 * @param string $hint optional hint for the password
 	 *
 	 */
 	function printLoginForm($redirect = null, $logo = true, $showUserField = true, $deprecated = NULL, $hint = '') {
-		global $_zp_login_error, $_zp_captcha, $_zp_gallery;
+		global $_login_error, $_captcha, $_gallery;
 		if (is_null($redirect)) {
 			$redirect = getRequestURI();
 		}
 		if (is_null($showUserField)) {
-			$showUserField = $_zp_gallery->getUserLogonField();
+			$showUserField = $_gallery->getUserLogonField();
 		}
 
 		$cycle = sanitize_numeric(@$_GET['cycle']) + 1;
@@ -884,7 +998,7 @@ class _Authority {
 				$requestor = sanitize($_GET['ref']);
 			}
 		}
-		$alt_handlers = zp_apply_filter('alt_login_handler', array());
+		$alt_handlers = npgFilters::apply('alt_login_handler', array());
 		ksort($alt_handlers);
 
 		$star = false;
@@ -897,7 +1011,7 @@ class _Authority {
 				$info = array('challenge' => '');
 			}
 			if (empty($info['challenge']) || ($cycle > 2 && ($cycle % 5) != 1)) {
-				$locale = getUserLocale();
+				$locale = i18n::getUserLocale();
 				$questions = array();
 				foreach (getSerializedArray(getOption('challenge_foils')) as $question) {
 					$questions[] = get_language_string($question);
@@ -938,11 +1052,19 @@ class _Authority {
 			if ($logo) {
 				?>
 				<p>
-					<img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/zen-logo.png" title="ZenPhoto" alt="ZenPhoto" />
+					<?php printSiteLogoImage(); ?>
 				</p>
 				<?php
 			}
-			switch ($_zp_login_error) {
+			if ($welcome = $_gallery->getLogonWelcome()) {
+				?>
+				<p class="logon_welcome">
+					<?php echo html_encodeTagged($welcome); ?>
+				</p>
+				<?php
+			}
+
+			switch ($_login_error) {
 				case 1:
 					?>
 					<div class="errorbox" id="message"><h2><?php echo gettext("There was an error logging in."); ?></h2>
@@ -964,10 +1086,10 @@ class _Authority {
 					<?php
 					break;
 				default:
-					if (!empty($_zp_login_error)) {
+					if (!empty($_login_error)) {
 						?>
 						<div class="errorbox fade-message">
-							<h2><?php echo $_zp_login_error; ?></h2>
+							<h2><?php echo $_login_error; ?></h2>
 						</div>
 						<?php
 					}
@@ -977,11 +1099,11 @@ class _Authority {
 			switch ($whichForm) {
 				case 'challenge':
 					?>
-					<form name="login" action="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php" method="post">
+					<form name="login" id="login" action="<?php echo getAdminLink('admin.php') ?>" method="post">
 						<fieldset id="logon_box">
 							<input type="hidden" name="login" value="1" />
 							<input type="hidden" name="password" value="challenge" />
-							<input type="hidden" name="redirect" value="<?php echo html_encode(pathurlencode($redirect)); ?>" />
+							<input type="hidden" name="redirect" value="<?php echo pathurlencode($redirect); ?>" />
 							<fieldset>
 								<legend><?php echo gettext('User') ?></legend>
 								<input class="textfield" name="user" id="user" type="text" size="35" value="<?php echo html_encode($requestor); ?>" />
@@ -1015,11 +1137,11 @@ class _Authority {
 									<?php echo CHECKMARK_GREEN; ?>
 									<?php echo gettext("Submit"); ?>
 								</button>
-								<button type="button" value="<?php echo gettext("Refresh"); ?>" id="challenge_refresh" onclick="window.location = '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php?logon_step=challenge&amp;ref=' + $('#user').val();" >
+								<button type="button" value="<?php echo gettext("Refresh"); ?>" id="challenge_refresh" onclick="window.location = '?logon_step=challenge&amp;ref=' + $('#user').val();" >
 									<?php echo CLOCKWISE_OPEN_CIRCLE_ARROW_GREEN; ?>
 									<?php echo gettext("Refresh"); ?>
 								</button>
-								<button type="button" value="<?php echo gettext("Return"); ?>" onclick="window.location = '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php?logon_step=&amp;ref=' + $('#user').val();" >
+								<button type="button" value="<?php echo gettext("Return"); ?>" onclick="window.location = '?logon_step=&amp;ref=' + $('#user').val();" >
 									<?php echo BACK_ARROW_BLUE; ?>
 									<?php echo gettext("Return"); ?>
 								</button>
@@ -1031,7 +1153,7 @@ class _Authority {
 						if ($star) {
 							?>
 							<p class="logon_link">
-								<a onclick="window.location = '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php?logon_step=captcha&amp;ref=' + $('#user').val();" >
+								<a onclick="window.location = '?logon_step=captcha&amp;ref=' + $('#user').val();" >
 									<?php echo gettext('Request reset by e-mail'); ?>
 								</a>
 							</p>
@@ -1042,7 +1164,7 @@ class _Authority {
 					<?php
 					break;
 				default:
-					Zenphoto_Authority::printPasswordFormJS();
+					npg_Authority::printPasswordFormJS();
 					if (empty($alt_handlers)) {
 						$legend = gettext('Login');
 					} else {
@@ -1052,7 +1174,7 @@ class _Authority {
 							var handlers = [];
 					<?php
 					$list = '<select id="logon_choices" onchange="changeHandler(handlers[$(this).val()]);">' .
-									'<option value="0">' . html_encode(get_language_string($_zp_gallery->getTitle())) . "</option>\n";
+									'<option value="0">' . html_encode(get_language_string($_gallery->getTitle())) . "</option>\n";
 					$c = 0;
 					foreach ($alt_handlers as $handler => $details) {
 						$c++;
@@ -1076,18 +1198,18 @@ class _Authority {
 						</script>
 						<?php
 					}
-					$redirect = zp_apply_filter('login_redirect_link', $redirect);
+					$redirect = npgFilters::apply('login_redirect_link', $redirect);
 					?>
-					<form name="login" action="<?php echo html_encode(pathurlencode($redirect)); ?>" method="post">
+					<form name="login" id="login" action="<?php echo pathurlencode($redirect); ?>" method="post">
 						<input type="hidden" name="login" value="1" />
 						<input type="hidden" name="password" value="1" />
-						<input type="hidden" name="redirect" value="<?php echo html_encode(pathurlencode($redirect)); ?>" />
+						<input type="hidden" name="redirect" value="<?php echo pathurlencode($redirect); ?>" />
 						<fieldset id="logon_box"><legend><?php echo $legend; ?></legend>
 							<?php
 							if ($showUserField) { //	requires a "user" field
 								?>
-								<fieldset><legend><?php echo gettext("User"); ?></legend>
-									<input class="textfield" name="user" id="user" type="text" size="35" value="<?php echo html_encode($requestor); ?>" />
+								<fieldset class="login_input"><legend><?php echo gettext("User"); ?></legend>
+									<input class="textfield" name="user" id="user" type="text"  value="<?php echo html_encode($requestor); ?>" />
 								</fieldset>
 								<?php
 							}
@@ -1096,8 +1218,8 @@ class _Authority {
 								<input type="checkbox" name="disclose_password" id="disclose_password" onclick="togglePassword('');" />
 								<?php echo gettext('Show') ?>
 							</label>
-							<fieldset><legend><?php echo gettext("Password"); ?></legend>
-								<input class="textfield" name="pass" id="pass" type="password" size="35" />
+							<fieldset class="login_input"><legend><?php echo gettext("Password"); ?></legend>
+								<input class="textfield" name="pass" id="pass" type="password"  />
 							</fieldset>
 							<br />
 							<div class="buttons">
@@ -1122,7 +1244,7 @@ class _Authority {
 						if (getOption('challenge_foil_enabled')) {
 							?>
 							<p class="logon_link">
-								<a onclick="window.location = '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php?logon_step=challenge&amp;ref=' + $('#user').val();" >
+								<a onclick="window.location = '?logon_step=challenge&amp;ref=' + $('#user').val();" >
 									<?php echo gettext('I forgot my <strong>User ID</strong>/<strong>Password</strong>'); ?>
 								</a>
 							</p>
@@ -1131,7 +1253,7 @@ class _Authority {
 							if ($star) {
 								?>
 								<p class="logon_link">
-									<a onclick="window.location = '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php?logon_step=captcha&amp;ref=' + $('#user').val();" >
+									<a onclick="window.location = '?logon_step=captcha&amp;ref=' + $('#user').val();" >
 										<?php echo gettext('I forgot my <strong>User ID</strong>/<strong>Password</strong>'); ?>
 									</a>
 								</p>
@@ -1141,27 +1263,37 @@ class _Authority {
 					}
 					break;
 				case 'captcha':
-					$captcha = $_zp_captcha->getCaptcha(NULL);
+					$extra = $class = $buttonExtra = '';
+					$captcha = $_captcha->getCaptcha(NULL);
+					if (isset($captcha['submitButton'])) {
+						$extra = ' class="' . $captcha['submitButton']['class'] . '" ' . $captcha['submitButton']['extra'];
+					}
 					?>
 					<script type="text/javascript">
 						function toggleSubmit() {
 							if ($('#user').val()) {
-								$('#submitButton').removeAttr('disabled');
+								$('#submitButton').prop('disabled', false);
 							} else {
 								$('#submitButton').prop('disabled', 'disabled');
 							}
 						}
 					</script>
-					<form name="login" action="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php" method="post">
-						<?php if (isset($captcha['hidden'])) echo $captcha['hidden']; ?>
+					<form name="login" id="login" action="<?php echo getAdminLink('admin.php'); ?>" method="post">
+						<?php
+						if (isset($captcha['hidden']))
+							echo $captcha['hidden'];
+						?>
 						<input type="hidden" name="login" value="1" />
 						<input type="hidden" name="password" value="captcha" />
-						<input type="hidden" name="redirect" value="<?php echo html_encode(pathurlencode($redirect)); ?>" />
+						<input type="hidden" name="redirect" value="<?php echo pathurlencode($redirect); ?>" />
 						<fieldset id="logon_box">
 							<fieldset><legend><?php echo gettext('User name or e-mail address'); ?></legend>
 								<input class="textfield" name="user" id="user" type="text" value="<?php echo html_encode($requestor); ?>" onkeyup="toggleSubmit();"/>
 							</fieldset>
-							<?php if (isset($captcha['html'])) echo $captcha['html']; ?>
+							<?php
+							if (isset($captcha['html']))
+								echo $captcha['html'];
+							?>
 							<?php
 							if (isset($captcha['input'])) {
 								?>
@@ -1173,11 +1305,15 @@ class _Authority {
 							?>
 							<br />
 							<div class="buttons">
-								<button type="submit"<?php if (empty($requestor)) echo ' disabled="disabled"'; ?>  id="submitButton" value="<?php echo gettext("Request"); ?>" >
-									<?php echo CHECKMARK_GREEN; ?>
-									<?php echo gettext("Request password reset"); ?>
+								<button type="submit"  id="submitButton"<?php
+								echo $extra;
+								if (empty($requestor))
+									echo ' disabled="disabled"';
+								?>>
+													<?php echo CHECKMARK_GREEN; ?>
+													<?php echo gettext("Request password reset"); ?>
 								</button>
-								<button type="button" value="<?php echo gettext("Return"); ?>" onclick="window.location = '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.php?logon_step=&amp;ref=' + $('#user').val();" >
+								<button type="button" value="<?php echo gettext("Return"); ?>" onclick="window.location = '?logon_step=&amp;ref=' + $('#user').val();" >
 									<?php echo BACK_ARROW_BLUE; ?>
 									<?php echo gettext("Return"); ?>
 								</button>
@@ -1194,11 +1330,11 @@ class _Authority {
 	}
 
 	static function loginButton() {
-		if (!zp_loggedin()) {
+		if (!npg_loggedin()) {
 			?>
 			<span class="button">
-				<a href="<?php echo FULLWEBPATH . '/' . ZENFOLDER; ?>/zenphotoLogin.php?request=zenphoto&amp;redirect=/dev/index.php?userlog=1">
-					<img src="<?php echo FULLWEBPATH . '/' . ZENFOLDER; ?>/images/login_button.png" alt="login">
+				<a href="<?php echo getAdminLink('coreLogin.php') ?>?request=core&amp;redirect=/dev/index.php?userlog=1">
+					<img src="<?php echo FULLWEBPATH . '/' . CORE_FOLDER; ?>/images/login_button.png" alt="login">
 				</a>
 			</span>
 			<?php
@@ -1277,7 +1413,7 @@ class _Authority {
 							$(inputb).prop('disabled', false);
 							passwordMatch(id);
 						}
-						var url = 'url(<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/strengths/strength' + strength + '.png)';
+						var url = 'url(<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/strengths/strength' + strength + '.png)';
 						$(inputa).css('background-image', url);
 						$(inputa).css('background-size', '100%');
 					}
@@ -1335,38 +1471,61 @@ class _Authority {
 		<?php
 	}
 
+	/**
+	 * provides the form for password handling
+	 *
+	 * @param int $id id number for when there are multiple forms on a page
+	 * @param bool $pad if true the password will have dummy asterix filled in
+	 * @param bool $disable for disabling the field
+	 * @param bool $required if a password is required
+	 * @param string $flag to "flag" the field as required
+	 */
 	static function printPasswordForm($id = '', $pad = false, $disable = NULL, $required = false, $flag = '') {
 		if ($pad) {
 			$x = '          ';
 		} else {
 			$x = '';
 		}
+		if (is_numeric($id)) {
+			$format = 'user[%2$s][%1$s]';
+		} else {
+			$format = '%1$s%2$s';
+		}
 		?>
-		<input type="hidden" name="passrequired<?php echo $id; ?>" id="passrequired-<?php echo $id; ?>" value="<?php echo (int) $required; ?>" class="inputbox"/>
+		<input type="hidden" name="<?php printf($format, 'passrequired', $id); ?>" id="passrequired-<?php echo $id; ?>" value="<?php echo (int) $required; ?>" class="inputbox"/>
 		<p>
-			<label for="pass<?php echo $id; ?>" id="strength<?php echo $id; ?>"><?php echo gettext("Password") . $flag; ?>
+			<label for="pass<?php echo $id; ?>_text" id="strength<?php echo $id; ?>">
+				<?php echo gettext("Password") . $flag; ?>
 			</label>
-			<label for="disclose_password<?php echo $id; ?>" class="floatright" style="padding-right: 15px;"><?php echo gettext('Show'); ?></label>
-			<input class="floatright"
-						 type="checkbox"
-						 name="disclose_password<?php echo $id; ?>"
-						 class="disclose_password"
-						 id="disclose_password<?php echo $id; ?>"
-						 onclick="passwordClear('<?php echo $id; ?>');
+			<span class="disclose_password_show" style="float: right !important; padding-right: 15px;">
+				<label>
+					<?php echo gettext('Show'); ?>
+					<input type="checkbox"
+								 class="disclose_password"
+								 style="float: right !important;"
+								 name="<?php printf($format, 'disclose_password', $id); ?>"
+								 id="disclose_password<?php echo $id; ?>"
+								 onclick="passwordClear('<?php echo $id; ?>');
 										 togglePassword('<?php echo $id; ?>');">
-			<input type="password" size="<?php echo TEXT_INPUT_SIZE; ?>"
-						 name="pass<?php echo $id ?>" value="<?php echo $x; ?>"
-						 id="pass<?php echo $id; ?>"
-						 onchange="$('#passrequired-<?php echo $id; ?>').val(1);"
-						 onclick="passwordClear('<?php echo $id; ?>');"
-						 onkeyup="passwordStrength('<?php echo $id; ?>');"
-						 <?php echo $disable; ?> class="inputbox"/>
-
+				</label>
+			</span>
+			<label for="pass<?php echo $id; ?>" id="strength<?php echo $id; ?>">
+				<input type="password" size="<?php echo TEXT_INPUT_SIZE; ?>"
+							 name="<?php printf($format, 'pass', $id); ?>" value="<?php echo $x; ?>"
+							 id="pass<?php echo $id; ?>"
+							 onchange="$('#passrequired-<?php echo $id; ?>').val(1);"
+							 onclick="passwordClear('<?php echo $id; ?>');"
+							 onkeyup="passwordStrength('<?php echo $id; ?>');"
+							 <?php echo $disable; ?> class="password_input inputbox"/>
+			</label>
+			<br clear="all">
 		</p>
 		<p class="password_field password_field_<?php echo $id; ?>">
-			<label for="pass_r<?php echo $id; ?>" id="match<?php echo $id; ?>"><?php echo gettext("Repeat password") . $flag; ?></label>
+			<label for="pass_r<?php echo $id; ?>" id="match<?php echo $id; ?>">
+				<?php echo gettext("Repeat password"); ?>
+			</label>
 			<input type="password" size="<?php echo TEXT_INPUT_SIZE; ?>"
-						 name="pass_r<?php echo $id ?>" value="<?php echo $x; ?>"
+						 name="<?php printf($format, 'pass_r', $id); ?>" value="<?php echo $x; ?>"
 						 id="pass_r<?php echo $id; ?>"
 						 disabled="disabled"
 						 onchange="$('#passrequired-<?php echo $id; ?>').val(1);"
@@ -1390,7 +1549,7 @@ class _Authority {
 		$hl = strlen(hash($a, null, true)); # Hash length
 		$kb = ceil($kl / $hl); # Key blocks to compute
 		$dk = ''; # Derived key
-		# Create key
+# Create key
 		for ($block = 1; $block <= $kb; $block++) {
 			# Initial hash for this block
 			$ib = $b = hash_hmac($a, $s . pack('N', $block), $p, true);
@@ -1400,7 +1559,7 @@ class _Authority {
 				$ib ^= ($b = hash_hmac($a, $b, $p, true));
 			$dk .= $ib; # Append iterated block
 		}
-		# Return derived key of correct length
+# Return derived key of correct length
 		return substr($dk, 0, $kl);
 	}
 
@@ -1411,14 +1570,14 @@ class _Administrator extends PersistentObject {
 	/**
 	 * This is a simple class so that we have a convienient "handle" for manipulating Administrators.
 	 *
-	 * NOTE: one should use the Zenphoto_Authority newAdministrator() method rather than directly instantiating
+	 * NOTE: one should use the npg_Authority newAdministrator() method rather than directly instantiating
 	 * an administrator object
 	 *
 	 */
-	var $objects = NULL;
+	protected $objects = NULL;
 	var $master = false; //	will be set to true if this is the inherited master user
 	var $msg = NULL; //	a means of storing error messages from filter processing
-	var $logout_link = true; // for a zenphoto logout
+	var $logout_link = true; // for a logout
 	var $reset = false; // if true the user was setup by a "reset password" event
 	var $passhash; // the hash algorithm used in creating the password
 
@@ -1431,16 +1590,16 @@ class _Administrator extends PersistentObject {
 	 */
 
 	function __construct($user, $valid, $create = true) {
-		global $_zp_authority;
+		global $_authority;
 		$this->passhash = (int) getOption('strong_hash');
 		$this->instantiate('administrators', array('user' => $user, 'valid' => $valid), NULL, false, empty($user), $create);
 		if (empty($user)) {
 			$this->set('id', -1);
 		}
-		if ($valid) {
+		if ($this->loaded) {
 			$rights = $this->getRights();
 			$new_rights = 0;
-			if ($_zp_authority->isMasterUser($user)) {
+			if ($_authority->isMasterUser($user)) {
 				$new_rights = ALL_RIGHTS;
 				$this->master = true;
 			} else {
@@ -1457,7 +1616,7 @@ class _Administrator extends PersistentObject {
 				$this->getObjects();
 				foreach ($this->objects as $object) {
 					switch ($object['type']) {
-						case 'album':
+						case 'albums':
 							if ($object['edit'] & MANAGED_OBJECT_RIGHTS_EDIT) {
 								$new_rights = $new_rights | ALBUM_RIGHTS;
 							}
@@ -1467,7 +1626,7 @@ class _Administrator extends PersistentObject {
 								$new_rights = $new_rights | ZENPAGE_PAGES_RIGHTS;
 							}
 							break;
-						case 'news':
+						case 'news_categories':
 							if ($object['edit'] & MANAGED_OBJECT_RIGHTS_EDIT) {
 								$new_rights = $new_rights | ZENPAGE_NEWS_RIGHTS;
 							}
@@ -1513,7 +1672,7 @@ class _Administrator extends PersistentObject {
 	 */
 	function setPass($pwd) {
 		$hash_type = getOption('strong_hash');
-		$pwd = Zenphoto_Authority::passwordHash($this->getUser(), $pwd, $hash_type);
+		$pwd = npg_Authority::passwordHash($this->getUser(), $pwd, $hash_type);
 		$this->set('pass', $pwd);
 		$this->set('passupdate', date('Y-m-d H:i:s'));
 		$this->set('passhash', $hash_type);
@@ -1573,8 +1732,22 @@ class _Administrator extends PersistentObject {
 	 * Stores local copy of managed objects.
 	 * NOTE: The database is NOT updated by this, the user object MUST be saved to
 	 * cause an update
+	 * use setObjects(NULL) to indicate no change in the objects
+	 *
+	 * @param array $objects the object list.
 	 */
 	function setObjects($objects) {
+		if (DEBUG_OBJECTS) {
+			if (!function_exists('compareObjects') || !compareObjects($this->objects, $objects)) {
+				$name = $this->getName();
+				if ($name) {
+					$name = ' (' . $name . ')';
+				}
+				debugLogBacktrace($this->getUser() . $name . "->setObjects()");
+				debugLogVar(['old' => $this->objects]);
+				debugLogVar(['new' => $objects]);
+			}
+		}
 		$this->objects = $objects;
 	}
 
@@ -1582,7 +1755,7 @@ class _Administrator extends PersistentObject {
 	 * Returns local copy of managed objects.
 	 */
 	function getObjects($what = NULL, $full = NULL) {
-		if (is_null($this->objects)) {
+		if (!is_array($this->objects)) {
 			if ($this->transient) {
 				$this->objects = array();
 			} else {
@@ -1680,69 +1853,90 @@ class _Administrator extends PersistentObject {
 	 * Uptates the database with all changes
 	 */
 	function save() {
-		global $_zp_gallery;
+		global $_gallery;
 		if (DEBUG_LOGIN) {
-			debugLogVar("Zenphoto_Administrator->save()", $this);
+			debugLogVar(["npg_Administrator->save()" => $this]);
 		}
-		$objects = $this->getObjects();
 		if (is_null($this->get('date'))) {
 			$this->set('date', date('Y-m-d H:i:s'));
 		}
-		parent::save();
+		$updated = parent::save();
 
-		$id = $this->getID();
-		if (is_array($objects)) {
-			$sql = "DELETE FROM " . prefix('admin_to_object') . ' WHERE `adminid`=' . $id;
+		if (is_array($this->objects)) {
+			if (DEBUG_OBJECTS) {
+				$name = $this->getName();
+				if ($name) {
+					$name = ' (' . $name . ')';
+				}
+				debugLogBacktrace($this->getUser() . $name . "->save()");
+				debugLogVar(['objects' => $this->objects]);
+			}
+			$id = $this->getID();
+			$old = array();
+			$sql = "SELECT * FROM " . prefix('admin_to_object') . ' WHERE `adminid`=' . $id;
 			$result = query($sql, false);
-			foreach ($objects as $object) {
+			while ($row = db_fetch_assoc($result)) {
+				$old[$row['id']] = array($row['objectid'], $row['type'], $row['edit']);
+			}
+			foreach ($this->objects as $object) {
 				$edit = MANAGED_OBJECT_MEMBER;
 				if (array_key_exists('edit', $object)) {
 					$edit = $object['edit'] | MANAGED_OBJECT_MEMBER;
 				}
-				switch ($object['type']) {
-					case 'album':
-						$album = newAlbum($object['data']);
-						$albumid = $album->getID();
-						$sql = "INSERT INTO " . prefix('admin_to_object') . " (adminid, objectid, type, edit) VALUES ($id, $albumid, 'albums', $edit)";
-						$result = query($sql);
+				$table = $object['type'];
+				switch ($table) {
+					case 'albums':
+						$obj = newAlbum($object['data']);
+						$objectid = $obj->getID();
 						break;
 					case 'pages':
-						$sql = 'SELECT * FROM ' . prefix('pages') . ' WHERE `titlelink`=' . db_quote($object['data']);
-						$result = query_single_row($sql);
-						if (is_array($result)) {
-							$objectid = $result['id'];
-							$sql = "INSERT INTO " . prefix('admin_to_object') . " (adminid, objectid, type, edit) VALUES ($id, $objectid, 'pages', $edit)";
-							$result = query($sql);
-						}
+						$obj = newPage($object['data']);
+						$objectid = $obj->getID();
 						break;
-					case 'news':
-						if ($object['data'] == '`') {
-							$result = array('id' => 0);
+					case 'news_categories':
+						if ($object['data'] == '`') { //uncategorized
+							$objectid = 0;
 						} else {
-							$sql = 'SELECT * FROM ' . prefix('news_categories') . ' WHERE `titlelink`=' . db_quote($object['data']);
-							$result = query_single_row($sql);
-						}
-						if (is_array($result)) {
-							$objectid = $result['id'];
-							$sql = "INSERT INTO " . prefix('admin_to_object') . " (adminid, objectid, type, edit) VALUES ($id, $objectid, 'news', $edit)";
-							$result = query($sql);
+							$obj = newCategory($object['data']);
+							$objectid = $obj->getID();
 						}
 						break;
 				}
+				if ($keys = array_keys($old, array($objectid, $table, $edit))) {
+					$key = array_shift($keys);
+					unset($old[$key]);
+				} else {
+					$sql = 'INSERT INTO ' . prefix('admin_to_object') . " (adminid, objectid, type, edit) VALUES ($id, $objectid, '$table', $edit)";
+					$result = query($sql);
+					$updated = 1;
+				}
+			}
+			if (!empty($old)) {
+				$sql = 'DELETE FROM ' . prefix('admin_to_object') . ' WHERE `id` IN(' . implode(',', array_keys($old)) . ')';
+				query($sql);
+				$updated = 1;
 			}
 		}
+		return $updated;
 	}
 
 	/**
 	 * Removes a user from the system
 	 */
 	function remove() {
-		zp_apply_filter('remove_user', $this);
+		npgFilters::apply('remove_user', $this);
 		$album = $this->getAlbum();
 		$id = $this->getID();
 		if (parent::remove()) {
 			if (!empty($album)) { //	Remove users album as well
 				$album->remove();
+			}
+			if (DEBUG_OBJECTS) {
+				$name = $this->getName();
+				if ($name) {
+					$name = ' (' . $name . ')';
+				}
+				debugLogBacktrace($this->getUser() . $name . "->remove()");
 			}
 			$sql = "DELETE FROM " . prefix('admin_to_object') . " WHERE `adminid`=$id";
 			$result = query($sql);
@@ -1795,7 +1989,7 @@ class _Administrator extends PersistentObject {
 	 * Creates a "prime" album for the user. Album name is based on the userid
 	 */
 	function createPrimealbum($new = true, $name = NULL) {
-		//	create his album
+//	create his album
 		$t = 0;
 		$ext = '';
 		if (is_null($name)) {
@@ -1827,7 +2021,7 @@ class _Administrator extends PersistentObject {
 				$subrights = $subrights | MANAGED_OBJECT_RIGHTS_UPLOAD;
 			}
 			$objects = $this->getObjects();
-			$objects[] = array('data' => $albumname, 'name' => $albumname, 'type' => 'album', 'edit' => $subrights);
+			$objects[] = array('data' => $albumname, 'name' => $albumname, 'type' => 'albums', 'edit' => $subrights);
 			$this->setObjects($objects);
 		}
 	}
@@ -1851,6 +2045,23 @@ class _Administrator extends PersistentObject {
 	 */
 	function getLastLogon() {
 		return $this->get('lastloggedin');
+	}
+
+	/**
+	 * retrieves the state of the user policy acknowledgement
+	 * @return int
+	 */
+	function getPolicyACK() {
+		return $this->get('policyAck');
+	}
+
+	/**
+	 * sets the state of the user policy acknowledgement
+	 *
+	 * @param int $v the state
+	 */
+	function setPolicyACK($v) {
+		$this->set('policyAck', (int) $v);
 	}
 
 }

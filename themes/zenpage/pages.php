@@ -7,14 +7,18 @@ if (class_exists('CMS')) {
 	<!DOCTYPE html>
 	<html>
 		<head>
+			<?php
+			npgFilters::apply('theme_head');
 
-			<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-			<?php if (class_exists('RSS')) printRSSHeaderLink("News", "Zenpage news", ""); ?>
-			<?php zp_apply_filter('theme_head'); ?>
+			scriptLoader($_themeroot . '/style.css');
+
+			if (class_exists('RSS'))
+				printRSSHeaderLink("News", "Zenpage news", "");
+			?>
 		</head>
 
 		<body>
-			<?php zp_apply_filter('theme_body_open'); ?>
+	<?php npgFilters::apply('theme_body_open'); ?>
 
 			<div id="main">
 
@@ -51,31 +55,30 @@ if (class_exists('CMS')) {
 						?>
 						<br style="clear:both;" /><br />
 						<?php
-						@call_user_func('printRating');
 						@call_user_func('printCommentForm');
 						?>
 					</div><!-- content left-->
 
 
 					<div id="sidebar">
-						<?php include("sidebar.php"); ?>
+	<?php include("sidebar.php"); ?>
 					</div><!-- sidebar -->
 
 
 					<div id="footer">
-						<?php include("footer.php"); ?>
+	<?php include("footer.php"); ?>
 					</div>
 
 				</div><!-- content -->
 
 			</div><!-- main -->
 			<?php
-			zp_apply_filter('theme_body_close');
+			npgFilters::apply('theme_body_close');
 			?>
 		</body>
 	</html>
 	<?php
 } else {
-	include(SERVERPATH . '/' . ZENFOLDER . '/404.php');
+	include(CORE_SERVERPATH . '404.php');
 }
 ?>

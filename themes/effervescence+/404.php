@@ -7,12 +7,12 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php npgFilters::apply('theme_head'); ?>
 
 	</head>
 
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<!-- Wrap Header -->
 		<div id="header">
@@ -60,12 +60,12 @@ if (!defined('WEBPATH'))
 		<!-- Footer -->
 		<div class="footlinks">
 			<small><?php printThemeInfo(); ?></small>
-			<?php printZenphotoLink(); ?>
+			<?php print_SW_Link(); ?>
 			<br />
 		</div>
 
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 
 	</body>

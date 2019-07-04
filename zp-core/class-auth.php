@@ -3,20 +3,19 @@
 /**
  * USER credentials handlers
  *
- * Class Plugins may override the stand class-auth authentication library. ZenPhoto20 supplies
- * LDAP_auth, an authentication plugin that authenticates via an LDAP server. It
- * also provides a good example of how to implement alternative Authorities.
+ * Class Plugins may override the stand class-auth authentication library. See for example
+ * LDAP_auth, an authentication plugin that authenticates via an LDAP server.
  *
  *
  * Replacement libraries must implement two classes:
- * 		"Zenphoto_Authority" class: Provides the methods used for user authorization and management
- * 			store an instantiation of this class in $_zp_authority.
+ * 		"_Authority" class: Provides the methods used for user authorization and management
+ * 			store an instantiation of this class in $_authority.
  *
- * 		"Zenphoto_Administrator" class: supports the basic needs for object manipulation of administrators.
+ * 		"_Administrator" class: supports the basic needs for object manipulation of administrators.
  *
  * (You can include the <code>lib-auth.php</code> script and extend/overwrite class methods if that suits your needs.)
  *
- * The global $_zp_current_admin_obj represents the current admin.
+ * The global $_current_admin_obj represents the current admin.
  *
  * The following elements need to be present in any alternate implementation in the
  * array returned by getAdministrators().
@@ -39,15 +38,14 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage admin
+ * @package admin
  */
 require_once(dirname(__FILE__) . '/lib-auth.php');
 
-class Zenphoto_Authority extends _Authority {
+class npg_Authority extends _Authority {
 
 }
 
-class Zenphoto_Administrator extends _Administrator {
+class npg_Administrator extends _Administrator {
 
 }

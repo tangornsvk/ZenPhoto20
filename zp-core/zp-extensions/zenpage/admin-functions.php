@@ -3,8 +3,7 @@
  * zenpage admin functions
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard)
- * @package plugins
- * @subpackage zenpage
+ * @package plugins/zenpage
  */
 
 /**
@@ -36,6 +35,38 @@ function processTags($object) {
 	$object->setTags($tags);
 }
 
+/**
+ * Returns a title link for a new object. Title link is based on the title.
+ * If the title is a duplicate, a date/time string will be appended to insure
+ * no duplication.
+ *
+ * @param db serialized string $title
+ * @param string $table
+ * @param array $reports
+ * @return string
+ */
+function makeNewTitleLink($title, $table, &$reports) {
+	$titlelink = seoFriendly(get_language_string($title));
+	$append = RW_SUFFIX;
+	if (RW_SUFFIX && $table == 'news_categories') {
+		$append = '';
+	}
+	if (empty($titlelink)) {
+		$titlelink = gettext('untitled');
+	}
+
+	$sql = 'SELECT `id` FROM ' . prefix($table) . ' WHERE `titlelink`=' . db_quote($titlelink . $append);
+	$rslt = query_single_row($sql, false);
+	if ($rslt) {
+		//already exists
+		$titlelink = $titlelink . '_' . date_format(date_create('now'), 'Y-m-d-H-i-s-u') . $append;
+		$reports[] = "<p class='warningbox fade-message'>" . gettext('Duplicate page title') . '</p>';
+	} else {
+		$titlelink .= $append;
+	}
+	return $titlelink;
+}
+
 /* * ************************
   /* page functions
  * ************************* */
@@ -44,42 +75,30 @@ function processTags($object) {
  * Updates or adds a page and returns the object of that page
  *
  * @param array $reports report display
- * @param bool $newpage true if it is a new page
  *
  * @return object
  */
-function updatePage(&$reports, $newpage = false) {
+function updatePage(&$reports) {
+	global $_current_admin_obj;
 	$title = process_language_string_save("title", 2);
-	$author = sanitize($_POST['author']);
-	$content = zpFunctions::updateImageProcessorLink(process_language_string_save("content", EDITOR_SANITIZE_LEVEL));
+	$content = npgFunctions::updateImageProcessorLink(process_language_string_save("content", EDITOR_SANITIZE_LEVEL));
 	$date = sanitize($_POST['date']);
-	$lastchange = sanitize($_POST['lastchange']);
-	$lastchangeauthor = sanitize($_POST['lastchangeauthor']);
 	$pubdate = sanitize($_POST['pubdate']);
 	$expiredate = getExpiryDatePost();
 	$commentson = getcheckboxState('commentson');
 	$permalink = getcheckboxState('permalink');
 	$locked = getcheckboxState('locked');
 	$show = getcheckboxState('show');
+	$id = sanitize($_POST['id']);
+	$newpage = $id == 0;
 
 	if ($newpage) {
-		$titlelink = seoFriendly(get_language_string($title));
-		if (empty($titlelink)) {
-			$titlelink = seoFriendly($date);
-		}
-		$sql = 'SELECT `id` FROM ' . prefix('pages') . ' WHERE `titlelink`=' . db_quote($titlelink);
-		$rslt = query_single_row($sql, false);
-		if ($rslt) {
-			//already exists
-			$time = explode(' ', microtime());
-			$titlelink = $titlelink . '_' . ($time[1] + $time[0]);
-			$reports[] = "<p class='warningbox fade-message'>" . gettext('Duplicate page title') . '</p>';
-		}
-		$oldtitlelink = $titlelink;
+		$oldtitlelink = $titlelink = makeNewTitleLink($title, 'pages', $reports);
 	} else {
 		$titlelink = $oldtitlelink = sanitize($_POST['titlelink-old']);
 	}
-	if (getcheckboxState('edittitlelink')) {
+
+	if ($edit_titlelink = getcheckboxState('edittitlelink')) {
 		$titlelink = sanitize($_POST['titlelink'], 3);
 		if (empty($titlelink)) {
 			$titlelink = seoFriendly(get_language_string($title));
@@ -95,23 +114,34 @@ function updatePage(&$reports, $newpage = false) {
 			}
 		}
 	}
-	$id = sanitize($_POST['id']);
+
 	$rslt = true;
+	if (RW_SUFFIX && $titlelink != $oldtitlelink) {
+		//append RW_SUFFIX
+		if (!preg_match('|^(.*)' . preg_quote(RW_SUFFIX) . '$|', $titlelink)) {
+			$titlelink .= RW_SUFFIX;
+		}
+	}
+
 	if ($titlelink != $oldtitlelink) { // title link change must be reflected in DB before any other updates
 		$rslt = query('UPDATE ' . prefix('pages') . ' SET `titlelink`=' . db_quote($titlelink) . ' WHERE `id`=' . $id, false);
 		if (!$rslt) {
 			$titlelink = $oldtitlelink; // force old link so data gets saved
+			if (!$edit_titlelink) { //	we did this behind his back, don't complain
+				$rslt = true;
+			}
 		}
 	}
+
 	// update page
 	$page = newPage($titlelink, true);
 	$notice = processCredentials($page);
 	$page->setTitle($title);
 	$page->setContent($content);
 	$page->setCommentsAllowed($commentson);
-	$page->setAuthor($author);
-	$page->setLastchange($lastchange);
-	$page->setLastchangeauthor($lastchangeauthor);
+	if (isset($_POST['author'])) {
+		$page->setOwner(sanitize($_POST['author']));
+	}
 	$page->setPermalink($permalink);
 	$page->setLocked($locked);
 	$page->setExpiredate($expiredate);
@@ -128,7 +158,7 @@ function updatePage(&$reports, $newpage = false) {
 	$page->setShow($show);
 
 	if ($newpage) {
-		$msg = zp_apply_filter('new_page', '', $page);
+		$msg = npgFilters::apply('new_page', '', $page);
 		if (empty($title)) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Page <em>%s</em> added but you need to give it a <strong>title</strong> before publishing!"), get_language_string($titlelink)) . '</p>';
 		} else if ($notice == '?mismatch=user') {
@@ -139,7 +169,7 @@ function updatePage(&$reports, $newpage = false) {
 			$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Page <em>%s</em> added"), $titlelink) . '</p>';
 		}
 	} else {
-		$msg = zp_apply_filter('update_page', '', $page, $oldtitlelink);
+		$msg = npgFilters::apply('update_page', '', $page, $oldtitlelink);
 		if (!$rslt) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("A page with the title/titlelink <em>%s</em> already exists!"), $titlelink) . '</p>';
 		} else if (empty($title)) {
@@ -149,12 +179,15 @@ function updatePage(&$reports, $newpage = false) {
 		} else if ($notice) {
 			echo "<p class='errorbox fade-message'>" . gettext('Your passwords were empty or did not match') . '</p>';
 		} else {
-			$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Page <em>%s</em> updated"), $titlelink) . '</p>';
+			$reports['success'] = "<p class='messagebox fade-message'>" . sprintf(gettext("Page <em>%s</em> updated"), $titlelink) . '</p>';
 		}
 	}
-	zp_apply_filter('save_page_custom_data', NULL, $page);
-	$page->save();
-	$msg = zp_apply_filter('edit_error', $msg);
+	npgFilters::apply('save_page_data', $page);
+	if ($page->save() == 2) {
+		$reports['success'] = "<p class='messagebox fade-message'>" . sprintf(gettext("Nothing was changed."), $titlelink) . '</p>';
+	}
+
+	$msg = npgFilters::apply('edit_error', $msg);
 	if ($msg) {
 		$reports[] = $msg;
 	}
@@ -174,8 +207,9 @@ function deleteZenpageObj($obj, $redirect = false) {
 			} else {
 				$redirect .= '?deleted';
 			}
-			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/' . $redirect);
-			exitZP();
+			$parts = explode('?', $redirect);
+			header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/zenpage/' . $parts[0]) . isset($parts[1]) ? '?' . $parts[1] : '');
+			exit();
 		}
 		switch ($obj->table) {
 			case 'pages':
@@ -223,14 +257,14 @@ function printPagesListTable($page, $toodeep) {
 		</div>
 		<div class="page-list_title">
 			<?php
-			echo "<a href='admin-edit.php?page&amp;titlelink=" . urlencode($page->getTitlelink()) . "'> ";
+			echo '<a href="' . getAdminLink(PLUGIN_FOLDER . '/zenpage/edit.php') . '?page&amp;titlelink=' . urlencode($page->getTitlelink()) . '"> ';
 			checkForEmptyTitle($page->getTitle(), "page");
 			echo "</a>" . checkHitcounterDisplay($page->getHitcounter());
 			?>
 		</div>
 		<div class="page-list_extra">
 			<span>
-				<?php echo html_encode($page->getAuthor()); ?>
+				<?php echo html_encode($page->getOwner()); ?>
 			</span>
 		</div>
 		<div class="page-list_extra">
@@ -280,17 +314,17 @@ function printPagesListTable($page, $toodeep) {
 			} else {
 				?>
 				<div class="page-list_icon">
-					<img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/placeholder.png"  style="border: 0px;" />
+					<img src="<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/placeholder.png"  style="border: 0px;" />
 				</div>
 				<div class="page-list_icon">
-					<img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/placeholder.png"  style="border: 0px;" />
+					<img src="<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/placeholder.png"  style="border: 0px;" />
 				</div>
 				<?php
 			}
 			?>
 
 			<div class="page-list_icon">
-				<a href="../../../index.php?p=pages&amp;title=<?php echo js_encode($page->getTitlelink()); ?>" title="<?php echo gettext("View page"); ?>">
+				<a href="<?php echo WEBPATH; ?>/index.php?p=pages&amp;title=<?php echo js_encode($page->getTitlelink()); ?>" title="<?php echo gettext("View page"); ?>">
 					<?php echo BULLSEYE_BLUE; ?>
 				</a>
 			</div>
@@ -308,7 +342,7 @@ function printPagesListTable($page, $toodeep) {
 				}
 				?>
 				<div class="page-list_icon">
-					<a href="javascript:confirmDelete('admin-pages.php?delete=<?php echo $page->getTitlelink(); ?>&amp;add&amp;XSRFToken=<?php echo getXSRFToken('delete') ?>',deletePage)" title="<?php echo gettext("Delete page"); ?>">
+					<a href="javascript:confirmDelete('<?php echo getAdminLink(PLUGIN_FOLDER . '/zenpage/pages.php'); ?>?delete=<?php echo $page->getTitlelink(); ?>&amp;add&amp;XSRFToken=<?php echo getXSRFToken('delete') ?>',deletePage)" title="<?php echo gettext("Delete page"); ?>">
 						<?php echo WASTEBASKET; ?>
 					</a>
 				</div>
@@ -351,43 +385,27 @@ function printPagesListTable($page, $toodeep) {
  * @return object
  */
 function updateArticle(&$reports, $newarticle = false) {
-	global $_zp_current_admin_obj;
-	$date = date('Y-m-d_H-i-s');
+	global $_current_admin_obj;
+
 	$title = process_language_string_save("title", 2);
-	$author = sanitize($_POST['author']);
-	$content = zpFunctions::updateImageProcessorLink(process_language_string_save("content", EDITOR_SANITIZE_LEVEL));
+	$content = npgFunctions::updateImageProcessorLink(process_language_string_save("content", EDITOR_SANITIZE_LEVEL));
 	$show = getcheckboxState('show');
 	$date = sanitize($_POST['date']);
 	$pubdate = sanitize($_POST['pubdate']);
 	$expiredate = getExpiryDatePost();
 	$permalink = getcheckboxState('permalink');
-	$lastchange = sanitize($_POST['lastchange']);
-	$lastchangeauthor = sanitize($_POST['lastchangeauthor']);
 	$commentson = getcheckboxState('commentson');
 	$locked = getcheckboxState('locked');
-	$show = getcheckboxState('show');
+	$id = sanitize($_POST['id']);
+	$newarticle = $id == 0;
 
 	if ($newarticle) {
-		$titlelink = seoFriendly(get_language_string($title));
-		if (empty($titlelink)) {
-			$titlelink = seoFriendly($date);
-		}
-		$sql = 'SELECT `id` FROM ' . prefix('news') . ' WHERE `titlelink`=' . db_quote($titlelink);
-		$rslt = query_single_row($sql, false);
-		if ($rslt) {
-			//already exists
-			$time = explode(' ', microtime());
-			$titlelink = $titlelink . '_' . ($time[1] + $time[0]);
-			$reports[] = "<p class='warningbox fade-message'>" . gettext('Duplicate article title') . '</p>';
-		}
-		$oldtitlelink = $titlelink;
-		$id = 0;
+		$oldtitlelink = $titlelink = makeNewTitleLink($title, 'news', $reports);
 	} else {
 		$titlelink = $oldtitlelink = sanitize($_POST['titlelink-old'], 3);
-		$id = sanitize($_POST['id']);
 	}
 
-	if (getcheckboxState('edittitlelink')) {
+	if ($edit_titlelink = getcheckboxState('edittitlelink')) {
 		$titlelink = sanitize($_POST['titlelink'], 3);
 		if (empty($titlelink)) {
 			$titlelink = seoFriendly(get_language_string($title));
@@ -404,22 +422,33 @@ function updateArticle(&$reports, $newarticle = false) {
 		}
 	}
 
+	if (RW_SUFFIX && ($newarticle || $titlelink != $oldtitlelink)) {
+		//append RW_SUFFIX
+		if (!preg_match('|^(.*)' . preg_quote(RW_SUFFIX) . '$|', $titlelink)) {
+			$titlelink .= RW_SUFFIX;
+		}
+	}
+
 	$rslt = true;
 	if ($titlelink != $oldtitlelink) { // title link change must be reflected in DB before any other updates
 		$rslt = query('UPDATE ' . prefix('news') . ' SET `titlelink`=' . db_quote($titlelink) . ' WHERE `id`=' . $id, false);
 		if (!$rslt) {
 			$titlelink = $oldtitlelink; // force old link so data gets saved
+			if (!$edit_titlelink) { //	we did this behind his back, don't complain
+				$rslt = true;
+			}
 		}
 	}
+
 	// update article
 	$article = newArticle($titlelink, true);
 	$article->setTitle($title);
 	$article->setContent($content);
 	$article->setDateTime($date);
 	$article->setCommentsAllowed($commentson);
-	$article->setAuthor($author);
-	$article->setLastchange($lastchange);
-	$article->setLastchangeauthor($lastchangeauthor);
+	if (isset($_POST['author'])) {
+		$article->setOwner(sanitize($_POST['author']));
+	}
 	$article->setPermalink($permalink);
 	$article->setLocked($locked);
 	$article->setExpiredate($expiredate);
@@ -433,10 +462,9 @@ function updateArticle(&$reports, $newarticle = false) {
 		$article->set('total_votes', 0);
 		$article->set('used_ips', 0);
 	}
-	$article->setTruncation(getcheckboxState('truncation'));
 	processTags($article);
 	$categories = array();
-	$myCategories = array_flip($_zp_current_admin_obj->getObjects('news'));
+	$myCategories = array_flip($_current_admin_obj->getObjects('news_categories'));
 
 	if (isset($_POST['addcategories'])) {
 		$cats = sanitize($_POST['addcategories']);
@@ -448,7 +476,7 @@ function updateArticle(&$reports, $newarticle = false) {
 				}
 			}
 		}
-		if (!zp_loggedin(MANAGE_ALL_NEWS_RIGHTS)) {
+		if (!npg_loggedin(MANAGE_ALL_NEWS_RIGHTS)) {
 			foreach ($categories as $key => $cat) {
 				if (!isset($myCategories[$cat])) {
 					unset($categories[$key]);
@@ -459,7 +487,7 @@ function updateArticle(&$reports, $newarticle = false) {
 	$article->setCategories($categories);
 	$article->setShow($show);
 
-	if (!zp_loggedin(MANAGE_ALL_NEWS_RIGHTS) && empty($categories)) {
+	if (!npg_loggedin(MANAGE_ALL_NEWS_RIGHTS) && empty($categories)) {
 		//	check if he is allowed to make un-categorized articles
 		if (!isset($myCategories['`'])) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Article <em>%s</em> may not be un-categorized."), $titlelink) . '</p>';
@@ -470,27 +498,27 @@ function updateArticle(&$reports, $newarticle = false) {
 
 
 	if ($newarticle) {
-		$msg = zp_apply_filter('new_article', '', $article);
+		$msg = npgFilters::apply('new_article', '', $article);
 		if (empty($title)) {
-			$reports['success'] = "<p class='errorbox fade-message'>" . sprintf(gettext("Article <em>%s</em> added but you need to give it a <strong>title</strong> before publishing!"), get_language_string($titlelink)) . '</p>';
+			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Article <em>%s</em> added but you need to give it a <strong>title</strong> before publishing!"), get_language_string($titlelink)) . '</p>';
 		} else {
-			$reports['success'] = "<p class='messagebox fade-message'>" . sprintf(gettext("Article <em>%s</em> added"), $titlelink) . '</p>';
+			$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Article <em>%s</em> added"), $titlelink) . '</p>';
 		}
 	} else {
-		$msg = zp_apply_filter('update_article', '', $article, $oldtitlelink);
+		$msg = npgFilters::apply('update_article', '', $article, $oldtitlelink);
 		if (!$rslt) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("An article with the title/titlelink <em>%s</em> already exists!"), $titlelink) . '</p>';
 		} else if (empty($title)) {
-			$reports['success'] = "<p class='errorbox fade-message'>" . sprintf(gettext("Article <em>%s</em> updated but you need to give it a <strong>title</strong> before publishing!"), get_language_string($titlelink)) . '</p>';
+			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Article <em>%s</em> updated but you need to give it a <strong>title</strong> before publishing!"), get_language_string($titlelink)) . '</p>';
 		} else {
 			$reports['success'] = "<p class='messagebox fade-message'>" . sprintf(gettext("Article <em>%s</em> updated"), $titlelink) . '</p>';
 		}
 	}
-	zp_apply_filter('save_article_custom_data', NULL, $article);
-	$article->save();
-
-	$msg = zp_apply_filter('edit_error', $msg);
-
+	npgFilters::apply('save_article_data', $article);
+	if ($article->save() == 2) {
+		$reports['success'] = "<p class='messagebox fade-message'>" . sprintf(gettext("Nothing was changed."), $titlelink) . '</p>';
+	}
+	$msg = npgFilters::apply('edit_error', $msg);
 	if ($msg) {
 		$reports[] = $msg;
 	}
@@ -515,14 +543,17 @@ function printNewsCategories($obj) {
 }
 
 function printAuthorDropdown() {
-	$rslt = query_full_array('SELECT DISTINCT `author` FROM ' . prefix('news'));
+	$rslt = query_full_array('SELECT DISTINCT `owner` FROM ' . prefix('news'));
 	if (count($rslt) > 1) {
 		$authors = array();
 		foreach ($rslt as $row) {
-			$authors[] = $row['author'];
+			$authors[] = $row['owner'];
 		}
 		if (isset($_GET['author'])) {
-			$cur_author = sanitize($_GET['author']);
+			$authors[] = $cur_author = sanitize($_GET['author']);
+			if (!in_array($cur_author, $authors)) {
+				$authors[] = $cur_author;
+			}
 			$selected = 'selected="selected"';
 		} else {
 			$selected = $cur_author = NULL;
@@ -530,16 +561,16 @@ function printAuthorDropdown() {
 		$option = getNewsAdminOption('author');
 		?>
 		<form name="AutoListBox0" id="articleauthordropdown" style="float:left; margin:5px;" action="#" >
-			<select name="ListBoxURL" size="1" onchange="gotoLink(this.form)">
+			<select name="ListBoxURL" size="1" onchange="npg_gotoLink(this.form)">
 				<?php
-				echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("All authors") . "</option>";
+				echo "<option $selected value='news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("All authors") . "</option>";
 				foreach ($authors as $author) {
 					if ($cur_author == $author) {
 						$selected = 'selected="selected"';
 					} else {
 						$selected = '';
 					}
-					echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath(array_merge(array('author' => $author), $option)) . "'>$author</option>\n";
+					echo "<option $selected value='news.php" . getNewsAdminOptionPath(array_merge(array('author' => $author), $option)) . "'>$author</option>\n";
 				}
 				?>
 			</select>
@@ -554,8 +585,8 @@ function printAuthorDropdown() {
  *
  */
 function printNewsDatesDropdown() {
-	global $_zp_CMS;
-	$datecount = $_zp_CMS->getAllArticleDates();
+	global $_CMS;
+	$datecount = $_CMS->getAllArticleDates();
 	$lastyear = "";
 	$nr = "";
 	$option = getNewsAdminOption('date');
@@ -563,13 +594,16 @@ function printNewsDatesDropdown() {
 		$selected = 'selected = "selected"';
 	} else {
 		$selected = "";
+		if (!in_array($_GET['date'], $datecount)) {
+			$datecount[$_GET['date']] = $_GET['date'];
+		}
 	}
 	?>
 	<form name="AutoListBox1" id="articledatesdropdown" style="float:left; margin:5px;" action="#" >
-		<select name="ListBoxURL" size="1" onchange="gotoLink(this.form)">
+		<select name="ListBoxURL" size="1" onchange="npg_gotoLink(this.form)">
 			<?php
-			echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("View all months") . "</option>\n";
-			while (list($key, $val) = each($datecount)) {
+			echo "<option $selected value='news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("View all months") . "</option>\n";
+			foreach ($datecount as $key => $val) {
 				$nr++;
 				if ($key == '0000-00-01') {
 					$year = "no date";
@@ -590,7 +624,7 @@ function printNewsDatesDropdown() {
 				} else {
 					$selected = "";
 				}
-				echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath(array_merge(array('date' => substr($key, 0, 7)), $option)) . "'>$month $year ($val)</option>\n";
+				echo "<option $selected value='news.php" . getNewsAdminOptionPath(array_merge(array('date' => substr($key, 0, 7)), $option)) . "'>$month $year ($val)</option>\n";
 			}
 			?>
 		</select>
@@ -624,7 +658,7 @@ function getNewsAdminOption($exclude) {
 }
 
 /**
- * Crea tes the a dmin paths for news articles if you use the dropdowns on the admin news article list together
+ * Creates the adminpaths for news articles if you use the dropdowns on the admin news article list together
  *
  * @param array $list an parameter array of item=>value for instance, the result of getNewsAdminOption()
  * @return string
@@ -648,10 +682,10 @@ function getNewsAdminOptionPath($list) {
  *
  */
 function printUnpublishedDropdown() {
-	global $_zp_CMS;
+	global $_CMS;
 	?>
 	<form name="AutoListBox3" id="unpublisheddropdown" style="float:left; margin:5px;"	action="#">
-		<select name="ListBoxURL" size="1"	onchange="gotoLink(this.form)">
+		<select name="ListBoxURL" size="1"	onchange="npg_gotoLink(this.form)">
 			<?php
 			$all = "";
 			$published = "";
@@ -673,10 +707,10 @@ function printUnpublishedDropdown() {
 				$all = "selected='selected'";
 			}
 			$option = getNewsAdminOption('published');
-			echo "<option $all value='admin-news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("All articles") . "</option>\n";
-			echo "<option $published value='admin-news.php" . getNewsAdminOptionPath(array_merge(array('published' => 'yes'), $option)) . "'>" . gettext("Published") . "</option>\n";
-			echo "<option $unpublished value='admin-news.php" . getNewsAdminOptionPath(array_merge(array('published' => 'no'), $option)) . "'>" . gettext("Un-published") . "</option>\n";
-			echo "<option $sticky value='admin-news.php" . getNewsAdminOptionPath(array_merge(array('published' => 'sticky'), $option)) . "'>" . gettext("Sticky") . "</option>\n";
+			echo "<option $all value='news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("All articles") . "</option>\n";
+			echo "<option $published value='news.php" . getNewsAdminOptionPath(array_merge(array('published' => 'yes'), $option)) . "'>" . gettext("Published") . "</option>\n";
+			echo "<option $unpublished value='news.php" . getNewsAdminOptionPath(array_merge(array('published' => 'no'), $option)) . "'>" . gettext("Un-published") . "</option>\n";
+			echo "<option $sticky value='news.php" . getNewsAdminOptionPath(array_merge(array('published' => 'sticky'), $option)) . "'>" . gettext("Sticky") . "</option>\n";
 			?>
 		</select>
 
@@ -688,13 +722,13 @@ function printUnpublishedDropdown() {
  * Prints the dropdown menu for the sortorder selector for the news articles list
  *
  * @author Stephen Billard
- * @Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  */
 function printSortOrderDropdown() {
-	global $_zp_CMS;
+	global $_CMS;
 	?>
 	<form name="AutoListBox4" id="sortorderdropdown" style="float:left; margin:5px;"	action="#">
-		<select name="ListBoxURL" size="1"	onchange="gotoLink(this.form)">
+		<select name="ListBoxURL" size="1"	onchange="npg_gotoLink(this.form)">
 			<?php
 			if (isset($_GET['sortorder'])) {
 				$selected = $_GET['sortorder'];
@@ -716,7 +750,7 @@ function printSortOrderDropdown() {
 			);
 			foreach ($selections as $sortorder => $text) {
 				?>
-				<option<?php if ($sortorder == $selected) echo ' selected="selected"'; ?> value="admin-news.php<?php echo getNewsAdminOptionPath(array_merge(array('sortorder' => $sortorder), $option)); ?>"><?php echo $text; ?></option>
+				<option<?php if ($sortorder == $selected) echo ' selected="selected"'; ?> value="news.php<?php echo getNewsAdminOptionPath(array_merge(array('sortorder' => $sortorder), $option)); ?>"><?php echo $text; ?></option>
 				<?php
 			}
 			?>
@@ -730,8 +764,8 @@ function printSortOrderDropdown() {
  *
  */
 function printCategoryDropdown() {
-	global $_zp_CMS;
-	$result = $_zp_CMS->getAllCategories(false);
+	global $_CMS;
+	$result = $_CMS->getAllCategories(false);
 	if (count($result) > 0) {
 		if (isset($_GET['date'])) {
 			$datelink = "&amp;date=" . sanitize($_GET['date']);
@@ -741,30 +775,29 @@ function printCategoryDropdown() {
 			$datelinkall = "";
 		}
 
+		$selected = $category = "";
 		if (isset($_GET['category'])) {
-			$selected = '';
+			$add = array('titlelink' => $category);
 			$category = sanitize($_GET['category']);
 		} else {
 			$selected = "selected='selected'";
-			$category = "";
 		}
 		$option = getNewsAdminOption('category');
 		?>
 		<form name ="AutoListBox2" id="categorydropdown" style="float:left; margin:5px;" action="#" >
-			<select name="ListBoxURL" size="1" onchange="gotoLink(this.form)">
+			<select name="ListBoxURL" size="1" onchange="npg_gotoLink(this.form)">
 				<?php
-				echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("All categories") . "</option>\n";
+				echo "<option $selected value='news.php" . getNewsAdminOptionPath($option) . "'>" . gettext("All categories") . "</option>\n";
 				if ($category == '`') {
 					$selected = "selected='selected'";
 				} else {
 					$selected = "";
 				}
-				echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath(array_merge(array(
+				echo "<option $selected value='news.php" . getNewsAdminOptionPath(array_merge(array(
 						'category' => '`'), $option)) . "'>" . gettext("Un-categorized") . "</option>\n";
 
 				foreach ($result as $cat) {
 					$catobj = newCategory($cat['titlelink']);
-					// check if there are articles in this category. If not don't list the category.
 					$count = count($catobj->getArticles(0, 'all'));
 					$count = " (" . $count . ")";
 					if ($category == $cat['titlelink']) {
@@ -782,8 +815,8 @@ function printCategoryDropdown() {
 					if (empty($title)) {
 						$title = '*' . $catobj->getTitlelink() . '*';
 					}
-					if ($count != " (0)") {
-						echo "<option $selected value='admin-news.php" . getNewsAdminOptionPath(array_merge(array(
+					if ($selected || $count != " (0)") { //	don't list empty categories
+						echo "<option $selected value='news.php" . getNewsAdminOptionPath(array_merge(array(
 								'category' => $catobj->getTitlelink()), $option)) . "'>" . $levelmark . $title . $count . "</option>\n";
 					}
 				}
@@ -799,21 +832,21 @@ function printCategoryDropdown() {
  *
  */
 function printArticlesPerPageDropdown($subpage) {
-	global $_zp_CMS, $articles_page;
+	global $_CMS, $articles_page;
 	$option = getNewsAdminOption('articles_page');
 	?>
 	<form name="AutoListBox5" id="articlesperpagedropdown" method="POST" style="float:left; margin:5px;"	action="#">
-		<select name="ListBoxURL" size="1"	onchange="gotoLink(this.form)">
+		<select name="ListBoxURL" size="1"	onchange="npg_gotoLink(this.form)">
 			<?php
 			$list = array_unique(array(15, 30, 60, max(1, getOption('articles_per_page'))));
 			sort($list);
 			foreach ($list as $count) {
 				?>
-				<option <?php if ($articles_page == $count) echo 'selected="selected"'; ?> value="admin-news.php<?php echo getNewsAdminOptionPath(array_merge(array('articles_page' => $count, 'subpage' => (int) ($subpage * $articles_page / $count)), $option)); ?>"><?php printf(gettext('%u per page'), $count); ?></option>
+				<option <?php if ($articles_page == $count) echo 'selected="selected"'; ?> value="news.php<?php echo getNewsAdminOptionPath(array_merge(array('articles_page' => $count, 'subpage' => (int) ($subpage * $articles_page / $count)), $option)); ?>"><?php printf(gettext('%u per page'), $count); ?></option>
 				<?php
 			}
 			?>
-			<option <?php if ($articles_page == 0) echo 'selected="selected"'; ?> value="admin-news.php<?php echo getNewsAdminOptionPath(array_merge(array('articles_page' => 'all'), $option)); ?>"><?php echo gettext("All"); ?></option>
+			<option <?php if ($articles_page == 0) echo 'selected="selected"'; ?> value="news.php<?php echo getNewsAdminOptionPath(array_merge(array('articles_page' => 'all'), $option)); ?>"><?php echo gettext("All"); ?></option>
 		</select>
 
 	</form>
@@ -828,30 +861,19 @@ function printArticlesPerPageDropdown($subpage) {
  * Updates or adds a category
  *
  * @param array $reports the results display
- * @param bool $newcategory true if a new article
  *
  */
-function updateCategory(&$reports, $newcategory = false) {
+function updateCategory(&$reports) {
 	$date = date('Y-m-d_H-i-s');
 	$id = sanitize_numeric($_POST['id']);
 	$permalink = getcheckboxState('permalink');
 	$title = process_language_string_save("title", 2);
 	$desc = process_language_string_save("desc", EDITOR_SANITIZE_LEVEL);
+	$id = sanitize($_POST['id']);
+	$newcategory = $id == 0;
 
 	if ($newcategory) {
-		$titlelink = seoFriendly(get_language_string($title));
-		if (empty($titlelink))
-			$titlelink = seoFriendly($date);
-		$sql = 'SELECT `id` FROM ' . prefix('news_categories') . ' WHERE `titlelink`=' . db_quote($titlelink);
-		$rslt = query_single_row($sql, false);
-		if ($rslt) {
-			//already exists
-			$time = explode(' ', microtime());
-			$titlelink = $titlelink . '_' . ($time[
-							1] + $time[0]);
-			$reports[] = "<p class='warningbox fade-message'>" . gettext('Duplicate category title') . '</p>';
-		}
-		$oldtitlelink = $titlelink;
+		$oldtitlelink = $titlelink = makeNewTitleLink($title, 'news_categories', $reports);
 	} else {
 		$titlelink = $oldtitlelink = sanitize($_POST['titlelink-old'], 3);
 		if (getcheckboxState('edittitlelink')) {
@@ -897,7 +919,7 @@ function updateCategory(&$reports, $newcategory = false) {
 	$cat->setShow($show);
 
 	if ($newcategory) {
-		$msg = zp_apply_filter('new_category', '', $cat);
+		$msg = npgFilters::apply('new_category', '', $cat);
 		if (empty($title)) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Category <em>%s</em> added but you need to give it a <strong>title</strong> before publishing!"), $titlelink) . '</p>';
 		} else if ($notice == '?mismatch=user') {
@@ -909,7 +931,7 @@ function updateCategory(&$reports, $newcategory = false) {
 							] = "<p class='messagebox fade-message'>" . sprintf(gettext("Category <em>%s</em> added"), $titlelink) . '</p>';
 		}
 	} else {
-		$msg = zp_apply_filter('update_category', '', $cat, $oldtitlelink);
+		$msg = npgFilters::apply('update_category', '', $cat, $oldtitlelink);
 		if ($titleok) {
 			if (empty($titlelink) OR empty($title)) {
 				$reports[] = "<p class='errorbox fade-message'>" . gettext("You forgot to give your category a <strong>title or titlelink</strong>!") . "</p>";
@@ -924,9 +946,11 @@ function updateCategory(&$reports, $newcategory = false) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("A category with the title/titlelink <em>%s</em> already exists!"), html_encode($cat->getTitle())) . "</p>";
 		}
 	}
-	zp_apply_filter('save_category_custom_data', NULL, $cat);
-	$cat->save();
-	$msg = zp_apply_filter('edit_error', $msg);
+	npgFilters::apply('save_category_data', $cat);
+	if ($cat->save() == 2) {
+		$msg = "<p class='messagebox fade-message'>" . sprintf(gettext("Nothing was changed."), $titlelink) . '</p>';
+	}
+	$msg = npgFilters::apply('edit_error', $msg);
 	if ($msg) {
 		$reports[] = $msg;
 	}
@@ -941,7 +965,7 @@ function updateCategory(&$reports, $newcategory = false) {
  * @return string
  */
 function printCategoryListSortableTable($cat, $toodeep) {
-	global $_zp_CMS;
+	global $_CMS;
 	if ($toodeep) {
 		$handle = DRAG_HANDLE_ALERT;
 	} else {
@@ -960,7 +984,7 @@ function printCategoryListSortableTable($cat, $toodeep) {
 			<?php echo $handle; ?>
 		</div>
 		<div class="page-list_title">
-			<?php echo "<a href='admin-edit.php?newscategory&amp;titlelink=" . $cat->getTitlelink() . "' title='" . gettext('Edit this category') . "'>" . $cattitle . "</a>" . checkHitcounterDisplay($cat->getHitcounter()); ?>
+			<?php echo '<a href="' . getAdminLink(PLUGIN_FOLDER . '/zenpage/edit.php') . '?newscategory&amp;titlelink=' . $cat->getTitlelink() . '" title="' . gettext('Edit this category') . '">' . $cattitle . '</a>' . checkHitcounterDisplay($cat->getHitcounter()); ?>
 		</div>
 		<div class="page-list_extra">
 			<?php echo $count; ?>
@@ -1001,11 +1025,11 @@ function printCategoryListSortableTable($cat, $toodeep) {
 			</div>
 			<div class="page-list_icon">
 				<?php if ($count == 0) { ?>
-					<img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/placeholder.png"  style="border: 0px;" />
+					<img src="<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/placeholder.png"  style="border: 0px;" />
 					<?php
 				} else {
 					?>
-					<a href="../../../index.php?p=news&amp;category=<?php echo js_encode($cat->getTitlelink()); ?>" title="<?php echo gettext("view category"); ?>">
+					<a href="<?php echo WEBPATH; ?>/index.php?p=news&amp;category=<?php echo js_encode($cat->getTitlelink()); ?>" title="<?php echo gettext("view category"); ?>">
 						<?php echo BULLSEYE_BLUE; ?>
 					</a>
 				<?php } ?>
@@ -1022,7 +1046,7 @@ function printCategoryListSortableTable($cat, $toodeep) {
 			}
 			?>
 			<div class="page-list_icon">
-				<a href="javascript:confirmDelete('admin-categories.php?delete=<?php echo js_encode($cat->getTitlelink()); ?>&amp;tab=categories&amp;XSRFToken=<?php echo getXSRFToken('delete_category') ?>',deleteCategory)"
+				<a href="javascript:confirmDelete('<?php echo getAdminLink(PLUGIN_FOLDER . '/zenpage/categories.php'); ?>?delete=<?php echo js_encode($cat->getTitlelink()); ?>&amp;tab=categories&amp;XSRFToken=<?php echo getXSRFToken('delete_category') ?>',deleteCategory)"
 					 title="<?php echo gettext("Delete Category"); ?>">
 						 <?php echo WASTEBASKET; ?>
 				</a>
@@ -1054,7 +1078,7 @@ function printCategoryCheckboxListEntry($cat, $articleid, $option, $class = '') 
 	$catname = $cat->getTitle();
 	$catlink = $cat->getTitlelink();
 	if ($cat->getPassword()) {
-		$protected = '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/lock.png" />';
+		$protected = '<img src="' . WEBPATH . '/' . CORE_FOLDER . '/images/lock.png" />';
 	} else {
 		$protected = '';
 	}
@@ -1077,23 +1101,23 @@ function printCategoryCheckboxListEntry($cat, $articleid, $option, $class = '') 
  * @return string | bool
  */
 function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', $option = '', $class = 'nestedItem') {
-	global $_zp_CMS;
+	global $_CMS;
 
 	switch ($listtype) {
 		case 'cats-checkboxlist':
-			$items = $_zp_CMS->getAllCategories(false);
+			$items = $_CMS->getAllCategories(false, 'sort_order', false);
 			$classInstantiator = 'newCategory';
 			$rights = LIST_RIGHTS;
 			$ulclass = "";
 			break;
 		case 'cats-sortablelist':
-			$items = $_zp_CMS->getAllCategories(false);
+			$items = $_CMS->getAllCategories(false, 'sort_order', false);
 			$classInstantiator = 'newCategory';
 			$rights = ZENPAGE_NEWS_RIGHTS;
 			$ulclass = " class=\"page-list\"";
 			break;
 		case 'pages-sortablelist':
-			$items = $_zp_CMS->getPages(false);
+			$items = $_CMS->getPages(false, false, NULL, $sorttype = 'sort_order', false);
 			$classInstantiator = 'newPage';
 			$rights = ZENPAGE_PAGES_RIGHTS;
 			$ulclass = " class=\"page-list\"";
@@ -1109,8 +1133,9 @@ function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', 
 	foreach ($items as $item) {
 		$itemobj = $classInstantiator($item['titlelink']);
 		if ($rights == LIST_RIGHTS) {
-			//	list the catagory if the user has it as a maanaged object
-			$ismine = $itemobj->subRights();
+			//	list the catagory if the user has it as a managed object with edit rights
+			$subrights = $itemobj->subRights();
+			$ismine = $subrights & MANAGED_OBJECT_RIGHTS_EDIT;
 		} else {
 			$ismine = $itemobj->isMyItem($rights);
 		}
@@ -1260,20 +1285,20 @@ function checkHitcounterDisplay($item) {
  *
  * @param string $option What the statistic should be shown of: "news", "pages", "categories"
  */
-function getNewsPagesStatistic($option) {
-	global $_zp_CMS;
+function getNewsPagesStatistic($option, $all = TRUE) {
+	global $_CMS;
 	switch ($option) {
 		case "news":
-			$items = $_zp_CMS->getArticles();
+			$items = $_CMS->getArticles();
 			$type = gettext("Articles");
 			break;
 		case "pages":
-			$items = $_zp_CMS->getPages(false);
+			$items = $_CMS->getPages(false);
 			$type = gettext("Pages");
 			break;
 		case "categories":
 			$type = gettext("Categories");
-			$items = $_zp_CMS->getAllCategories(false);
+			$items = $_CMS->getAllCategories(false);
 			break;
 	}
 	$total = count($items);
@@ -1290,51 +1315,55 @@ function getNewsPagesStatistic($option) {
 				$itemobj = newCategory($item['titlelink']);
 				break;
 		}
-		if ($itemobj->getShow() == 1) {
-			$pub++;
+		if ($all || $itemobj->subRights() & MANAGED_OBJECT_RIGHTS_EDIT) {
+			if ($itemobj->getShow()) {
+				$pub++;
+			}
+		} else {
+			$total--;
 		}
 	}
-	$unpub = $total - $pub;
-	return array($total, $type, $unpub);
+	return array($total, $type, $total - $pub);
 }
 
 function printPagesStatistic() {
-	list($total, $type, $unpub) = getNewsPagesStatistic("pages");
+	list($total, $type, $unpub) = getNewsPagesStatistic("pages", FALSE);
 	if (empty($unpub)) {
-		printf(ngettext('<strong>%1$u</strong> page', '<strong>%1$u</strong> pages', $total), $total);
+		printf(ngettext('<strong>%1$u</strong> Page', '<strong>%1$u</strong> Pages', $total), $total);
 	} else {
-		printf(ngettext('<strong>%1$u</strong> page (%2$u un-published)', '<strong>%1$u</strong> pages (%2$u un-published)', $total), $total, $unpub);
+		printf(ngettext('<strong>%1$u</strong> Page (%2$u un-published)', '<strong>%1$u</strong> Pages (%2$u un-published)', $total), $total, $unpub);
 	}
 }
 
-function printNewsStatistic() {
-	list($total, $type, $unpub) = getNewsPagesStatistic("news");
+function printNewsStatistic($total = NULL, $unpub = NULL) {
+	if (is_null($total)) {
+		list($total, $type, $unpub) = getNewsPagesStatistic("news", FALSE);
+	}
 	if (empty($unpub)) {
-		printf(ngettext('<strong>%1$u</strong> article', '<strong>%1$u</strong> articles', $total), $total);
+		printf(ngettext('<strong>%1$u</strong> Article', '<strong>%1$u</strong> Articles', $total), $total);
 	} else {
-		printf(ngettext('<strong>%1$u</strong> article (%2$u un-published)', '<strong>%1$u</strong> articles (%2$u un-published)', $total), $total, $unpub);
+		printf(ngettext('<strong>%1$u</strong> Article (%2$u un-published)', '<strong>%1$u</strong> Articles (%2$u un-published)', $total), $total, $unpub);
 	}
 }
 
 function printCategoriesStatistic() {
-	list($total, $type, $unpub) = getNewsPagesStatistic("categories");
+	list($total, $type, $unpub) = getNewsPagesStatistic("categories", FALSE);
 	if (empty($unpub)) {
-		printf(ngettext('<strong>%1$u</strong> category', '<strong>%1$u</strong> categories', $total), $total);
+		printf(ngettext('<strong>%1$u</strong> Category', '<strong>%1$u</strong> Categories', $total), $total);
 	} else {
-		printf(ngettext('<strong>%1$u</strong> category (%2$u un-published)', '<strong>%1$u</strong> categories (%2$u un-published)', $total), $total, $unpub);
+		printf(ngettext('<strong>%1$u</strong> Category (%2$u un-published)', '<strong>%1$u</strong> Categories (%2$u un-published)', $total), $total, $unpub);
 	}
 }
 
 /**
  * Prints the links to JavaScript and CSS files zenpage needs.
- * Actually the same as for zenphoto but with different paths since we are in the plugins folder.
  *
  * @param bool $sortable set to true for tabs with sorts.
  *
  */
 function zenpageJSCSS() {
+	scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/zenpage/zenpage.css');
 	?>
-	<link rel="stylesheet" href="zenpage.css" type="text/css" />
 	<script type="text/javascript">
 		// <!-- <![CDATA[
 		window.addEventListener('load', function () {
@@ -1396,34 +1425,6 @@ function printZenpageIconLegend() {
 }
 
 /**
- * Prints a dropdown to select the author of a page or news article (Admin rights users only)
- *
- * @param string $currentadmin The current admin is selected if adding a new article, otherwise the original author
- */
-function authorSelector($author = NULL) {
-	global $_zp_authority, $_zp_current_admin_obj;
-	if (empty($author)) {
-		$author = $_zp_current_admin_obj->getUser();
-	}
-	$authors = array($author => $author);
-	if (zp_loggedin(MANAGE_ALL_PAGES_RIGHTS | MANAGE_ALL_NEWS_RIGHTS)) {
-		$admins = $_zp_authority->getAdministrators();
-		foreach ($admins as $admin) {
-			if ($admin['rights'] & (ADMIN_RIGHTS | ZENPAGE_PAGES_RIGHTS | ZENPAGE_NEWS_RIGHTS)) {
-				$authors[$admin['user']] = $admin['user'];
-			}
-		}
-	}
-	?>
-	<select size='1' name="author" id="author">
-		<?php
-		generateListFromArray(array($author), $authors, false, false);
-		?>
-	</select>
-	<?php
-}
-
-/**
  * Prints data info for objects
  *
  * @param string $object Object of the page or news article to check
@@ -1468,27 +1469,23 @@ function printPublishIconLink($object, $urladd) {
 	}
 	if ($object->getShow()) {
 		$title = gettext("Un-publish");
-		?>
-		<a href="?publish=0&amp;titlelink=<?php echo html_encode($object->getTitlelink()) . $urladd; ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>" title="<?php echo $title; ?>">
-			<?php echo CHECKMARK_GREEN; ?>
-		</a>
-		<?php
+		$icon = CHECKMARK_GREEN;
+		$publish = 0;
 	} else {
+		$title = gettext("Publish");
+		$publish = 1;
 		if ($object->getPublishDate() > date('Y-m-d H:i:s')) {
 			//overriding scheduling
-			?>
-			<a href="?publish=2&amp;titlelink=<?php echo html_encode($object->getTitlelink()) . $urladd; ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>">
-				<?php echo CLOCKFACE; ?>
-			</a>
-			<?php
+			$icon = CLOCKFACE;
 		} else {
-			?>
-			<a href="?publish=1&amp;titlelink=<?php echo html_encode($object->getTitlelink()) . $urladd; ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>">
-				<?php echo EXCLAMATION_RED; ?>
-			</a>
-			<?php
+			$icon = EXCLAMATION_RED;
 		}
 	}
+	?>
+	<a href="?publish=<?php echo $publish; ?>&amp;titlelink=<?php echo html_encode($object->getTitlelink()) . $urladd; ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>" title="<?php echo $title; ?>">
+		<?php echo $icon; ?>
+	</a>
+	<?php
 }
 
 /**
@@ -1510,19 +1507,19 @@ function checkIfChecked($field) {
  * @return bool
  */
 function checkIfLocked($obj) {
-	global $_zp_current_admin_obj;
+	global $_current_admin_obj;
 	if ($obj->getLocked()) {
-		if (zp_loggedin($obj->manage_rights)) {
+		if (npg_loggedin($obj->manage_rights)) {
 			return true;
 		}
-		return $obj->getAuthor() == $_zp_current_admin_obj->getUser();
+		return $obj->getOwner() == $_current_admin_obj->getUser();
 	} else {
 		return true;
 	}
 }
 
 /**
- * Checks if the current admin-edit.php page is called for news articles or for pages.
+ * Checks if the current edit.php page is called for news articles or for pages.
  *
  * @param string $page What you want to check for, "page" or "newsarticle"
  * @return bool
@@ -1536,7 +1533,7 @@ function is_AdminEditPage($page) {
  *
  */
 function processZenpageBulkActions($type) {
-	global $_zp_CMS;
+	global $_CMS;
 	$action = false;
 	if (isset($_POST['ids'])) {
 		//echo "action for checked items:". $_POST['checkallaction'];
@@ -1552,7 +1549,7 @@ function processZenpageBulkActions($type) {
 				$table = 'news_categories';
 				break;
 		}
-		$result = zp_apply_filter('processBulkCMSSave', NULL, $action, $table);
+		$result = npgFilters::apply('processBulkCMSSave', NULL, $action, $table);
 		$links = sanitize($_POST['ids']);
 		$total = count($links);
 		$message = NULL;
@@ -1568,6 +1565,9 @@ function processZenpageBulkActions($type) {
 					} else {
 						$cats = array();
 					}
+				}
+				if ($action == 'changeowner') {
+					$newowner = sanitize($_POST['massownerselect']);
 				}
 				$n = 0;
 				foreach ($links as $titlelink) {
@@ -1606,7 +1606,7 @@ function processZenpageBulkActions($type) {
 								$catarray = array();
 								$allcats = $obj->getCategories();
 								foreach ($cats as $cat) {
-									$catitem = $_zp_CMS->getCategory($cat);
+									$catitem = $_CMS->getCategory($cat);
 									$catarray[] = $catitem['titlelink']; //to use the setCategories method we need an array with just the titlelinks!
 								}
 								$allcatsarray = array();
@@ -1633,6 +1633,9 @@ function processZenpageBulkActions($type) {
 								break;
 							case 'resethitcounter':
 								$obj->set('hitcounter', 0);
+								break;
+							case 'changeowner':
+								$obj->setOwner($newowner);
 								break;
 						}
 					} else {
@@ -1685,7 +1688,7 @@ function zenpageBulkActionMessage($action) {
 			$message = gettext('Categories cleared from selected items');
 			break;
 		default:
-			return "<p class='notebox fade-message'>" . gettext('Nothing changed') . "</p>";
+			return false;
 	}
 	if (isset($message)) {
 		return "<p class='messagebox fade-message'>" . $message . "</p>";

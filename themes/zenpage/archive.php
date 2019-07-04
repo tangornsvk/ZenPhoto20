@@ -7,14 +7,18 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php
+		npgFilters::apply('theme_head');
 
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Gallery', gettext('Gallery RSS')); ?>
+		scriptLoader($_themeroot . '/style.css');
+
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Gallery', gettext('Gallery'));
+		?>
 	</head>
 
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<div id="main">
 
@@ -29,18 +33,18 @@ if (!defined('WEBPATH'))
 
 
 			<div id="breadcrumb">
-				<h2><a href="<?php echo getGalleryIndexURL(); ?>" title="<?php gettext('Index'); ?>"><?php echo gettext("Index"); ?></a> » <strong><?php echo gettext("Archive View"); ?></strong>
+				<h2><a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Index'); ?>"><?php echo gettext("Index"); ?></a> » <strong><?php echo gettext("Archive View"); ?></strong>
 				</h2>
 			</div>
 
 			<div id="content">
 				<div id="content-left">
 					<div id="archive">
-						<h3><?php echo gettext('Gallery archive'); ?></h3>
+						<h3><?php echo gettext('Gallery'); ?></h3>
 						<?php printAllDates(); ?>
 						<hr />
-						<?php if (extensionEnabled('zenpage') && getNumNews(true)) { ?>
-							<h3><?php echo gettext('News archive'); ?></h3>
+						<?php if (extensionEnabled('zenpage') && hasNews()) { ?>
+							<h3><?php echo NEWS_LABEL; ?></h3>
 							<?php printNewsArchive("archive"); ?>
 							<hr />
 						<?php } ?>
@@ -65,7 +69,7 @@ if (!defined('WEBPATH'))
 
 		</div><!-- main -->
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

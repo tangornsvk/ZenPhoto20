@@ -1,7 +1,7 @@
 <?php
 /**
  * Responsive JavaScript carousel thumb nav plugin adapted from
- * http://bxslider.com
+ * https://bxslider.com
  *
  * Place <var>printThumbNav()</var> on your theme's image.php where you want it to appear.
  *
@@ -9,12 +9,11 @@
  *
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard), Fred Sondaar (fretzl)
- * @package plugins
- * @subpackage theme
+ * @package plugins/bxslider_thumb_nav
+ * @pluginCategory theme
  */
 $plugin_description = gettext("Responsive jQuery bxSlider thumb nav plugin based on <a href='http://bxslider.com'>http://bxslider.com</a>");
-$plugin_author = "Malte Müller (acrylian), Stephen Billard (sbillard), Fred Sondaar (fretzl)";
-$plugin_disable = (extensionEnabled('jcarousel_thumb_nav')) ? sprintf(gettext('Only one Carousel plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), 'jcarousel_thumb_nav') : '';
+$plugin_disable = (extensionEnabled('jCarousel_thumb_nav')) ? sprintf(gettext('Only one Carousel plugin may be enabled. <a href="#%1$s"><code>%1$s</code></a> is already enabled.'), 'jCarousel_thumb_nav') : '';
 $option_interface = 'bxslider';
 
 /**
@@ -31,13 +30,12 @@ class bxslider {
 			setOptionDefault('bxslider_height', '50');
 			setOptionDefault('bxslider_croph', '50');
 			setOptionDefault('bxslider_cropw', '50');
-			setOptionDefault('bxslider_speed', '500');
 			setOptionDefault('bxslider_fullimagelink', '');
 			setOptionDefault('bxslider_mode', 'horizontal');
+
 			$found = array();
 			$result = getOptionsLike('bxslider_');
 			foreach ($result as $option) {
-
 				preg_match('/bxslider_(.*)_(.*)/', $option, $matches);
 				if (count($matches) == 3 && $matches[2] != 'scripts') {
 					if ($value) {
@@ -46,19 +44,19 @@ class bxslider {
 					purgeOption('bxslider_' . $matches[1] . '_' . $matches[2]);
 				}
 			}
-
 			foreach ($found as $theme => $scripts) {
 				setOptionDefault('bxslider_' . $theme . '_scripts', serialize($scripts));
 			}
+
 			if (class_exists('cacheManager')) {
-				cacheManager::deleteThemeCacheSizes('bxslider_thumb_nav');
-				cacheManager::addThemeCacheSize('bxslider_thumb_nav', NULL, getOption('bxslider_width'), getOption('bxslider_height'), getOption('bxslider_cropw'), getOption('bxslider_croph'), NULL, NULL, true, NULL, NULL, NULL);
+				cacheManager::deleteCacheSizes('bxslider_thumb_nav');
+				cacheManager::addCacheSize('bxslider_thumb_nav', NULL, getOption('bxslider_width'), getOption('bxslider_height'), getOption('bxslider_cropw'), getOption('bxslider_croph'), NULL, NULL, true, NULL, NULL, NULL);
 			}
 		}
 	}
 
 	function getOptionsSupported() {
-		global $_zp_gallery;
+		global $_gallery;
 		$options = array(
 				gettext('Minimum items') => array('key' => 'bxslider_minitems', 'type' => OPTION_TYPE_NUMBER,
 						'desc' => gettext("The minimum number of slides to be shown. Slides will be sized down if carousel becomes smaller than the original size."),
@@ -78,9 +76,6 @@ class bxslider {
 				gettext('Crop height') => array('key' => 'bxslider_croph', 'type' => OPTION_TYPE_NUMBER,
 						'desc' => "",
 						'order' => 6),
-				gettext('Speed') => array('key' => 'bxslider_speed', 'type' => OPTION_TYPE_NUMBER,
-						'desc' => gettext("The speed in milliseconds the slides advance when clicked."),
-						'order' => 7),
 				gettext('Full image link') => array('key' => 'bxslider_fullimagelink', 'type' => OPTION_TYPE_CHECKBOX,
 						'desc' => gettext("If checked the thumbs link to the full image instead of the image page."),
 						'order' => 8),
@@ -116,54 +111,24 @@ class bxslider {
 	 *
 	 * @param string $theme
 	 * @param array $scripts list of the scripts
+	 * @deprecated
 	 */
 	static function registerScripts($scripts, $theme = NULL) {
-		if (is_null($theme)) {
-			list($theme, $creaator) = getOptionOwner();
-		}
-		setOptionDefault('bxslider_' . $theme . '_scripts', serialize($scripts));
+		require_once(CORE_SERVERPATH .  PLUGIN_FOLDER . '/deprecated-functions.php');
+		deprecated_functions::notify('registerScripts() is no longer used. You may delete the calls.');
 	}
 
-	/**
-	 * Checks if the theme script is registered for colorbox. If not it will register the script
-	 * so next time things will workl
-	 *
-	 * @global type $_zp_gallery
-	 * @global type $_zp_gallery_page
-	 * @param string $theme
-	 * @param string $script
-	 * @return boolean true registered
-	 */
-	static function scriptEnabled($theme, $script) {
-		global $_zp_gallery, $_zp_gallery_page;
-		$scripts = getSerializedArray(getOption('bxslider_' . $_zp_gallery->getCurrentTheme() . '_scripts'));
-		if (!in_array(stripSuffix($_zp_gallery_page), $scripts)) {
-			array_push($scripts, $script);
-			setOption('bxslider_' . $theme . '_scripts', serialize($scripts));
-			return false;
-		}
-		return true;
-	}
-
-	static function themeJS() {
+	static function js() {
+		global $_bxslider_scripts;
 		$theme = getCurrentTheme();
-		$css = SERVERPATH . '/' . THEMEFOLDER . '/' . internalToFilesystem($theme) . '/jquery.bxslider.css';
-		if (file_exists($css)) {
-			$css = WEBPATH . '/' . THEMEFOLDER . '/' . $theme . '/jquery.bxslider.css';
-		} else {
-			$css = WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/bxslider_thumb_nav/jquery.bxslider.css';
-		}
-		?>
-
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/bxslider_thumb_nav/jquery.bxslider.min.js"></script>
-		<link rel="stylesheet" type="text/css" href="<?php echo html_encode($css); ?>" />
-		<?php
+		$_bxslider_scripts = getPlugin('bxslider_thumb_nav/jquery.bxslider.min.css', getCurrentTheme());
+		scriptLoader(CORE_SERVERPATH .  PLUGIN_FOLDER . '//bxslider_thumb_nav/jquery.bxslider.min.js');
+		scriptLoader($_bxslider_scripts);
 	}
 
 }
 
-if (!$plugin_disable && !OFFSET_PATH && in_array(stripSuffix($_zp_gallery_page), getSerializedArray(getOption('bxslider_' . $_zp_gallery->getCurrentTheme() . '_scripts')))) {
-	zp_register_filter('theme_head', 'bxslider::themeJS');
+if (extensionEnabled('bxslider_thumb_nav') && !OFFSET_PATH) {
 
 	/** Prints the jQuery bxslider HTML setup to be replaced by JS
 	 *
@@ -176,14 +141,15 @@ if (!$plugin_disable && !OFFSET_PATH && in_array(stripSuffix($_zp_gallery_page),
 	 * @param bool $crop TRUE for cropped thumbs, FALSE for un-cropped thumbs. $width and $height then will be used as maxspace. Set to NULL if you want to use the backend plugin options.
 	 * @param bool $fullimagelink Set to TRUE if you want the thumb link to link to the full image instead of the image page. Set to NULL if you want to use the backend plugin options.
 	 * @param string $mode 'horizontal','vertical', 'fade'
-	 * @param int $speed The speed in milliseconds the slides advance when clicked
 	 */
-	function printThumbNav($minitems = NULL, $maxitems = NULL, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $fullimagelink = NULL, $mode = NULL, $speed = NULL) {
-		global $_zp_gallery, $_zp_current_album, $_zp_current_image, $_zp_current_search, $_zp_gallery_page;
+	function printThumbNav($minitems = NULL, $maxitems = NULL, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $fullimagelink = NULL, $mode = NULL) {
+		global $_gallery, $_current_album, $_current_image, $_current_search, $_gallery_page, $_bxslider_scripts;
 		//	Just incase the theme has not set the option, at least second try will work!
-		bxslider::scriptEnabled($_zp_gallery->getCurrentTheme(), stripSuffix($_zp_gallery_page));
-		$items = "";
-		if (is_object($_zp_current_album) && $_zp_current_album->getNumImages() >= 2) {
+		if (is_null($_bxslider_scripts)) {
+			bxslider::js();
+		}
+		$items = array();
+		if (is_object($_current_album) && $_current_album->getNumImages() >= 2) {
 			if (is_null($minitems)) {
 				$minitems = getOption('bxslider_minitems');
 			} else {
@@ -222,13 +188,8 @@ if (!$plugin_disable && !OFFSET_PATH && in_array(stripSuffix($_zp_gallery_page),
 			if (is_null($mode)) {
 				$mode = getOption('bxslider_mode');
 			}
-			if (is_null($speed)) {
-				$speed = getOption('bxslider_speed');
-			} else {
-				$speed = sanitize_numeric($speed);
-			}
-			if (in_context(ZP_SEARCH_LINKED)) {
-				if ($_zp_current_search->getNumImages() === 0) {
+			if (in_context(SEARCH_LINKED)) {
+				if ($_current_search->getNumImages() === 0) {
 					$searchimages = false;
 				} else {
 					$searchimages = true;
@@ -236,28 +197,28 @@ if (!$plugin_disable && !OFFSET_PATH && in_array(stripSuffix($_zp_gallery_page),
 			} else {
 				$searchimages = false;
 			}
-			if (in_context(ZP_SEARCH_LINKED) && $searchimages) {
-				$bxslider_items = $_zp_current_search->getImages();
+			if (in_context(SEARCH_LINKED) && $searchimages) {
+				$bxslider_items = $_current_search->getImages();
 			} else {
-				$bxslider_items = $_zp_current_album->getImages();
+				$bxslider_items = $_current_album->getImages();
 			}
 			if (count($bxslider_items) >= 2) {
 				foreach ($bxslider_items as $item) {
-					$imgobj = newImage($_zp_current_album, $item);
+					$imgobj = newImage($_current_album, $item);
 					if ($fullimagelink) {
 						$link = $imgobj->getFullImageURL();
 					} else {
 						$link = $imgobj->getLink();
 					}
-					if (!is_null($_zp_current_image)) {
-						if ($_zp_current_album->isDynamic()) {
-							if ($_zp_current_image->filename == $imgobj->filename && $_zp_current_image->getAlbum()->name == $imgobj->getAlbum()->name) {
+					if (!is_null($_current_image)) {
+						if ($_current_album->isDynamic()) {
+							if ($_current_image->filename == $imgobj->filename && $_current_image->getAlbum()->name == $imgobj->getAlbum()->name) {
 								$active = ' class="activeimg" ';
 							} else {
 								$active = '';
 							}
 						} else {
-							if ($_zp_current_image->filename == $imgobj->filename) {
+							if ($_current_image->filename == $imgobj->filename) {
 								$active = ' class="activeimg" ';
 							} else {
 								$active = '';
@@ -270,10 +231,9 @@ if (!$plugin_disable && !OFFSET_PATH && in_array(stripSuffix($_zp_gallery_page),
 					$items[] = '<li' . $active . '><a href="' . $link . '"><img src="' . html_encode($imageurl) . '" alt="' . html_encode($imgobj->getTitle()) . '"></a></li>';
 				}
 			}
-			$albumid = $_zp_current_album->get('id');
-			//$items = substr($items, 0, -2);
+			$albumid = $_current_album->get('id');
 			$numimages = getNumImages();
-			if (!is_null($_zp_current_image)) {
+			if (!is_null($_current_image)) {
 				$imgnumber = (imageNumber() - 1);
 			} else {
 				$imgnumber = 0;
@@ -296,7 +256,6 @@ if (!$plugin_disable && !OFFSET_PATH && in_array(stripSuffix($_zp_gallery_page),
 						mode: '<?php echo $mode; ?>',
 						minSlides: <?php echo $minitems; ?>,
 						maxSlides: <?php echo $maxitems; ?>,
-						speed: <?php echo $speed; ?>,
 						slideWidth: <?php echo $width; ?>,
 						slideMargin: 5,
 						moveSlides: <?php echo $maxitems; ?> - 1,

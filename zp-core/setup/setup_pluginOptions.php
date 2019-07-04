@@ -8,28 +8,40 @@
  * @package setup
  *
  */
-list($usec, $sec) = explode(" ", microtime());
-$start = (float) $usec + (float) $sec;
-
 define('OFFSET_PATH', 2);
 require_once('setup-functions.php');
 register_shutdown_function('shutDownFunction');
-require_once(dirname(dirname(__FILE__)) . '/admin-globals.php');
-require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/cacheManager.php');
-$debug = TEST_RELEASE || isset($_GET['debug']);
+require_once(dirname(dirname(__FILE__)) . '/functions-basic.php');
 
-$iMutex = new zpMutex('i', getOption('imageProcessorConcurrency'));
-$iMutex->lock();
+npg_session_start();
+
+require_once(dirname(dirname(__FILE__)) . '/initialize-basic.php');
+
+list($usec, $sec) = explode(" ", microtime());
+$startPO = (float) $usec + (float) $sec;
+
+require_once(dirname(dirname(__FILE__)) . '/admin-globals.php');
+@ini_set('display_errors', 1);
+require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/cacheManager.php');
+
+define('ZENFOLDER', CORE_FOLDER); //	since the zenphotoCompatibilityPack will not be present
+
+$fullLog = isset($_GET['fullLog']);
 
 $extension = sanitize($_REQUEST['plugin']);
-setupLog(sprintf(gettext('Plugin:%s setup started'), $extension));
-$option_interface = NULL;
-$plugin_is_filter = 5 | THEME_PLUGIN;
+$__script = 'Plugin:' . $extension;
 
-require_once($path = getPlugin($extension . '.php'));
+setupLog(sprintf(gettext('Plugin:%s setup started'), $extension), $fullLog);
 
+$path = getPlugin($extension . '.php');
+$p = file_get_contents($path);
 if (extensionEnabled($extension)) {
 	//	update the enabled priority
+	if ($str = isolate('$plugin_is_filter', $p)) {
+		eval($str);
+	} else {
+		$plugin_is_filter = 5 | THEME_PLUGIN;
+	}
 	$priority = $plugin_is_filter & PLUGIN_PRIORITY;
 	if ($plugin_is_filter & CLASS_PLUGIN) {
 		$priority .= ' | CLASS_PLUGIN';
@@ -43,31 +55,41 @@ if (extensionEnabled($extension)) {
 	if ($plugin_is_filter & THEME_PLUGIN) {
 		$priority .= ' | THEME_PLUGIN';
 	}
-	setupLog(sprintf(gettext('Plugin:%s enabled (%2$s)'), $extension, $priority));
+	setupLog(sprintf(gettext('Plugin:%s enabled (%2$s)'), $extension, $priority), $fullLog);
 	enableExtension($extension, $plugin_is_filter);
 }
-if (strpos($path, SERVERPATH . '/' . USER_PLUGIN_FOLDER) === 0) {
-	$pluginStream = file_get_contents($path);
-	if ($str = isolate('@category', $pluginStream)) {
-		preg_match('|@category\s+(.*)\s|', $str, $matches);
-		$deprecate = !isset($matches[1]) || $matches[1] != 'package';
-	} else {
-		$deprecate = true;
+
+$_conf_vars['special_pages'] = array(); //	we want to look only at ones set by this plugin
+require_once($path); //	If it faults the shutdown functioin will disable it
+foreach ($_conf_vars['special_pages'] as $definition) {
+	if (isset($definition['option'])) {
+		setOptionDefault($definition['option'], $definition['default'], '', CORE_FOLDER . '/' . PLUGIN_FOLDER . '/' . $extension . '.php');
 	}
-} else {
-	$deprecate = false;
 }
-if ($option_interface) {
+if ($str = isolate('$option_interface', $p)) {
 	//	prime the default options
-	setupLog(sprintf(gettext('Plugin:%1$s option interface instantiated (%2$s)'), $extension, $option_interface));
+	eval($str);
+	setupLog(sprintf(gettext('Plugin:%1$s option interface instantiated (%2$s)'), $extension, $option_interface), $fullLog);
 	$option_interface = new $option_interface;
+	if (method_exists($option_interface, 'getOptionsSupported')) {
+		ob_start(); //	some plugins emit output from the getOptionsSupported() method
+		$options = $option_interface->getOptionsSupported();
+		ob_end_clean();
+		$owner = replaceScriptPath($path);
+		foreach ($options as $option) {
+			if (isset($option['key'])) {
+				setOptionDefault($option['key'], NULL, '', $owner);
+			}
+		}
+	}
 }
 
-$iMutex->unlock();
-
-sendImage($deprecate);
+sendImage($_GET['class'], 'plugin_' . $extension);
 
 list($usec, $sec) = explode(" ", microtime());
 $last = (float) $usec + (float) $sec;
-setupLog(sprintf(gettext('Plugin:%1$s setup completed in %2$.4f seconds'), $extension, $last - $start));
+/* and record that we finished */
+setupLog(sprintf(gettext('Plugin:%1$s setup completed in %2$.4f seconds'), $extension, $last - $startPO), $fullLog);
+
+exit();
 ?>

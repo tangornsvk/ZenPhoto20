@@ -1,11 +1,14 @@
 <?php
+/**
+ * @package plugins/publishContent
+ */
 define('OFFSET_PATH', 3);
 require_once("../../admin-globals.php");
-require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
+require_once(CORE_SERVERPATH . 'template-functions.php');
 admin_securityChecks(ALBUM_RIGHTS, currentRelativeURL());
 
 function unpublishSubalbums($album) {
-	global $_zp_gallery;
+	global $_gallery, $_current_admin_obj;
 	$albums = $album->getAlbums();
 	foreach ($albums as $albumname) {
 		$subalbum = newAlbum($albumname);
@@ -42,9 +45,9 @@ $publish_images_list = array();
 
 if (isset($_POST['set_defaults'])) {
 	XSRFdefender('publishContent');
-	$_zp_gallery->setAlbumPublish((int) isset($_POST['album_default']));
-	$_zp_gallery->setImagePublish((int) isset($_POST['image_default']));
-	$_zp_gallery->save();
+	$_gallery->setAlbumPublish((int) isset($_POST['album_default']));
+	$_gallery->setImagePublish((int) isset($_POST['image_default']));
+	$_gallery->save();
 	$report = 'defaults';
 } else if (isset($_POST['publish'])) {
 	$action = sanitize($_POST['publish']);
@@ -107,8 +110,8 @@ if (isset($_POST['set_defaults'])) {
 	}
 }
 if ($report) {
-	header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/publishContent/publishContent.php?tab=content&report=' . $report);
-	exitZP();
+	header('Location: ' . getAdminLink(PLUGIN_FOLDER . '/publishContent/publishContent.php') . '?tab=content&report=' . $report);
+	exit();
 } else {
 	if (isset($_GET['report'])) {
 		$report = sanitize($_GET['report']);
@@ -133,8 +136,8 @@ datepickerJS();
 		jQuery('#' + id).toggle();
 	}
 </script>
-<link rel="stylesheet" href="publishContent.css" type="text/css" media="screen" />
 <?php
+scriptLoader(CORE_SERVERPATH . PLUGIN_FOLDER . '/publishContent/publishContent.css');
 echo "</head>\n";
 ?>
 <body>
@@ -142,12 +145,12 @@ echo "</head>\n";
 	<div id="main">
 		<?php printTabs(); ?>
 		<div id="content">
-			<?php zp_apply_filter('admin_note', 'schedule', ''); ?>
+			<?php npgFilters::apply('admin_note', 'schedule', ''); ?>
 			<h1><?php echo (gettext('Manage content publication')); ?></h1>
 			<div class="tabbox">
 				<?php
-				$albpublish = $_zp_gallery->getAlbumPublish();
-				$imgpublish = $_zp_gallery->getImagePublish();
+				$albpublish = $_gallery->getAlbumPublish();
+				$imgpublish = $_gallery->getImagePublish();
 				if (isset($_POST['publish_date'])) {
 					$requestdate = dateTimeConvert(sanitize($_POST['publish_date']));
 				} else {
@@ -156,8 +159,8 @@ echo "</head>\n";
 
 				$albumidlist = '';
 				$albumids = '';
-				if (zp_loggedin(ADMIN_RIGHTS)) {
-					$albumlist = $_zp_gallery->getAlbums();
+				if (npg_loggedin(ADMIN_RIGHTS)) {
+					$albumlist = $_gallery->getAlbums();
 				} else {
 					$albumlist = getManagedAlbumList();
 					$albumIDs = array();
@@ -212,7 +215,7 @@ echo "</head>\n";
 					ksort($publish_images_list, SORT_LOCALE_STRING);
 				}
 
-				if (zp_loggedin(ADMIN_RIGHTS)) { //only admin should be allowed to do this
+				if (npg_loggedin(ADMIN_RIGHTS)) { //only admin should be allowed to do this
 					?>
 					<fieldset class="smallbox">
 						<legend><?php echo gettext('Image and album <em>Discovery</em> options'); ?></legend>
@@ -229,9 +232,15 @@ echo "</head>\n";
 							<form class="dirtylistening" onReset="setClean('set_publication_form');" id="set_publication_form" name="set_publication" action="?tab=content" method="post" autocomplete="off">
 								<?php XSRFToken('publishContent'); ?>
 								<input type="hidden" name="set_defaults" value="true" />
-								<label><input type="checkbox" name="album_default"	value="1"<?php if ($albpublish) echo ' checked="checked"'; ?> /> <?php echo gettext("Publish albums by default"); ?></label>
+								<label>
+									<input type="checkbox" name="album_default"	value="1"<?php if ($albpublish) echo ' checked="checked"'; ?> />
+									<?php echo gettext("Publish albums by default"); ?>
+								</label>
 								&nbsp;&nbsp;&nbsp;
-								<label><input type="checkbox" name="image_default"	value="1"<?php if ($imgpublish) echo ' checked="checked"'; ?> /> <?php echo gettext("Publish images by default"); ?></label>
+								<label>
+									<input type="checkbox" name="image_default"	value="1"<?php if ($imgpublish) echo ' checked="checked"'; ?> />
+									<?php echo gettext("Publish images by default"); ?>
+								</label>
 								<br class="clearall">
 								<br class="clearall">
 								<div class="buttons pad_button" id="setdefaults">
@@ -303,11 +312,11 @@ echo "</head>\n";
 										<li>
 											<label>
 												<input type="checkbox" class="checkAuto" name="<?php echo postIndexEncode($analbum); ?>" value="<?php echo $albumid; ?>" class="albumcheck" />
-												<img src="<?php echo html_encode(pathurlencode($thumb)); ?>" width="60" height="60" alt="" title="album thumb" />
+												<img src="<?php echo html_encode($thumb); ?>" width="60" height="60" alt="" title="album thumb" />
 												<?php echo $album->name; ?>
 											</label>
 											<a href="<?php echo $album->getLink(); ?>" title="<?php echo gettext('view'); ?>"> (<?php echo gettext('view'); ?>)</a>
-											<a href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin-edit.php?page=edit&album=<?php echo html_encode($album->name); ?>" title="<?php echo gettext('Edit'); ?>"> (<?php echo gettext('Edit'); ?>)</a>
+											<a href="<?php echo getAdminLink('admin-tabs/edit.php'); ?>?page=edit&album=<?php echo html_encode($album->name); ?>" title="<?php echo gettext('Edit'); ?>"> (<?php echo gettext('Edit'); ?>)</a>
 										</li>
 										<?php
 									}
@@ -349,7 +358,7 @@ echo "</head>\n";
 						$("#publish_date").datepicker({
 							dateFormat: 'yy-mm-dd',
 							showOn: 'button',
-							buttonImage: '<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/calendar.png',
+							buttonImage: '<?php echo WEBPATH . '/' . CORE_FOLDER; ?>/images/calendar.png',
 							buttonText: '<?php echo gettext('calendar'); ?>',
 							buttonImageOnly: true
 						});
@@ -466,10 +475,10 @@ echo "</head>\n";
 																</td>
 																<td>
 																	<?php $image = newImage($album, $display); ?>
-																	<img src="<?php echo html_encode(pathurlencode(getAdminThumb($image, 'medium'))); ?>" alt="<?php echo $image->filename; ?>"/>
+																	<img src="<?php echo html_encode(getAdminThumb($image, 'medium')); ?>" alt="<?php echo $image->filename; ?>"/>
 																</td>
 																<td>
-																	<?php echo $display; ?> <a href="<?php echo html_encode($image->getLink()); ?>" title="<?php echo html_encode($image->getTitle()); ?>">(<?php echo gettext('View'); ?>) </a><a href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin-edit.php?page=edit&tab=imageinfo&album=<?php echo html_encode($image->album->name); ?>&singleimage=<?php echo html_encode($image->getFilename()); ?>&subpage=1">(<?php echo gettext('Edit'); ?>)</a>
+																	<?php echo $display; ?> <a href="<?php echo html_encode($image->getLink()); ?>" title="<?php echo html_encode($image->getTitle()); ?>">(<?php echo gettext('View'); ?>) </a><a href="<?php echo getAdminLink('admin-tabs/edit.php'); ?>?page=edit&tab=imageinfo&album=<?php echo html_encode($image->album->name); ?>&singleimage=<?php echo html_encode($image->getFilename()); ?>&subpage=1">(<?php echo gettext('Edit'); ?>)</a>
 																</td>
 															</tr>
 														</table>
@@ -516,7 +525,7 @@ echo "</head>\n";
 				<?php
 				if (class_exists('CMS')) {
 					$visible = $report == 'categories';
-					$items = $_zp_CMS->getAllCategories(false);
+					$items = $_CMS->getAllCategories(false);
 					$output = '';
 					$c = 0;
 					foreach ($items as $key => $item) {
@@ -527,7 +536,7 @@ echo "</head>\n";
 							if ($desc = shortenContent($itemobj->getDesc(), 50, '...')) {
 								$output .= ' "' . strip_tags($desc) . '"';
 							}
-							$output .= ' <a href="' . html_encode($itemobj->getLink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('View') . ')</a> <a href="' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/admin-edit.php?newscategory&titlelink=' . html_encode($itemobj->getTitlelink()) . '">(' . gettext('Edit') . ')</a></li>';
+							$output .= ' <a href="' . html_encode($itemobj->getLink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('View') . ')</a> <a href="' . getAdminLink(PLUGIN_FOLDER . '/zenpage/edit.php') . '?newscategory&titlelink=' . html_encode($itemobj->getTitlelink()) . '">(' . gettext('Edit') . ')</a></li>';
 						}
 					}
 					?>
@@ -581,7 +590,7 @@ echo "</head>\n";
 					<br class="clearall">
 					<?php
 					$visible = $report == 'news';
-					$items = $_zp_CMS->getArticles(0, false);
+					$items = $_CMS->getArticles(0, false);
 					$output = '';
 					$c = 0;
 					foreach ($items as $key => $item) {
@@ -592,7 +601,7 @@ echo "</head>\n";
 							if ($desc = shortenContent($itemobj->getContent(), 50, '...')) {
 								$output .= ' "' . strip_tags($desc) . '"';
 							}
-							$output .= ' <a href="' . html_encode($itemobj->getLink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('View') . ') </a><a href="' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/admin-edit.php?newscategory&titlelink=' . html_encode($itemobj->getTitlelink()) . '">(' . gettext('Edit') . ')</a></li>';
+							$output .= ' <a href="' . html_encode($itemobj->getLink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('View') . ') </a><a href="' . getAdminLink(PLUGIN_FOLDER . '/zenpage/edit.php') . '?newscategory&titlelink=' . html_encode($itemobj->getTitlelink()) . '">(' . gettext('Edit') . ')</a></li>';
 						}
 					}
 					?>
@@ -644,7 +653,7 @@ echo "</head>\n";
 					</fieldset>
 					<?php
 					$visible = $report == 'pages';
-					$items = $_zp_CMS->getPages(false);
+					$items = $_CMS->getPages(false);
 					$output = '';
 					$c = 0;
 					foreach ($items as $key => $item) {
@@ -655,7 +664,7 @@ echo "</head>\n";
 							if ($desc = shortenContent($itemobj->getContent(), 50, '...')) {
 								$output .= ' "' . strip_tags($desc) . '"';
 							}
-							$output .= ' <a href="' . html_encode($itemobj->getLink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('View') . ')</a> <a href="' . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/admin-edit.php?newscategory&titlelink=' . html_encode($itemobj->getTitlelink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('Edit') . ')</a></li>';
+							$output .= ' <a href="' . html_encode($itemobj->getLink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('View') . ')</a> <a href="' . getAdminLink(PLUGIN_FOLDER . '/zenpage/edit.php') . '?newscategory&titlelink=' . html_encode($itemobj->getTitlelink()) . '" title="' . html_encode($itemobj->getTitle()) . '">(' . gettext('Edit') . ')</a></li>';
 						}
 					}
 					?>
@@ -709,8 +718,8 @@ echo "</head>\n";
 				?>
 			</div>
 		</div><!-- content -->
+		<?php printAdminFooter(); ?>
 	</div><!-- main -->
-	<?php printAdminFooter(); ?>
 </body>
 <?php
 echo "</html>";

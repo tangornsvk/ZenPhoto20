@@ -12,32 +12,28 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * Copyright 2014 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2014 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/purgeOptions
+ * @pluginCategory admin
  */
 $plugin_is_filter = defaultExtension(5 | ADMIN_PLUGIN);
 $plugin_description = gettext('Provides a means to purge options for Themes and Plugins.');
-$plugin_author = "Stephen Billard (sbillard)";
 
-require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/favoritesHandler/favoritesClass.php');
-if (strpos(__FILE__, ZENFOLDER) === false) {
-	define("PURGEOPTIONS_FOLDER", USER_PLUGIN_FOLDER . '/purgeOptions/');
-} else {
-	define("PURGEOPTIONS_FOLDER", ZENFOLDER . '/' . PLUGIN_FOLDER . '/purgeOptions/');
-}
+require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/favoritesHandler/favoritesClass.php');
 
-zp_register_filter('admin_tabs', 'purgeOptions_admin_tabs');
+npgFilters::register('admin_tabs', 'purgeOptions_admin_tabs');
 
 function purgeOptions_admin_tabs($tabs) {
-	if (zp_loggedin(ADMIN_RIGHTS))
-		$tabs['options']['subtabs'][gettext("purge")] = "/" . PURGEOPTIONS_FOLDER . 'purgeOptions_tab.php?page=options&tab=purge';
+	if (npg_loggedin(ADMIN_RIGHTS))
+		$tabs['options']['subtabs'][gettext("purge")] = PLUGIN_FOLDER . '/purgeOptions/purgeOptions_tab.php?page=options&tab=purge';
 	return $tabs;
 }
 
 function listOwners($owners, $nest = '') {
-	global $xlate, $highlighted;
+	global $xlate, $highlighted, $_gallery;
+
+	$currentTheme = $_gallery->getCurrentTheme();
 
 	foreach ($owners as $owner => $detail) {
 		if (is_array($detail)) {
@@ -60,6 +56,7 @@ function listOwners($owners, $nest = '') {
 			<?php
 		} else {
 			$autocheck = str_replace('/', '_', rtrim($nest, '/'));
+			$active = false;
 
 			if ($nest == THEMEFOLDER . '/') {
 				$suffix = '';
@@ -68,9 +65,14 @@ function listOwners($owners, $nest = '') {
 			}
 
 			if ($detail && file_exists(SERVERPATH . '/' . internalToFilesystem($nest . $detail . $suffix))) {
-				$missing = '';
 				$labelclass = 'none';
+				$missing = '';
 				$checked = false;
+				if ($suffix && extensionEnabled($detail)) {
+					$active = gettext('Active Extension');
+				} else if ($detail == $currentTheme) {
+					$active = gettext('Current Theme');
+				}
 			} else {
 				$labelclass = 'missing_owner';
 				$missing = ' missing';
@@ -84,7 +86,7 @@ function listOwners($owners, $nest = '') {
 			}
 			if (empty($detail)) {
 				$display = gettext('unknown');
-				$labelclass = ' empty_name';
+				$labelclass = 'empty_name';
 				$checked = ' checked="checked"';
 			} else {
 				$display = stripSuffix($detail);
@@ -92,7 +94,7 @@ function listOwners($owners, $nest = '') {
 			?>
 			<li>
 				<label class="<?php echo $labelclass; ?>">
-					<input type="checkbox" name="del[]" class="<?php echo $autocheck . $missing; ?>" value="<?php echo $nest . $detail; ?>"<?php echo $checked; ?> /><?php echo $display; ?>
+					<input type="checkbox" name="del[]" class="<?php echo $autocheck . $missing; ?>" value="<?php echo $nest . $detail; ?>"<?php echo $checked; ?> /><span <?php if ($active) echo 'class="active" title="' . $active . '"'; ?>><?php echo $display; ?></span>
 				</label>
 			</li>
 			<?php

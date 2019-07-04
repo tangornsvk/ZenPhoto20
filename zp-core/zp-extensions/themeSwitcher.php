@@ -16,27 +16,26 @@
  *
  * @author Stephen Billard (sbillard)
  *
- * @package plugins
- * @subpackage development
+ * @package plugins/themeSwitcher
+ * @pluginCategory development
  */
-$plugin_is_filter = 500 | CLASS_PLUGIN;
+$plugin_is_filter = 500 | FEATURE_PLUGIN;
 $plugin_description = gettext('Allow a visitor to select the theme of the gallery.');
-$plugin_author = "Stephen Billard (sbillard)";
 
 $option_interface = 'themeSwitcher';
 
 class themeSwitcher {
 
 	function __construct() {
-		global $_zp_gallery;
+		global $_gallery;
 
 		if (OFFSET_PATH == 2) {
 			$themelist = array();
 			$virgin = is_null(getOption('themeSwitcher_list'));
-			$themes = $_zp_gallery->getThemes();
+			$themes = $_gallery->getThemes();
 			foreach ($themes as $key => $theme) {
 				if ($virgin || getOption('themeSwitcher_theme_' . $key)) {
-					$themelist[$key] = $key;
+					$themelist[$key] = $theme['name'];
 				}
 				$sql = 'DELETE FROM ' . prefix('options') . ' WHERE `name` LIKE ' . db_quote('themeSwitcher_' . $key . '%');
 				query($sql);
@@ -50,12 +49,13 @@ class themeSwitcher {
 	}
 
 	function getOptionsSupported() {
-		global $_zp_gallery;
+		global $_gallery;
 		$knownThemes = getSerializedArray(getOption('known_themes'));
 		$enabled = getSerializedArray(getOption('themeSwitcher_list'));
 
 		$unknown = array();
-		$themes = $_zp_gallery->getThemes();
+		$themes = $_gallery->getThemes();
+
 		$list = array();
 		foreach ($themes as $key => $theme) {
 			$list[$theme['name']] = $key;
@@ -75,7 +75,7 @@ class themeSwitcher {
 		if (!empty($unknown)) {
 			$options['note'] = array('key' => 'themeswitcher_note', 'type' => OPTION_TYPE_NOTE,
 					'order' => 4,
-					'desc' => '<span class="notebox">' . gettext('These themes are enabled but have not got their default optons set:') . ' <em>' . implode('</em>, <em>', $unknown) . '</em></span>');
+					'desc' => '<span class="notebox">' . gettext('These themes are enabled but have not got their default options set:') . ' <em>' . implode('</em>, <em>', $unknown) . '</em></span>');
 		}
 
 		return $options;
@@ -86,36 +86,61 @@ class themeSwitcher {
 	}
 
 	/**
+	 * Utility functon for managing switched theme options
+	 *
+	 * @param string $option
+	 * @param array $allowed
+	 * @return string Option as set by themeSwitcher
+	 */
+	static function themeSelection($option, $allowed) {
+		$themeOption = getNPGCookie('themeSwitcher_' . $option);
+		if (isset($_GET[$option])) {
+			if (in_array($_GET[$option], $allowed)) {
+				setNPGCookie('themeSwitcher_' . $option, $_GET[$option], false);
+				$themeOption = $_GET[$option];
+			}
+		}
+		if (!in_array($themeOption, $allowed)) {
+			return NULL;
+		}
+		return $themeOption;
+	}
+
+	/**
 	 *
 	 * Filter to "setupTheme" that will override the gallery theme with user selected theme
 	 * @param string $theme
 	 */
 	static function theme($theme) {
-		global $_zp_gallery;
-		$new = zp_getCookie('themeSwitcher_theme');
+		global $_gallery;
+		$new = getNPGCookie('themeSwitcher_theme');
 		if ($new) {
-			if (array_key_exists($new, $_zp_gallery->getThemes())) {
+			if (array_key_exists($new, $_gallery->getThemes())) {
 				$theme = $new;
 			}
 		}
 		return $theme;
 	}
 
-	static function head($css) {
+	static function head() {
 		global $_themeSwitcherThemelist;
-		$css = getPlugin('themeSwitcher/themeSwitcher.css', true, true);
+		scriptLoader(getPlugin('themeSwitcher/themeSwitcher.css'));
+		ob_start();
+		$_themeSwitcherThemelist = npgFilters::apply('themeSwitcher_head', $_themeSwitcherThemelist);
+		$scripts = ob_get_contents();
+		ob_end_clean();
+		$scripts = preg_replace('~<script.*text/javascript.*>\s*//\s*<!--.*CDATA\[?~', '', $scripts);
+		$scripts = preg_replace('~//\s*\]\]>\s*-->\s*\s</script>?~', '', $scripts);
 		?>
-		<link type="text/css" rel="stylesheet" href="<?php echo pathurlencode($css); ?>" />
-		<script type="text/javascript">
+		<script type="text/javascript">/* themeSwitcher */
 			// <!-- <![CDATA[
 			function switchTheme(reloc) {
 				window.location = reloc.replace(/%t/, encodeURIComponent($('#themeSwitcher').val()));
 			}
+		<?php echo $scripts; ?>
 			// ]]> -->
 		</script>
 		<?php
-		$_themeSwitcherThemelist = zp_apply_filter('themeSwitcher_head', $_themeSwitcherThemelist);
-		return $css;
 	}
 
 	/**
@@ -124,10 +149,11 @@ class themeSwitcher {
 	 * @param string $text link text
 	 */
 	static function controlLink($textIn = NULL) {
-		global $_zp_gallery, $_themeSwitcherThemelist, $_zp_gallery_page;
+		global $_gallery, $_themeSwitcherThemelist, $_gallery_page;
+
 		if (self::active()) {
 			$themes = array();
-			foreach ($_zp_gallery->getThemes() as $theme => $details) {
+			foreach ($_gallery->getThemes() as $theme => $details) {
 				if (!array_key_exists($theme, $_themeSwitcherThemelist) || $_themeSwitcherThemelist[$theme]) {
 					if (in_array($details['name'], $themes)) {
 						$themes[$theme] = $details['name'] . ' v' . $details['version'];
@@ -136,24 +162,25 @@ class themeSwitcher {
 					}
 				}
 			}
+
 			$text = $textIn;
 			if (empty($text)) {
 				$text = gettext('Theme');
 			}
 			$reloc = pathurlencode(trim(preg_replace('~themeSwitcher=.*?&~', '', getRequestURI() . '&'), '?&'));
 			if (strpos($reloc, '?')) {
-				$reloc .= '&themeSwitcher=%t';
+				$reloc .= '&amp;themeSwitcher=%t';
 			} else {
 				$reloc .= '?themeSwitcher=%t';
 			}
-			$theme = $_zp_gallery->getCurrentTheme();
+			$theme = $_gallery->getCurrentTheme();
 			?>
 			<div class="themeSwitcherMenuMain themeSwitcherControl">
-				<a onclick="$('.themeSwitcherControl').toggle();" title="<?php echo gettext('Switch themes'); ?>" style="text-decoration: none;" />
-				<span class="themeSwitcherMenu">
-					<?php echo MENU_SYMBOL; ?>
-				</span>
-			</a>
+				<a onclick="$('.themeSwitcherControl').toggle();" title="<?php echo gettext('Switch themes'); ?>" style="text-decoration: none;" >
+					<span class="themeSwitcherMenu">
+						<?php echo MENU_SYMBOL; ?>
+					</span>
+				</a>
 			</div>
 			<div class="themeSwitcherControlLink themeSwitcherControl" style="display:none;">
 				<div>
@@ -164,21 +191,21 @@ class themeSwitcher {
 					</a>
 				</div>
 				<?php echo $text; ?>
-				<select name="themeSwitcher" id="themeSwitcher" onchange="switchTheme('<?php echo html_encode($reloc); ?>')" title="<?php echo gettext("Themes will be disabled in this list if selecting them would result in a “not found” error."); ?>">
+				<select name="themeSwitcher" id="themeSwitcher" onchange="switchTheme('<?php echo $reloc; ?>')" title="<?php echo gettext("Themes will be disabled in this list if selecting them would result in a “not found” error."); ?>">
 					<?php
 					foreach ($themes as $key => $item) {
 						echo '<option value="' . html_encode($key) . '"';
 						if ($key == $theme) {
 							echo ' selected="selected"';
-						} else if (!getPlugin($_zp_gallery_page, $key)) {
+						} else if (!getPlugin($_gallery_page, $key)) {
 							echo ' disabled="disabled"';
 						}
 						echo '>' . $item . "</option>" . "\n";
 					}
 					?>
-					<?php //generateListFromArray(array($theme), $themes, false, true); ?>
+					<?php //generateListFromArray(array($theme), $themes, false, true);   ?>
 				</select>
-				<?php zp_apply_filter('themeSwitcher_Controllink', $theme); ?>
+				<?php npgFilters::apply('themeSwitcher_Controllink', $theme); ?>
 			</div>
 			<?php
 		}
@@ -190,7 +217,7 @@ class themeSwitcher {
 		if (is_object($_showNotLoggedin_real_auth)) {
 			$loggedin = $_showNotLoggedin_real_auth->getRights();
 		} else {
-			$loggedin = zp_loggedin();
+			$loggedin = npg_loggedin();
 		}
 		return !getOption('themeSwitcher_adminOnly') || $loggedin & (ADMIN_RIGHTS | THEMES_RIGHTS);
 	}
@@ -199,7 +226,7 @@ class themeSwitcher {
 
 $_themeSwitcherThemelist = array();
 $__enabled = getSerializedArray(getOption('themeSwitcher_list'));
-foreach ($_zp_gallery->getThemes() as $__key => $__theme) {
+foreach ($_gallery->getThemes() as $__key => $__theme) {
 	$_themeSwitcherThemelist[$__key] = in_array($__key, $__enabled);
 }
 unset($__enabled);
@@ -208,12 +235,12 @@ unset($__theme);
 
 
 if (isset($_GET['themeSwitcher'])) {
-	zp_setCookie('themeSwitcher_theme', sanitize($_GET['themeSwitcher']), false);
+	setNPGCookie('themeSwitcher_theme', sanitize($_GET['themeSwitcher']), false);
 }
 
-if (zp_getCookie('themeSwitcher_theme')) {
-	zp_register_filter('setupTheme', 'themeSwitcher::theme');
+if (getNPGCookie('themeSwitcher_theme')) {
+	npgFilters::register('setupTheme', 'themeSwitcher::theme');
 }
-zp_register_filter('theme_head', 'themeSwitcher::head', 999);
-zp_register_filter('theme_body_open', 'themeSwitcher::controlLink');
+npgFilters::register('theme_head', 'themeSwitcher::head', 999);
+npgFilters::register('theme_body_open', 'themeSwitcher::controlLink');
 ?>

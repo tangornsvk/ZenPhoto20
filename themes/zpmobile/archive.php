@@ -6,15 +6,18 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php npgFilters::apply('theme_head'); ?>
 
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" />
-		<?php jqm_loadScripts(); ?>
+
+		<?php
+		scriptLoader($_themeroot . '/style.css');
+		jqm_loadScripts();
+		?>
 	</head>
 
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<div data-role="page" id="mainpage">
 
@@ -26,13 +29,13 @@ if (!defined('WEBPATH'))
 					<h2><?php echo gettext("Archive view"); ?></h2>
 
 					<div id="archive">
-						<h3><?php echo gettext('Gallery archive'); ?></h3>
+						<h3><?php echo gettext('Gallery'); ?></h3>
 						<?php printAllDates(); ?>
 						<hr />
 						<?php
-						if (extensionEnabled('zenpage') && getNumNews(true)) {
+						if (extensionEnabled('zenpage') && hasNews()) {
 							?>
-							<h3><?php echo gettext('News archive'); ?></h3>
+							<h3><?php echo NEWS_LABEL; ?></h3>
 							<?php printNewsArchive("archive"); ?>
 							<hr />
 							<?php
@@ -53,7 +56,7 @@ if (!defined('WEBPATH'))
 			<?php jqm_printBacktoTopLink(); ?>
 			<?php jqm_printFooterNav(); ?>
 		</div><!-- /page -->
-		<?php zp_apply_filter('theme_body_close');
+		<?php npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

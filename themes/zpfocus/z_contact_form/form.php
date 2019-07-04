@@ -1,8 +1,6 @@
 <?php
 /**
  * Form for contact_form plugin
- *
- * @package plugins
  */
 ?>
 <form id="mailform" class="remove-bottom" action="<?php echo sanitize($_SERVER['REQUEST_URI']); ?>" method="post" accept-charset="UTF-8">
@@ -29,10 +27,10 @@
 		</div>
 	<?php } ?>
 
-	<?php if (showOrNotShowField(getOption('contactform_sdiveet'))) { ?>
+	<?php if (showOrNotShowField(getOption('contactform_street'))) { ?>
 		<div>
-			<label for="sdiveet"><?php printf(gettext("Sdiveet<strong>%s</strong>:"), (checkRequiredField(getOption('contactform_sdiveet')))); ?></label>
-			<input type="text" id="sdiveet" name="sdiveet" size="50" value="<?php echo html_encode($mailcontent['sdiveet']); ?>"<?php if ($_processing_post) echo ' disabled="disabled"'; ?> />
+			<label for="street"><?php printf(gettext("Street<strong>%s</strong>:"), (checkRequiredField(getOption('contactform_street')))); ?></label>
+			<input type="text" id="street" name="street" size="50" value="<?php echo html_encode($mailcontent['street']); ?>"<?php if ($_processing_post) echo ' disabled="disabled"'; ?> />
 		</div>
 	<?php } ?>
 
@@ -86,12 +84,17 @@
 	<?php } ?>
 
 	<?php
+	$class = $buttonExtra = '';
 	if (getOption("contactform_captcha") && !$_processing_post) {
-		$captcha = $_zp_captcha->getCaptcha();
+		$captcha = $_captcha->getCaptcha();
+		if (isset($captcha['submitButton'])) {
+			$class = ' ' . $captcha['submitButton']['class'];
+			$buttonExtra = ' ' . $captcha['submitButton']['extra'];
+		}
 		?>
 		<div>
 			<label for="code">
-			<?php echo gettext("Enter CAPTCHA<strong>*</strong>:"); ?>
+				<?php echo gettext("Enter CAPTCHA<strong>*</strong>:"); ?>
 			</label>
 			<?php
 			if (isset($captcha['html']))
@@ -102,7 +105,7 @@
 				echo $captcha['hidden'];
 			?>
 		</div>
-<?php } ?>
+	<?php } ?>
 
 
 	<div>
@@ -118,11 +121,11 @@
 	</div>
 
 
-<?php if (!$_processing_post) { ?>
+	<?php if (!$_processing_post) { ?>
 		<div id="contact-submit">
-			<input type="submit" value="<?php echo gettext("Send e-mail"); ?>" />
+			<button class="button buttons<?php echo $class; ?>"<?php echo $buttonExtra; ?>><?php echo gettext('Send e-mail'); ?></button>
 			<input type="reset" value="<?php echo gettext("Reset"); ?>" />
 		</div>
-<?php } ?>
+	<?php } ?>
 
 </form>

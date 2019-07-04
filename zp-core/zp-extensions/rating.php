@@ -11,57 +11,26 @@
  * <b>Legal note:</b> Use the <i>Disguise IP</i> option if your country considers IP tracking a privacy violation.
  *
  * @author Stephen Billard (sbillard)and Malte Müller (acrylian)
- * @package plugins
- * @subpackage theme
+ * @package plugins/rating
+ * @pluginCategory theme
  */
-if (!defined('OFFSET_PATH')) {
-	define('OFFSET_PATH', 3);
-	require_once(dirname(dirname(__FILE__)) . '/functions.php');
-
-	if (isset($_GET['action']) && $_GET['action'] == 'clear_rating') {
-		if (!zp_loggedin(ADMIN_RIGHTS)) {
-// prevent nefarious access to this page.
-			header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?from=' . currentRelativeURL());
-			exitZP();
-		}
-
-		require_once(dirname(dirname(__FILE__)) . '/admin-functions.php');
-		if (session_id() == '') {
-// force session cookie to be secure when in https
-			if (secureServer()) {
-				$CookieInfo = session_get_cookie_params();
-				session_set_cookie_params($CookieInfo['lifetime'], $CookieInfo['path'], $CookieInfo['domain'], TRUE);
-			}
-			zp_session_start();
-		}
-		XSRFdefender('clear_rating');
-		query('UPDATE ' . prefix('images') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-		query('UPDATE ' . prefix('albums') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-		query('UPDATE ' . prefix('news') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-		query('UPDATE ' . prefix('pages') . ' SET total_value=0, total_votes=0, rating=0, used_ips="" ');
-		header('Location: ' . FULLWEBPATH . '/' . ZENFOLDER . '/admin.php?action=external&msg=' . gettext('All ratings have been set to <em>unrated</em>.'));
-		exitZP();
-	}
-}
-
 $plugin_is_filter = 5 | ADMIN_PLUGIN | THEME_PLUGIN;
 $plugin_description = gettext("Adds several theme functions to enable images, album, news, or pages to be rated by users. ");
-$plugin_author = "Stephen Billard (sbillard) and Malte Müller (acrylian)";
 
 $option_interface = 'jquery_rating';
 
-zp_register_filter('edit_album_utilities', 'jquery_rating::optionVoteStatus');
-zp_register_filter('save_album_utilities_data', 'jquery_rating::optionVoteStatusSave');
-zp_register_filter('admin_utilities_buttons', 'jquery_rating::rating_purgebutton');
+npgFilters::register('edit_album_utilities', 'jquery_rating::optionVoteStatus');
+npgFilters::register('save_album_data', 'jquery_rating::optionVoteStatusSave');
+npgFilters::register('admin_utilities_buttons', 'jquery_rating::rating_purgebutton');
 
 if (getOption('rating_image_individual_control')) {
-	zp_register_filter('edit_image_utilities', 'jquery_rating::optionVoteStatus');
-	zp_register_filter('save_image_utilities_data', 'jquery_rating::optionVoteStatusSave');
+	npgFilters::register('edit_image_utilities', 'jquery_rating::optionVoteStatus');
+	npgFilters::register('save_image_data', 'jquery_rating::optionVoteStatusSave');
 }
 
 // register the scripts needed
-if (in_context(ZP_INDEX)) {
-	zp_register_filter('theme_head', 'jquery_rating::ratingJS');
+if (in_context(NPG_INDEX)) {
+	npgFilters::register('theme_body_close', 'jquery_rating::ratingJS');
 }
 
 /**
@@ -125,9 +94,6 @@ class jquery_rating {
 				gettext('Allow zero') => array('key' => 'rating_zero_ok', 'type' => OPTION_TYPE_CHECKBOX,
 						'order' => 5,
 						'desc' => gettext('Allows rating to be zero.')),
-				gettext('Disguise IP') => array('key' => 'rating_hash_ip', 'type' => OPTION_TYPE_CHECKBOX,
-						'order' => 1,
-						'desc' => gettext('Causes the stored IP addressed to be hashed so as to avoid privacy tracking issues.')),
 				'' => array('key' => 'rating_js', 'type' => OPTION_TYPE_CUSTOM,
 						'order' => 9999,
 						'desc' => '')
@@ -147,19 +113,19 @@ class jquery_rating {
 					function ratinglikebox() {
 						if ($('#__rating_like').prop('checked')) {
 							$('#__rating_split_stars-1').prop('checked', 'checked');
-							$('#__rating_split_stars-3').attr('disabled', 'disabled');
-							$('#__rating_split_stars-2').attr('disabled', 'disabled');
-							$('#__rating_split_stars-1').attr('disabled', 'disabled');
+							$('#__rating_split_stars-3').prop('disabled', true);
+							$('#__rating_split_stars-2').prop('disabled', true);
+							$('#__rating_split_stars-1').prop('disabled', true);
 							$('#__rating_zero_ok').prop('checked', 'checked');
-							$('#__rating_zero_ok').attr('disabled', 'disabled');
+							$('#__rating_zero_ok').prop('disabled', true);
 							$('#__rating_stars_count').val(1);
-							$('#__rating_stars_count').attr('disabled', 'disabled');
+							$('#__rating_stars_count').prop('disabled', true);
 						} else {
-							$('#__rating_split_stars-1').removeAttr('disabled');
-							$('#__rating_split_stars-2').removeAttr('disabled');
-							$('#__rating_split_stars-3').removeAttr('disabled');
-							$('#__rating_zero_ok').removeAttr('disabled');
-							$('#__rating_stars_count').removeAttr('disabled');
+							$('#__rating_split_stars-1').prop('disabled', false);
+							$('#__rating_split_stars-2').prop('disabled', false);
+							$('#__rating_split_stars-3').prop('disabled', false);
+							$('#__rating_zero_ok').prop('disabled', false);
+							$('#__rating_stars_count').prop('disabled', false);
 						}
 					}
 
@@ -185,25 +151,21 @@ class jquery_rating {
 
 	static function ratingJS() {
 		$ME = substr(basename(__FILE__), 0, -4);
-		?>
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . $ME; ?>/jquery.MetaData.js"></script>
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . $ME; ?>/jquery.rating.js"></script>
-		<?php
+		scriptLoader(CORE_SERVERPATH .  PLUGIN_FOLDER . '/' . $ME . '/jquery.MetaData.js');
+		scriptLoader(CORE_SERVERPATH .  PLUGIN_FOLDER . '/' . $ME . '/jquery.rating.js');
+
 		$size = getOption('rating_star_size');
 		if (getOption('rating_like-dislike')) {
-			$css = getPlugin('rating/jquery.rating_like-' . $size . '.css', true, true);
+			$css = getPlugin('rating/jquery.rating_like-' . $size . '.css', true);
 		} else {
-			$css = getPlugin('rating/jquery.rating-' . $size . '.css', true, true);
+			$css = getPlugin('rating/jquery.rating-' . $size . '.css', true);
 		}
+		scriptLoader($css);
 		?>
-		<link rel="stylesheet" href="<?php echo pathurlencode($css); ?>" type="text/css" />
-		<?php
-		?>
-
 		<script type="text/javascript">
-					// <!-- <![CDATA[
-					$.fn.rating.options = {cancel: '<?php echo gettext('retract'); ?>', starWidth: <?php echo $size; ?>};
-					// ]]> -->
+			// <!-- <![CDATA[
+			$.fn.rating.options = {cancel: '<?php echo gettext('retract'); ?>', starWidth: <?php echo $size; ?>};
+			// ]]> -->
 		</script>
 		<?php
 	}
@@ -217,6 +179,9 @@ class jquery_rating {
 	 * @return string Combined HTML
 	 */
 	static function optionVoteStatus($prior, $object, $prefix) {
+		if ($prior) {
+			$prior .= '<hr />';
+		}
 		$me = new jquery_rating();
 		$currentvalue = $object->get('rating_status');
 		$output = gettext('Vote Status:') . '<br />' . "\n";
@@ -251,7 +216,7 @@ class jquery_rating {
 				'enable' => true,
 				'button_text' => gettext('Reset all ratings'),
 				'formname' => 'clearrating_button',
-				'action' => FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/rating.php?action=clear_rating',
+				'action' => getAdminLink(PLUGIN_FOLDER . '/rating/update.php') . '?action=clear_rating',
 				'icon' => RECYCLE_ICON,
 				'title' => gettext('Sets all ratings to unrated.'),
 				'alt' => '',
@@ -292,30 +257,18 @@ class jquery_rating {
 	 * @return object
 	 */
 	static function getCurrentPageObject() {
-		global $_zp_gallery_page, $_zp_current_album, $_zp_current_image, $_zp_current_article, $_zp_current_page;
-		switch ($_zp_gallery_page) {
+		global $_gallery_page, $_current_album, $_current_image, $_CMS_current_article, $_CMS_current_page;
+		switch ($_gallery_page) {
 			case 'album.php':
-				return $_zp_current_album;
+				return $_current_album;
 			case 'image.php':
-				return $_zp_current_image;
+				return $_current_image;
 			case 'news.php':
-				return $_zp_current_article;
+				return $_CMS_current_article;
 			case 'pages.php':
-				return $_zp_current_page;
+				return $_CMS_current_page;
 			default:
 				return NULL;
-		}
-	}
-
-	/**
-	 *
-	 * returns an "ID" tag for rating records
-	 */
-	static function id() {
-		if (getOption('rating_hash_ip')) {
-			return sha1(getUserIP());
-		} else {
-			return getUserIP();
 		}
 	}
 
@@ -336,7 +289,7 @@ class jquery_rating {
  * @param bool $text if false, no annotation text is displayed
  */
 function printRating($vote = 3, $object = NULL, $text = true) {
-	global $_zp_gallery_page;
+	global $_gallery_page;
 	if (is_null($object)) {
 		$object = jquery_rating::getCurrentPageObject();
 	}
@@ -347,29 +300,29 @@ function printRating($vote = 3, $object = NULL, $text = true) {
 	$vote = min($vote, getOption('rating_status'), $object->get('rating_status'));
 	switch ($vote) {
 		case 1: // members only
-			if (!zp_loggedin()) {
+			if (!npg_loggedin()) {
 				$vote = 0;
 			}
 			break;
 		case 2: // members & guests
-			switch ($_zp_gallery_page) {
+			switch ($_gallery_page) {
 				case 'album.php':
 					$album = $object;
 					$hint = '';
-					if (!(zp_loggedin() || checkAlbumPassword($album->name))) {
+					if (!(npg_loggedin() || checkAlbumPassword($album->name))) {
 						$vote = 0;
 					}
 					break;
 				case 'pages.php':
 				case 'news.php':
-					if (!zp_loggedin()) { // no guest password
+					if (!npg_loggedin()) { // no guest password
 						$vote = 0;
 					}
 					break;
 				default:
 					$album = $object->getAlbum();
 					$hint = '';
-					if (!(zp_loggedin() || checkAlbumPassword($album->name))) {
+					if (!(npg_loggedin() || checkAlbumPassword($album->name))) {
 						$vote = 0;
 					}
 					break;
@@ -384,7 +337,7 @@ function printRating($vote = 3, $object = NULL, $text = true) {
 	$id = $object->getID();
 	$unique = '_' . $table . '_' . $id;
 
-	$ip = jquery_rating::id();
+	$ip = getUserID();
 	$oldrating = jquery_rating::getRatingByIP($ip, $object->get('used_ips'), $object->get('rating'));
 	if ($vote && $recast == 2 && $oldrating) {
 		$starselector = round($oldrating * $split_stars);
@@ -453,7 +406,7 @@ function printRating($vote = 3, $object = NULL, $text = true) {
 
 		function cast<?php echo $unique; ?>() {
 			var dataString = $('#star_rating<?php echo $unique; ?>').serialize();
-			if (!dataString && <?php echo (bool) getOption('rating_like-dislike'); ?>) {
+			if (!dataString && <?php echo getOption('rating_like-dislike') ? 'TRUE' : 'FALSE'; ?>) {
 				dataString = 'star_rating-value<?php echo $unique; ?>=0';
 			}
 
@@ -475,8 +428,8 @@ function printRating($vote = 3, $object = NULL, $text = true) {
 				$.ajax({
 					type: 'POST',
 					cache: false,
-					url: '<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/' . substr(basename(__FILE__), 0, -4); ?>/update.php',
-					data: dataString + '&id=<?php echo $id; ?>&table=<?php echo $table; ?>'
+					url: '<?php echo getAdminLink(PLUGIN_FOLDER . '/' . substr(basename(__FILE__), 0, -4) . '/update.php'); ?>,
+									data: dataString + '&id=<?php echo $id; ?>&table=<?php echo $table; ?>'
 				});
 				recast<?php echo $unique; ?> = <?php printf('%u', $recast); ?>;
 				$('#vote<?php echo $unique; ?>').html('<?php echo gettext('Vote Submitted'); ?>');

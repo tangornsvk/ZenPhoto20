@@ -1,10 +1,10 @@
 <?php
 /**
  * The plugin provides two services:
- * <ul>
+ * <ol>
  * 	<li>IP address filtering</li>
  * 	<li>Detection of <i>password probing</i> attempts
- * </ul>
+ * </ol>
  *
  * <b>IP address filtering:</b>
  *
@@ -28,20 +28,21 @@
  * IP addresses may be supplied in a text file, one IP per line. Upload the text file to the <i>%UPLOAD_FOLDER%</i> folder.
 
  * @author Stephen Billard (sbillard)
- * @Copyright 2015 by Stephen L Billard for use in {@link https://github.com/ZenPhoto20/ZenPhoto20 ZenPhoto20}
+ * @Copyright 2015 by Stephen L Billard for use in {@link https://%GITHUB% netPhotoGraphics} and derivatives
  *
- * @package plugins
- * @subpackage admin
+ * @package plugins/ipBlocker
+ * @pluginCategory admin
  */
 $plugin_is_filter = 10 | CLASS_PLUGIN;
-$plugin_description = gettext("Tools to block hacker access to your site.");
-$plugin_author = "Stephen Billard (sbillard)";
+if (defined('SETUP_PLUGIN')) { //	gettext debugging aid
+	$plugin_description = gettext("Tools to block hacker access to your site.");
+}
 
 $option_interface = 'ipBlocker';
 
-zp_register_filter('admin_login_attempt', 'ipBlocker::login', 9999);
-zp_register_filter('federated_login_attempt', 'ipBlocker::login', 9999);
-zp_register_filter('guest_login_attempt', 'ipBlocker::login', 9999);
+npgFilters::register('admin_login_attempt', 'ipBlocker::login', 9999);
+npgFilters::register('federated_login_attempt', 'ipBlocker::login', 9999);
+npgFilters::register('guest_login_attempt', 'ipBlocker::login', 9999);
 
 /**
  * Option handler class
@@ -94,7 +95,7 @@ class ipBlocker {
 						'selections' => $files,
 						'nullselection' => '',
 						'disabled' => !extensionEnabled('ipBlocker'),
-						'desc' => sprintf(gettext('Import an external IP list. <p class="notebox"><strong>NOTE:</strong> If this list is large it may exceed the capacity of zenphoto and %s to process and store the results.'), DATABASE_SOFTWARE)),
+						'desc' => sprintf(gettext('Import an external IP list. <p class="notebox"><strong>NOTE:</strong> If this list is large it may exceed the capacity of netPhotoGraphics and %s to process and store the results.'), DATABASE_SOFTWARE)),
 				gettext('Action') => array('key' => 'ipBlocker_type', 'type' => OPTION_TYPE_RADIO,
 						'order' => 4,
 						'buttons' => $buttons,
@@ -323,7 +324,7 @@ class ipBlocker {
 		$count = db_count('plugin_storage', 'WHERE `type`="ipBlocker" AND `subtype`=' . db_quote($type) . ' AND `data`="' . getUserIP() . '"');
 		if ($count >= ($threshold = getOption('ipBlocker_threshold'))) {
 			$ip = getUserIP();
-			zp_apply_filter('security_misc', 2, $type, 'ipBlocker', gettext('Suspended'));
+			npgFilters::apply('security_misc', 2, $type, 'ipBlocker', gettext('Suspended'));
 
 			$block = getOption('ipBlocker_forbidden');
 			if ($block) {
@@ -393,7 +394,7 @@ class ipBlocker {
 			sleep(30);
 			header("HTTP/1.0 403 " . gettext("Forbidden"));
 			header("Status: 403 " . gettext("Forbidden"));
-			exitZP(); //	terminate the script with no output
+			exit(); //	terminate the script with no output
 		}
 	}
 

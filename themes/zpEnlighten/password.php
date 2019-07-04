@@ -4,12 +4,15 @@ if (!defined('WEBPATH'))
 ?>
 <!DOCTYPE html>
 <head>
-	<?php zp_apply_filter('theme_head'); ?>
-	<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
+	<?php
+	npgFilters::apply('theme_head');
+
+	scriptLoader($_themeroot . '/style.css');
+	?>
 </head>
 
 <body>
-	<?php zp_apply_filter('theme_body_open'); ?>
+	<?php npgFilters::apply('theme_body_open'); ?>
 
 	<div id="main">
 
@@ -19,21 +22,26 @@ if (!defined('WEBPATH'))
 			<div id="breadcrumb">
 				<h2>
 					<?php if (extensionEnabled('zenpage')) { ?>
-						<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php gettext('Index'); ?>"><?php echo gettext("Index"); ?></a>»
+						<a href="<?php echo getGalleryIndexURL(); ?>" title="<?php echo gettext('Index'); ?>"><?php echo gettext("Index"); ?></a>»
 					<?php } ?>
-					<a href="<?php echo htmlspecialchars(getCustomPageURl('gallery')); ?>" title="<?php echo gettext('Gallery'); ?>"><?php echo gettext("Gallery") . " » "; ?></a>
-					<strong><?php echo gettext("A password is required for the page you requested"); ?></strong>
+					<a href="<?php echo htmlspecialchars(getCustomPageURl('gallery')); ?>" title="<?php echo gettext('Gallery'); ?>"><?php echo gettext("Gallery"); ?></a>
+					<?php if (isset($hint)) {
+						?>
+						» <strong><?php echo gettext("A password is required for the page you requested"); ?></strong>
+						<?php
+					}
+					?>
 				</h2>
 			</div>
 
 			<div id="content-error">
 
 				<div class="errorbox">
-					<?php printPasswordForm($hint, $show, false); ?>
+					<?php printPasswordForm(isset($hint) ? $hint : NULL, isset($show) ? $show : TRUE, false, isset($hint) ? WEBPATH : NULL); ?>
 				</div>
 
 				<?php
-				if (!zp_loggedin() && function_exists('printRegistrationForm') && isUnprotectedPage('register')) {
+				if (!npg_loggedin() && function_exists('printRegistrationForm') && isUnprotectedPage('register')) {
 					printCustomPageURL(gettext('Register for this site'), 'register', '', '<br />');
 					echo '<br />';
 				}
@@ -50,6 +58,6 @@ if (!defined('WEBPATH'))
 		</div><!-- content -->
 
 	</div><!-- main -->
-	<?php zp_apply_filter('theme_body_close'); ?>
+	<?php npgFilters::apply('theme_body_close'); ?>
 </body>
 </html>

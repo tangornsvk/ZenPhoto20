@@ -4,11 +4,11 @@
  */
 $optionRights = OPTIONS_RIGHTS;
 
-require_once(SERVERPATH . '/' . ZENFOLDER . '/lib-Imagick.php');
-require_once(SERVERPATH . '/' . ZENFOLDER . '/lib-GD.php');
+require_once(CORE_SERVERPATH . 'lib-Imagick.php');
+require_once(CORE_SERVERPATH . 'lib-GD.php');
 
 function saveOptions() {
-	global $_zp_gallery, $_zp_images_classes, $_zp_exifvars;
+	global $_gallery, $_images_classes, $_exifvars;
 
 	$notify = $returntab = NULL;
 	$M = sanitize_numeric($_POST['image_max_size']);
@@ -47,7 +47,7 @@ function saveOptions() {
 	setOption('watermark_w_offset', sanitize($_POST['watermark_w_offset'], 3));
 	setOption('image_cache_suffix', sanitize($_POST['image_cache_suffix']));
 
-	$imageplugins = array_unique($_zp_images_classes);
+	$imageplugins = array_unique($_images_classes);
 	foreach ($imageplugins as $plugin) {
 		$opt = $plugin . '_watermark';
 		if (isset($_POST[$opt])) {
@@ -59,7 +59,7 @@ function saveOptions() {
 	setOption('full_image_quality', sanitize($_POST['fullimagequality'], 3));
 	setOption('cache_full_image', (int) isset($_POST['cache_full_image']));
 	setOption('protect_full_image', sanitize($_POST['protect_full_image'], 3));
-	setOption('imageProcessorConcurrency', $_POST['imageProcessorConcurrency']);
+	setOption('imageProcessorConcurrency', sanitize_numeric($_POST['imageProcessorConcurrency']));
 	$processNotify = processCredentials('protected_image');
 	if ($processNotify) {
 		if ($notify) {
@@ -72,7 +72,7 @@ function saveOptions() {
 	setOption('secure_image_processor', (int) isset($_POST['secure_image_processor']));
 	if (isset($_POST['protected_image_cache'])) {
 		setOption('protected_image_cache', 1);
-		copy(SERVERPATH . '/' . ZENFOLDER . '/cacheprotect', SERVERPATH . '/' . CACHEFOLDER . '/.htaccess');
+		copy(CORE_SERVERPATH . 'cacheprotect', SERVERPATH . '/' . CACHEFOLDER . '/.htaccess');
 		@chmod(SERVERPATH . '/' . CACHEFOLDER . '/.htaccess', 0444);
 	} else {
 		@chmod(SERVERPATH . '/' . CACHEFOLDER . '/.htaccess', 0777);
@@ -85,8 +85,8 @@ function saveOptions() {
 	if ($st == 'custom') {
 		$st = unQuote(strtolower(sanitize($_POST['customimagesort'], 3)));
 	}
-	$_zp_gallery->setSortType($st, 'image');
-	$_zp_gallery->setSortDirection((int) isset($_POST['image_sortdirection']), 'image');
+	$_gallery->setSortType($st, 'image');
+	$_gallery->setSortDirection((int) isset($_POST['image_sortdirection']), 'image');
 	setOption('use_embedded_thumb', (int) isset($_POST['use_embedded_thumb']));
 	setOption('IPTC_encoding', sanitize($_POST['IPTC_encoding']));
 	setOption('transform_newlines', (int) isset($_POST['transform_newlines']));
@@ -94,12 +94,10 @@ function saveOptions() {
 
 	$oldDisabled = getSerializedArray(getOption('metadata_disabled'));
 
-	$dbChange = array();
-	$disable = array();
-	$display = array();
+	$dbChange = $enableSource = $disableSource = $disable = $display = array();
 
 	if (isset($_POST['restore_to_defaults'])) {
-		$exifvars = zpFunctions::exifvars(true);
+		$exifvars = npgFunctions::exifvars(true);
 
 		foreach ($exifvars as $key => $item) {
 			if ($exifvars[$key][EXIF_DISPLAY]) {
@@ -115,7 +113,7 @@ function saveOptions() {
 			}
 		}
 	} else {
-		foreach ($_zp_exifvars as $key => $item) {
+		foreach ($_exifvars as $key => $item) {
 			if (isset($_POST[$key])) {
 				$v = sanitize_numeric($_POST[$key]);
 			} else {
@@ -137,6 +135,7 @@ function saveOptions() {
 						}
 						if (in_array($key, $oldDisabled)) {
 							$dbChange[$item[EXIF_SOURCE] . ' Metadata'] = $item[EXIF_SOURCE] . ' Metadata';
+							$enableSource[] = $item[EXIF_SOURCE] . ' Metadata';
 						}
 					}
 					break;
@@ -144,6 +143,7 @@ function saveOptions() {
 					if ($item[EXIF_FIELD_SIZE]) { // item has data (size != 0)
 						if (!in_array($key, $oldDisabled)) {
 							$dbChange[$item[EXIF_SOURCE] . ' Metadata'] = $item[EXIF_SOURCE] . ' Metadata';
+							$disableSource[] = $item[EXIF_SOURCE] . ' Metadata';
 						}
 					}
 					$disable[$key] = $key;
@@ -151,9 +151,9 @@ function saveOptions() {
 			}
 		}
 
-		foreach ($_zp_exifvars as $key => $item) {
+		foreach ($_exifvars as $key => $item) {
 			if ($item[EXIF_FIELD_LINKED]) {
-				$d = $_zp_exifvars[$item[EXIF_FIELD_LINKED]][EXIF_FIELD_ENABLED];
+				$d = $_exifvars[$item[EXIF_FIELD_LINKED]][EXIF_FIELD_ENABLED];
 				if ($item[EXIF_FIELD_SIZE]) { // item has data (size != 0)
 					if ($d == in_array($key, $oldDisabled)) {
 						$dbChange[$item[EXIF_SOURCE] . ' Metadata'] = $item[EXIF_SOURCE] . ' Metadata';
@@ -172,17 +172,28 @@ function saveOptions() {
 	setOption('metadata_displayed', serialize($display));
 
 	foreach ($dbChange as $requestor) {
-		requestSetup($requestor);
+		switch ((int) in_array($requestor, $enableSource) + 2 * (int) in_array($requestor, $disableSource)) {
+			case 1:
+				$report = gettext('Metadata fields will be added to the Image object.');
+				break;
+			case 2:
+				$report = gettext('Metadata fields will be <span style="color:red;font-weight:bold;">dropped</span> from the Image object.');
+				break;
+			case 3:
+				$report = gettext('Metadata fields will be added and <span style="color:red;font-weight:bold;">dropped</span> from the Image object.');
+				break;
+		}
+		requestSetup($requestor, $report);
 	}
 
-	$_zp_gallery->save();
+	$_gallery->save();
 	$returntab = "&tab=image";
 
 	return array($returntab, $notify, NULL, NULL, NULL);
 }
 
 function getOptionContent() {
-	global $_zp_gallery, $_zp_images_classes, $_zp_exifvars, $_zp_graphics_optionhandlers, $_zp_sortby, $_zp_cachefileSuffix, $_zp_conf_vars, $_zp_UTF8;
+	global $_gallery, $_images_classes, $_exifvars, $_graphics_optionhandlers, $_sortby, $_cachefileSuffix, $_UTF8;
 	?>
 
 	<script type="text/javascript">
@@ -193,7 +204,7 @@ function getOptionContent() {
 		function setMetaDefaults() {
 			$('.showMeta').prop('checked', 'checked');
 	<?php
-	foreach (zpFunctions::exifvars(true) as $key => $data) {
+	foreach (npgFunctions::exifvars(true) as $key => $data) {
 		if (!$data[5]) {
 			?>
 					$('#<?php echo $key; ?>_disable').prop('checked', 'checked');
@@ -241,7 +252,7 @@ function getOptionContent() {
 					</td>
 				</tr>
 				<?php
-				foreach ($_zp_graphics_optionhandlers as $handler) {
+				foreach ($_graphics_optionhandlers as $handler) {
 					customOptions($handler, '');
 				}
 				?>
@@ -249,7 +260,7 @@ function getOptionContent() {
 					<td class="option_name"><?php echo gettext("Sort images by"); ?></td>
 					<td class="option_value">
 						<?php
-						$sort = $_zp_sortby;
+						$sort = $_sortby;
 						$cvt = $cv = IMAGE_SORT_TYPE;
 						$sort[gettext('Custom')] = 'custom';
 
@@ -278,7 +289,7 @@ function getOptionContent() {
 								?>
 							</select>
 							<label id="image_sortdirection" style="display:<?php echo $dspd; ?>white-space:nowrap;">
-								<input type="checkbox" name="image_sortdirection"	value="1" <?php checked('1', $_zp_gallery->getSortDirection('image')); ?> />
+								<input type="checkbox" name="image_sortdirection"	value="1" <?php checked('1', $_gallery->getSortDirection('image')); ?> />
 								<?php echo gettext("descending"); ?>
 							</label>
 						</span>
@@ -305,7 +316,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext('Maximum image size'); ?></td>
 					<td class="option_value">
-						<input type="textbox" name="image_max_size" value="<?php echo getOption('image_max_size'); ?>" />
+						<input type="textbox" name="image_max_size" size="10" value="<?php echo getOption('image_max_size'); ?>" /> px
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -337,7 +348,11 @@ function getOptionContent() {
 				</tr>
 				<tr>
 					<td class="option_name"><?php echo gettext("Interlace"); ?></td>
-					<td class="option_value"><input type="checkbox" name="image_interlace" value="1" <?php checked('1', getOption('image_interlace')); ?> /></td>
+					<td class="option_value">
+						<label>
+							<input type="checkbox" name="image_interlace" value="1" <?php checked('1', getOption('image_interlace')); ?> />
+						</label>
+					</td>
 					<td class="option_desc">
 						<span class="option_info">
 							<?php echo INFORMATION_BLUE; ?>
@@ -357,7 +372,12 @@ function getOptionContent() {
 						setOption('use_embedded_thumb', 0);
 					}
 					?>
-					<td class="option_value"><input type="checkbox" name="use_embedded_thumb" value="1" <?php checked('1', getOption('use_embedded_thumb')); ?><?php echo $disabled; ?> /></td>
+					<td class="option_value">
+						<label>
+							<input type="checkbox" name="use_embedded_thumb" value="1" <?php checked('1', getOption('use_embedded_thumb')); ?>
+										 <?php echo $disabled; ?> />
+						</label>
+					</td>
 					<td class="option_desc">
 						<span class="option_info">
 							<?php echo INFORMATION_BLUE; ?>
@@ -376,7 +396,9 @@ function getOptionContent() {
 				</tr>
 				<tr>
 					<td class="option_name"><?php echo gettext("Allow upscale"); ?></td>
-					<td class="option_value"><input type="checkbox" name="image_allow_upscale" value="1" <?php checked('1', getOption('image_allow_upscale')); ?> /></td>
+					<td class="option_value">
+						<input type="checkbox" name="image_allow_upscale" value="1" <?php checked('1', getOption('image_allow_upscale')); ?> />
+					</td>
 					<td class="option_desc">
 						<span class="option_info">
 							<?php echo INFORMATION_BLUE; ?>
@@ -389,16 +411,17 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Sharpen"); ?></td>
 					<td class="option_value">
-						<p class="nowrap">
-							<label>
-								<input type="checkbox" name="image_sharpen" value="1" <?php checked('1', getOption('image_sharpen')); ?> />
-								<?php echo gettext('images'); ?>
-							</label>
-							<label>
-								<input type="checkbox" name="thumb_sharpen" value="1" <?php checked('1', getOption('thumb_sharpen')); ?> />
-								<?php echo gettext('thumbs'); ?>
-							</label>
-						</p>
+						<!--<span class="nowrap">-->
+						<label>
+							<input type="checkbox" name="image_sharpen" value="1" <?php checked('1', getOption('image_sharpen')); ?> />
+							<?php echo gettext('images'); ?>
+						</label>
+						<label>
+							<input type="checkbox" name="thumb_sharpen" value="1" <?php checked('1', getOption('thumb_sharpen')); ?> />
+							<?php echo gettext('thumbnails'); ?>
+						</label>
+						</span>
+						<br />
 						<?php putSlider(gettext('amount'), 'sharpen_amount', 0, 100, getOption('sharpen_amount')); ?>
 
 						<table>
@@ -455,7 +478,7 @@ function getOptionContent() {
 								</td>
 							</tr>
 							<?php
-							$imageplugins = array_unique($_zp_images_classes);
+							$imageplugins = array_unique($_images_classes);
 							ksort($imageplugins, SORT_LOCALE_STRING);
 							foreach ($imageplugins as $plugin) {
 								$opt = $plugin . '_watermark';
@@ -463,11 +486,8 @@ function getOptionContent() {
 								?>
 								<tr>
 									<td class="image_option_tablerow">
-										<?php
-										printf(gettext('%s thumbnails'), lcfirst(gettext($plugin)));
-										if ($plugin != 'Image')
-											echo ' <strong>*</strong>';
-										?> </td>
+										<?php printf(gettext('%s thumbnails'), lcfirst(gettext($plugin))); ?>
+									</td>
 									<td class="image_option_tablerow">
 										<select id="<?php echo $opt; ?>" name="<?php echo $opt; ?>">
 											<option value="" <?php if (empty($current)) echo ' selected="selected"' ?> style="background-color:LightGray">
@@ -475,7 +495,7 @@ function getOptionContent() {
 												if ($plugin == 'Image')
 													echo gettext('none');
 												else
-													echo gettext('image thumb')
+													echo gettext('image thumbnail')
 													?>
 											</option>
 											<?php
@@ -514,13 +534,7 @@ function getOptionContent() {
 								<p><?php echo gettext("It is offset from there (moved toward the lower right corner) by the <em>offset</em> percentages of the height and width difference between the image and the watermark."); ?></p>
 								<p><?php echo gettext("If <em>allow upscale</em> is not checked the watermark will not be made larger than the original watermark image."); ?></p>
 								<p><?php printf(gettext('Custom watermarks should be placed in the <code>/%s/watermarks/</code> folder. The images must be in png-24 format.'), USER_PLUGIN_FOLDER); ?></p>
-								<?php
-								if (!empty($imageplugins)) {
-									?>
-									<p class="notebox"><?php echo '* ' . gettext('If a watermark image is selected for these <em>images classes</em> it will be used in place of the image thumbnail watermark.'); ?></p>
-									<?php
-								}
-								?>
+
 							</div>
 						</span>
 					</td>
@@ -528,8 +542,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Caching concurrency"); ?></td>
 					<td class="option_value">
-						<p>
-							<?php putSlider(gettext('limit'), 'imageProcessorConcurrency', 1, 60, getOption('imageProcessorConcurrency')); ?>
+						<?php putSlider(gettext('limit'), 'imageProcessorConcurrency', 1, 60, getOption('imageProcessorConcurrency')); ?>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -548,11 +561,15 @@ function getOptionContent() {
 						<?php $type = IMAGE_CACHE_SUFFIX; ?>
 						<input type="radio" name="image_cache_suffix" value=""<?php if (empty($type)) echo ' checked="checked"'; ?> />&nbsp;<?php echo gettext("original"); ?>
 						<?php
-						$cachesuffix = array_unique($_zp_cachefileSuffix);
+						$cachesuffix = array_unique($_cachefileSuffix);
 						foreach ($cachesuffix as $suffix) {
-							?>
-							<input type="radio" name="image_cache_suffix" value="<?php echo $suffix; ?>"<?php if ($type == $suffix) echo ' checked="checked"'; ?> />&nbsp;<?php echo $suffix; ?>
-							<?php
+							if ($suffix) {
+								?>
+								<label>
+									<input type="radio" name="image_cache_suffix" value="<?php echo $suffix; ?>"<?php if ($type == $suffix) echo ' checked="checked"'; ?> />&nbsp;<?php echo $suffix; ?>
+								</label>
+								<?php
+							}
 						}
 						?>
 					</td>
@@ -568,8 +585,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Protect image cache"); ?></td>
 					<td class="option_value">
-						<input type="checkbox" name="protected_image_cache" value="1"
-									 <?php checked('1', getOption('protected_image_cache')); ?> />
+						<input type="checkbox" name="protected_image_cache" value="1" <?php checked('1', getOption('protected_image_cache')); ?> />
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -586,8 +602,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php echo gettext("Secure image processor"); ?></td>
 					<td class="option_value">
-						<input type="checkbox" name="secure_image_processor" value="1"
-									 <?php checked('1', getOption('secure_image_processor')); ?> />
+						<input type="checkbox" name="secure_image_processor" value="1" <?php checked('1', getOption('secure_image_processor')); ?> />
 					</td>
 					<td class="option_desc">
 						<span class="option_info">
@@ -682,7 +697,8 @@ function getOptionContent() {
 														 name="disclose_password"
 														 id="disclose_password"
 														 onclick="passwordClear('');
-																 togglePassword('');" /><?php echo gettext('Show'); ?>
+																		 togglePassword('');" />
+														 <?php echo gettext('Show'); ?>
 										</label>
 
 										<br />
@@ -714,7 +730,7 @@ function getOptionContent() {
 							echo "<select id=\"protect_full_image\" name=\"protect_full_image\">\n";
 							$protection = getOption('protect_full_image');
 							$list = array(gettext('Protected view') => 'Protected view', gettext('Download') => 'Download', gettext('No access') => 'No access');
-							if ($_zp_conf_vars['album_folder_class'] != 'external') {
+							if (getOption('album_folder_class') != 'external') {
 								$list[gettext('Unprotected')] = 'Unprotected';
 							}
 							generateListFromArray(array($protection), $list, false, true);
@@ -744,7 +760,7 @@ function getOptionContent() {
 						<span class="option_info">
 							<?php echo INFORMATION_BLUE; ?>
 							<div class="option_desc_hidden">
-								<?php echo gettext("Substitute a <em>lock</em> image for thumbnails of password protected albums when the viewer has not supplied the password. If your theme supplies an <code>images/err-passwordprotected.png</code> image, it will be shown. Otherwise the zenphoto default lock image is displayed."); ?>
+								<?php echo gettext("Substitute a <em>lock</em> image for thumbnails of password protected albums when the viewer has not supplied the password. If your theme supplies an <code>images/err-passwordprotected.png</code> image, it will be shown. Otherwise the default lock image is displayed."); ?>
 							</div>
 						</span>
 					</td>
@@ -753,7 +769,7 @@ function getOptionContent() {
 				<tr>
 					<td class="option_name"><?php
 						echo gettext("Metadata");
-						$exifstuff = sortMultiArray($_zp_exifvars, array(EXIF_DISPLAY_TEXT, EXIF_SOURCE));
+						$exifstuff = sortMultiArray($_exifvars, array(EXIF_DISPLAY_TEXT, EXIF_SOURCE));
 						?></td>
 					<td class="option_value">
 						<div id="resizable">
@@ -835,10 +851,20 @@ function getOptionContent() {
 
 						<br clear="all"/>
 						<p>
-							<label><input type="checkbox" name="restore_to_defaults" value="1" /><?php echo gettext('restore fields to defaults'); ?></label><br />
-							<label><input type="checkbox" name="disableEmpty" value="1" /><?php echo gettext('mark unused fields <em>do not process</em>'); ?></label>
+							<label>
+								<input type="checkbox" name="restore_to_defaults" value="1" />
+								<?php echo gettext('restore fields to defaults'); ?>
+							</label>
 							<br />
-							<label><input type="checkbox" name="transform_newlines" value="1" /><?php echo gettext('replace newlines'); ?></label>
+							<label>
+								<input type="checkbox" name="disableEmpty" value="1" />
+								<?php echo gettext('mark unused fields <em>do not process</em>'); ?>
+							</label>
+							<br />
+							<label>
+								<input type="checkbox" name="transform_newlines" value="1" />
+								<?php echo gettext('replace newlines'); ?>
+							</label>
 
 						</p>
 					</td>
@@ -866,7 +892,7 @@ function getOptionContent() {
 								<p>
 									<?php echo gettext('Hint: you can drag down the <em>drag handle</em> in the lower right corner to show more selections.') ?>
 								</p>
-								<p><?php echo gettext('If <em>restore fields to defaults</em> is selected the default values for <code>show</code>, <code>hide</code>, and <code>Do not process</code> willl be restored.'); ?></p>
+								<p><?php echo gettext('If <em>restore fields to defaults</em> is selected the default values for <code>show</code>, <code>hide</code>, and <code>Do not process</code> will be restored.'); ?></p>
 								<?php echo gettext('Columns for fields marked <em>do not process</em> will be removed from the database on the next <code>setup</code> execution. Selecting the <em>Mark unused fields do not process</em> will cause metadata fields that have no values to be marked <em>do not process</em> allowing them to be removed from the database.') ?>
 								</p>
 								<p><?php echo gettext('If <em>replace newlines</em> is selected <code>&lt;br /&gt;</code> will replace <em>newline</em> characters from image metadata destined for <em>titles</em> and <em>descriptions</em>. This happens only when the metadata is imported so you may need to refresh your metadata to see the results.'); ?></p>
@@ -875,7 +901,7 @@ function getOptionContent() {
 					</td>
 				</tr>
 				<?php
-				$sets = array_merge($_zp_UTF8->iconv_sets, $_zp_UTF8->mb_sets);
+				$sets = array_merge($_UTF8->iconv_sets, $_UTF8->mb_sets);
 				ksort($sets, SORT_LOCALE_STRING);
 				if (!empty($sets)) {
 					?>
@@ -902,14 +928,19 @@ function getOptionContent() {
 					$desc = gettext('If checked and an image has no IPTC data a copyright notice will be imbedded cached copies.');
 				} else {
 					$optionText = gettext('replicate IPTC metadata');
-					$desc = gettext('If checked IPTC data from the original image will be imbedded in cached copies. If the image has no IPTC data a copyright notice will be imbedded. (The text supplied will be used if the orginal image has no copyright.)');
+					$desc = gettext('If checked IPTC data from the original image will be imbedded in cached copies. If the image has no IPTC data a copyright notice will be imbedded. (The text supplied will be used if the original image has no copyright.)');
 				}
 				?>
 				<tr>
 					<td class="option_name"><?php echo gettext("IPTC Imbedding"); ?></td>
 					<td class="option_value">
-						<label><input type="checkbox" name="ImbedIPTC" value="1"	<?php checked('1', getOption('ImbedIPTC')); ?> /> <?php echo $optionText; ?></label>
-						<p><input type="textbox" name="default_copyright" value="<?php echo getOption('default_copyright'); ?>" size="50" /></p>
+						<label>
+							<input type="checkbox" name="ImbedIPTC" value="1"	<?php checked('1', getOption('ImbedIPTC')); ?> />
+							<?php echo $optionText; ?>
+						</label>
+						<p>
+							<input type="textbox" name="default_copyright" value="<?php echo getOption('default_copyright'); ?>" size="50" />
+						</p>
 					</td>
 					<td class="option_desc">
 						<span class="option_info">

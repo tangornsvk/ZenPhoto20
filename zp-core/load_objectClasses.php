@@ -3,49 +3,55 @@
 /**
  *
  * Load the base classes (Image, Album, Gallery, etc.)
+ * and any enabled "class" plugins
  *
  * @author Stephen Billard (sbillard)
  *
  * @package core
  */
+$_plugin_differed_actions = array(); //	final initialization for class plugins (mostly for language translation issues)
+
 require_once(dirname(__FILE__) . '/classes.php');
 require_once(dirname(__FILE__) . '/class-gallery.php');
 require_once(dirname(__FILE__) . '/class-album.php');
 require_once(dirname(__FILE__) . '/class-image.php');
 require_once(dirname(__FILE__) . '/class-search.php');
 
-$_zp_loaded_plugins = array();
+$_loaded_plugins = array();
 // load the class & filter plugins
-if (abs(OFFSET_PATH) != 2) { // setup does not need (and might have problems with) plugins
-	$masks[] = CLASS_PLUGIN;
-	if (OFFSET_PATH) {
-		$masks[] = ADMIN_PLUGIN | FEATURE_PLUGIN;
-	}
-	if (DEBUG_PLUGINS) {
-		if (OFFSET_PATH) {
-			debugLog('Loading the "class" "feature" and "admin" plugins.');
-		} else {
-			debugLog('Loading the "class" plugins.');
-		}
-	}
-	foreach ($masks as $mask) {
-		foreach (getEnabledPlugins() as $extension => $plugin) {
-			$priority = $plugin['priority'];
-			if ($priority & $mask) {
-				if (DEBUG_PLUGINS) {
-					list($usec, $sec) = explode(" ", microtime());
-					$start = (float) $usec + (float) $sec;
-				}
-				require_once($plugin['path']);
-				$_zp_loaded_plugins[$extension] = $extension;
-				if (DEBUG_PLUGINS) {
-					zpFunctions::pluginDebug($extension, $priority, $start);
-				}
-			}
-		}
-		require_once(dirname(__FILE__) . '/auth_zp.php'); // loaded after CLASS_PLUGIN and before ADMIN_PLUGIN
+if (DEBUG_PLUGINS) {
+	debugLog('Loading the "class" plugins.');
+}
+if (abs(OFFSET_PATH) == 2) {
+	// setup does not need (and might have problems with) plugins so just load some specific ones
+	//	NOTE: these should be ordered by priority, descending
+	$enabled = array(
+			'dynamic-locale' => array('priority' => 10 | CLASS_PLUGIN, 'path' => dirname(__FILE__) . '/' . PLUGIN_FOLDER . '/dynamic-locale.php')
+	);
+	if (extensionEnabled('googleTFA')) {
+		$enabled['googleTFA'] = array('priority' => 5 | CLASS_PLUGIN, 'path' => dirname(__FILE__) . '/' . PLUGIN_FOLDER . '/googleTFA.php');
 	}
 } else {
-	require_once(dirname(__FILE__) . '/auth_zp.php'); // setup needs this!
+	$enabled = getEnabledPlugins();
+}
+foreach ($enabled as $extension => $plugin) {
+	$priority = $plugin['priority'];
+	if ($priority & CLASS_PLUGIN) {
+		$start = microtime();
+		require_once($plugin['path']);
+		if (DEBUG_PLUGINS) {
+			npgFunctions::pluginDebug($extension, $priority, $start);
+		}
+		$_loaded_plugins[$extension] = $extension;
+	}
+}
+
+//	check for logged in users and set up the locale
+require_once(dirname(__FILE__) . '/auth_processor.php');
+define('SITE_LOCALE_OPTION', i18n::setMainDomain());
+//	process any differred language strings
+$_active_languages = $_all_languages = NULL; //	clear out so that they will get translated properly
+foreach ($_plugin_differed_actions as $callback) {
+	call_user_func($callback);
 }
 ?>

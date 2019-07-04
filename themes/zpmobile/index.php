@@ -6,17 +6,20 @@ if (!defined('WEBPATH'))
 <!DOCTYPE html>
 <html>
 	<head>
-		<?php zp_apply_filter('theme_head'); ?>
-		
-		
-		 
+		<?php npgFilters::apply('theme_head'); ?>
+
+
+
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" />
-		<?php jqm_loadScripts(); ?>
+
+		<?php
+		scriptLoader($_themeroot . '/style.css');
+		jqm_loadScripts();
+		?>
 	</head>
 
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 
 		<div data-role="page" id="mainpage">
 
@@ -64,7 +67,7 @@ if (!defined('WEBPATH'))
 					<br />
 					<?php if (function_exists('next_news')) { ?>
 						<ul data-role="listview" data-inset="true" data-theme="a" class="ui-listview ui-group-theme-a">
-							<li data-role="list-divider"><h2><?php echo gettext('Latest news'); ?></h2></li>
+							<li data-role="list-divider"><h2><?php echo NEWS_LABEL; ?></h2></li>
 							<?php while (next_news()): ?>
 								<li>
 									<a href="<?php echo html_encode(jqm_getLink()); ?>" title="<?php printBareNewsTitle(); ?>">
@@ -89,7 +92,7 @@ if (!defined('WEBPATH'))
 
 		</div><!-- /page -->
 
-		<?php zp_apply_filter('theme_body_close'); ?>
+		<?php npgFilters::apply('theme_body_close'); ?>
 
 	</body>
 </html>

@@ -8,40 +8,55 @@
  * @package setup
  *
  */
-list($usec, $sec) = explode(" ", microtime());
-$start = (float) $usec + (float) $sec;
-
 define('OFFSET_PATH', 2);
 require_once('setup-functions.php');
-require_once(dirname(dirname(__FILE__)) . '/admin-functions.php');
-$debug = TEST_RELEASE || isset($_GET['debug']);
+register_shutdown_function('shutDownFunction');
+require_once(dirname(dirname(__FILE__)) . '/functions-basic.php');
 
-$iMutex = new zpMutex('i', getOption('imageProcessorConcurrency'));
-$iMutex->lock();
+npg_session_start();
+
+require_once(dirname(dirname(__FILE__)) . '/initialize-basic.php');
+
+list($usec, $sec) = explode(" ", microtime());
+$startTO = (float) $usec + (float) $sec;
+
+require_once(dirname(dirname(__FILE__)) . '/admin-globals.php');
+
+define('ZENFOLDER', CORE_FOLDER); //	since the zenphotoCompatibilityPack will not be present
+
+@ini_set('display_errors', 1);
+
+$fullLog = isset($_GET['fullLog']);
 
 $theme = sanitize($_REQUEST['theme']);
-setupLog(sprintf(gettext('Theme:%s setup started'), $theme));
+$__script = 'Theme:' . $theme;
+
+setupLog(sprintf(gettext('Theme:%s setup started'), $theme), $fullLog);
 
 $requirePath = getPlugin('themeoptions.php', $theme);
-
 if (!empty($requirePath)) {
-	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/cacheManager.php');
-	require_once(SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/colorbox_js.php');
+	//	load some theme support plugins that have option interedependencies
+	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/cacheManager.php');
+	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/menu_manager.php');
+	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/colorbox_js.php');
+	require_once(CORE_SERVERPATH . PLUGIN_FOLDER . '/deprecated-functions.php');
+
 	require_once(SERVERPATH . '/' . THEMEFOLDER . '/' . $theme . '/themeoptions.php');
 	/* prime the default theme options */
-	$_zp_gallery->setCurrentTheme($theme);
-	$optionHandler = new ThemeOptions();
-	setupLog(sprintf(gettext('Theme:%s option interface instantiated'), $theme));
+	$optionHandler = new ThemeOptions(true);
+	setThemeOption('constructed', 1, NULL, $theme); //	mark the theme "constructed"
+
+	setupLog(sprintf(gettext('Theme:%s option interface instantiated'), $theme), $fullLog);
 }
 /* then set any "standard" options that may not have been covered by the theme */
 standardThemeOptions($theme, NULL);
 
-$iMutex->unlock();
-
-sendImage(!protectedTheme($theme));
+sendImage($_GET['class'], 'theme_' . $theme);
 
 list($usec, $sec) = explode(" ", microtime());
 $last = (float) $usec + (float) $sec;
 /* and record that we finished */
-setupLog(sprintf(gettext('Theme:%s setup completed in %2$.4f seconds'), $theme, $last - $start));
+setupLog(sprintf(gettext('Theme:%s setup completed in %2$.4f seconds'), $theme, $last - $startTO), $fullLog);
+
+exit();
 ?>

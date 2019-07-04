@@ -7,19 +7,23 @@ if (!defined('WEBPATH'))
 <html>
 	<head>
 
-		<?php zp_apply_filter('theme_head'); ?>
+		<?php
+		npgFilters::apply('theme_head');
 
-		<link rel="stylesheet" href="<?php echo pathurlencode($zenCSS); ?>" type="text/css" />
-		<link rel="stylesheet" href="<?php echo pathurlencode(dirname(dirname($zenCSS))); ?>/common.css" type="text/css" />
-		<?php if (class_exists('RSS')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
+		scriptLoader($zenCSS);
+		scriptLoader(dirname(dirname($zenCSS)) . '/common.css');
+
+		if (class_exists('RSS'))
+			printRSSHeaderLink('Album', getAlbumTitle());
+		?>
 	</head>
 	<body>
-		<?php zp_apply_filter('theme_body_open'); ?>
+		<?php npgFilters::apply('theme_body_open'); ?>
 		<div id="main">
 			<div id="gallerytitle">
 				<?php
 				if (getOption('Allow_search')) {
-					$album_list = array('albums' => array($_zp_current_album->name), 'pages' => '0', 'news' => '0');
+					$album_list = array('albums' => array($_current_album->name), 'pages' => '0', 'news' => '0');
 					printSearchForm('', 'search', gettext('Search within album'), gettext('search'), NULL, NULL, $album_list);
 				}
 				?>
@@ -33,7 +37,10 @@ if (!defined('WEBPATH'))
 				</h2>
 			</div>
 			<div id="padbox">
-				<?php printAlbumDesc(); ?>
+				<?php
+				printAlbumDesc();
+				printCodeblock(1);
+				?>
 				<div id="albums">
 					<?php while (next_album()): ?>
 						<div class="album">
@@ -49,7 +56,7 @@ if (!defined('WEBPATH'))
 						</div>
 					<?php endwhile; ?>
 				</div>
-				<br class="clearfloat">
+				<br class="clearall">
 				<div id="images">
 					<?php while (next_image()): ?>
 						<div class="image">
@@ -61,13 +68,14 @@ if (!defined('WEBPATH'))
 						</div>
 					<?php endwhile; ?>
 				</div>
-				<br class="clearfloat">
+				<br class="clearall">
 				<?php
+				printCodeblock(2);
 				printPageListWithNav("« " . gettext("prev"), gettext("next") . " »");
 				if (function_exists('printAddToFavorites'))
-					printAddToFavorites($_zp_current_album);
+					printAddToFavorites($_current_album);
 				printTags('links', gettext('<strong>Tags:</strong>') . ' ', 'taglist', '');
-				@call_user_func('printGoogleMap');
+				simpleMap::printMap();
 				@call_user_func('printSlideShowLink');
 				@call_user_func('printRating');
 				@call_user_func('printCommentForm');
@@ -80,14 +88,14 @@ if (!defined('WEBPATH'))
 				printFavoritesURL(NULL, '', ' | ', '<br />');
 			}
 			if (class_exists('RSS'))
-				printRSSLink('Album', '', gettext('Album RSS'), ' | ');
+				printRSSLink('Album', '', gettext('Album'), ' | ');
 			printCustomPageURL(gettext("Archive View"), "archive", '', '', ' | ');
 			printSoftwareLink();
 			@call_user_func('printUserLogin_out', " | ");
 			?>
 		</div>
 		<?php
-		zp_apply_filter('theme_body_close');
+		npgFilters::apply('theme_body_close');
 		?>
 	</body>
 </html>

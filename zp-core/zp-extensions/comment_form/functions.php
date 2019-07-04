@@ -1,12 +1,100 @@
 <?php
+/**
+ * @package plugins/comment_form
+ */
 define('COMMENTS_PER_PAGE', max(1, getOption('comment_form_comments_per_page')));
 
-$_zp_comment_stored = array();
+$_comment_stored = array();
+
+/**
+ * Gets an array of comments for the current admin
+ *
+ * @param int $number how many comments desired
+ * @return array
+ */
+function fetchComments($number) {
+	if ($number) {
+		$limit = " LIMIT $number";
+	} else {
+		$limit = '';
+	}
+
+	$comments = array();
+	if (npg_loggedin(ADMIN_RIGHTS | COMMENT_RIGHTS)) {
+		if (npg_loggedin(ADMIN_RIGHTS | MANAGE_ALL_ALBUM_RIGHTS)) {
+			$sql = "SELECT * FROM " . prefix('comments') . " ORDER BY id DESC$limit";
+			$comments = query_full_array($sql);
+		} else {
+			$albumlist = getManagedAlbumList();
+			$albumIDs = array();
+			foreach ($albumlist as $albumname) {
+				$subalbums = getAllSubAlbumIDs($albumname);
+				foreach ($subalbums as $ID) {
+					$albumIDs[] = $ID['id'];
+				}
+			}
+			if (count($albumIDs) > 0) {
+				$sql = "SELECT  * FROM " . prefix('comments') . " WHERE ";
+
+				$sql .= " (`type`='albums' AND (";
+				$i = 0;
+				foreach ($albumIDs as $ID) {
+					if ($i > 0) {
+						$sql .= " OR ";
+					}
+					$sql .= "(" . prefix('comments') . ".ownerid=$ID)";
+					$i++;
+				}
+				$sql .= ")) ";
+				$sql .= " ORDER BY id DESC$limit";
+				$albumcomments = query($sql);
+				if ($albumcomments) {
+					while ($comment = db_fetch_assoc($albumcomments)) {
+						$comments[$comment['id']] = $comment;
+					}
+					db_free_result($albumcomments);
+				}
+				$sql = "SELECT *, " . prefix('comments') . ".id as id, " .
+								prefix('comments') . ".name as name, " . prefix('comments') . ".date AS date, " .
+								prefix('images') . ".`albumid` as albumid," .
+								prefix('images') . ".`id` as imageid" .
+								" FROM " . prefix('comments') . "," . prefix('images') . " WHERE ";
+
+				$sql .= "(`type` IN (" . npg_image_types("'") . ") AND (";
+				$i = 0;
+				foreach ($albumIDs as $ID) {
+					if ($i > 0) {
+						$sql .= " OR ";
+					}
+					$sql .= "(" . prefix('comments') . ".ownerid=" . prefix('images') . ".id AND " . prefix('images') . ".albumid=$ID)";
+					$i++;
+				}
+				$sql .= "))";
+				$sql .= " ORDER BY " . prefix('images') . ".`id` DESC$limit";
+				$imagecomments = query($sql);
+				if ($imagecomments) {
+					while ($comment = db_fetch_assoc($imagecomments)) {
+						$comments[$comment['id']] = $comment;
+					}
+					db_free_result($imagecomments);
+				}
+				krsort($comments);
+				if ($number) {
+					if ($number < count($comments)) {
+						$comments = array_slice($comments, 0, $number);
+					}
+				}
+			}
+		}
+	}
+	return $comments;
+}
 
 function comment_form_PaginationJS() {
+	scriptLoader(CORE_SERVERPATH . 'js/jquery.pagination.js');
 	?>
-	<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jquery.pagination.js"></script>
 	<script type="text/javascript">
+		var current_comment_N, addrBar_hash = window.location.hash, Comm_ID_found = !addrBar_hash.search(/#_comment_id_/);
 		function pageselectCallback(page_index, jq) {
 			var items_per_page = <?php echo max(1, COMMENTS_PER_PAGE); ?>;
 			var max_elem = Math.min((page_index + 1) * items_per_page, $('#comments div.comment').length);
@@ -43,7 +131,6 @@ function comment_form_PaginationJS() {
 				$(addrBar_hash).scrollToMe();
 			}
 		}, false);
-		var current_comment_N, addrBar_hash = window.location.hash, Comm_ID_found = !addrBar_hash.search(/#zp_comment_id_/);
 		jQuery.fn.extend({
 			scrollToMe: function () {
 				var x = jQuery(this).offset().top - 10;
@@ -54,61 +141,75 @@ function comment_form_PaginationJS() {
 }
 
 function comment_form_visualEditor() {
-	zp_apply_filter('texteditor_config', 'comments');
+	npgFilters::apply('texteditor_config', 'comments');
+}
+
+function getCommentOwner($table, $ownerid) {
+	global $__comment_cache;
+	if (isset($__comment_cache[$table][$ownerid])) {
+		return $__comment_cache[$table][$ownerid];
+	} else {
+		return $__comment_cache[$table][$ownerid] = getItemByID($table, $ownerid);
+	}
 }
 
 /**
  * Admin overview summary
  */
 function comment_form_print10Most() {
-	?>
-	<div class="box overview-section">
-		<h2 class="h2_bordered"><?php echo gettext("10 Most Recent Comments"); ?></h2>
-		<ul>
-			<?php
-			$comments = fetchComments(10);
-			foreach ($comments as $comment) {
-				$id = $comment['id'];
-				$author = $comment['name'];
-				$email = $comment['email'];
-				$link = gettext('<strong>database error</strong> '); // incase of such
-				switch ($comment['type']) {
-					case "albums":
-						$album = getItemByID('albums', $comment['ownerid']);
-						if ($album) {
-							$link = "<a href=\"" . $album->getlink() . "\">" . $album->gettitle() . "</a>";
-						}
-						break;
-					case "news": // ZENPAGE: if plugin is installed
-						if (extensionEnabled('zenpage')) {
-							$news = getItemByID('news', $comment['ownerid']);
-							if ($news) {
-								$link = "<a href=\"" . $news->getLink() . "\">" . $news->getTitle() . "</a> " . gettext("[news]");
+	$comments = fetchComments(10);
+	$count = count($comments);
+	$comment_cache = array();
+	if (!empty($comments)) {
+		?>
+		<div class="box overview-section">
+			<h2 class="h2_bordered"><?php printf(ngettext("Most Recent Comment", "%d Most Recent Comments", $count), $count); ?></h2>
+			<ul>
+				<?php
+				$comments = fetchComments(10);
+				foreach ($comments as $comment) {
+					$id = $comment['id'];
+					$author = $comment['name'];
+					$email = $comment['email'];
+					$link = gettext('<strong>database error</strong> '); // incase of such
+					switch ($comment['type']) {
+						case "albums":
+							$album = getCommentOwner('albums', $comment['ownerid']);
+							if ($album) {
+								$link = "<a href=\"" . $album->getlink() . "\">" . $album->gettitle() . "</a>";
 							}
-						}
-						break;
-					case "pages": // ZENPAGE: if plugin is installed
-						if (extensionEnabled('zenpage')) {
-							$page = getItemByID('pages', $comment['ownerid']);
-							if ($page) {
-								$link = "<a href=\"" . $page->getlink() . "\">" . $page->getTitle() . "</a> " . gettext("[page]");
+							break;
+						case "news": // ZENPAGE: if plugin is installed
+							if (extensionEnabled('zenpage')) {
+								$news = getCommentOwner('news', $comment['ownerid']);
+								if ($news) {
+									$link = "<a href=\"" . $news->getLink() . "\">" . $news->getTitle() . "</a> " . gettext("[news]");
+								}
 							}
-						}
-						break;
-					default: // all of the image types
-						$image = getItemByID('images', $comment['ownerid']);
-						if ($image) {
-							$link = "<a href=\"" . $image->getLink() . "\">" . $image->getTitle() . "</a>";
-						}
-						break;
+							break;
+						case "pages": // ZENPAGE: if plugin is installed
+							if (extensionEnabled('zenpage')) {
+								$page = getCommentOwner('pages', $comment['ownerid']);
+								if ($page) {
+									$link = "<a href=\"" . $page->getlink() . "\">" . $page->getTitle() . "</a> " . gettext("[page]");
+								}
+							}
+							break;
+						default: // all of the image types
+							$image = getCommentOwner('images', $comment['ownerid']);
+							if ($image) {
+								$link = "<a href=\"" . $image->getLink() . "\">" . $image->getTitle() . "</a>";
+							}
+							break;
+					}
+					$comment = shortenContent($comment['comment'], 123, '...');
+					echo "<li><div class=\"commentmeta\">" . sprintf(gettext('<em>%1$s</em> commented on %2$s:'), $author, $link) . "</div><div class=\"commentbody\">$comment</div></li>";
 				}
-				$comment = shortenContent($comment['comment'], 123, '...');
-				echo "<li><div class=\"commentmeta\">" . sprintf(gettext('<em>%1$s</em> commented on %2$s:'), $author, $link) . "</div><div class=\"commentbody\">$comment</div></li>";
-			}
-			?>
-		</ul>
-	</div>
-	<?php
+				?>
+			</ul>
+		</div>
+		<?php
+	}
 }
 
 /**
@@ -140,22 +241,22 @@ function getCommentAddress($i) {
  * @return string
  */
 function getCommentErrors() {
-	global $_zp_comment_error;
-	return $_zp_comment_error;
+	global $_comment_error;
+	return $_comment_error;
 }
 
 /**
  * Tool to output an error message if a comment posting was not accepted
  */
 function printCommentErrors() {
-	global $_zp_comment_error, $_zp_comment_on_hold;
-	if ($_zp_comment_on_hold) {
-		$s = trim(str_replace($_zp_comment_on_hold, '', trim($_zp_comment_error)));
+	global $_comment_error, $_comment_on_hold;
+	if ($_comment_on_hold) {
+		$s = trim(str_replace($_comment_on_hold, '', trim($_comment_error)));
 		?>
-		<p class="notebox"><?php echo $_zp_comment_on_hold; ?></p>
+		<p class="notebox"><?php echo $_comment_on_hold; ?></p>
 		<?php
 	} else {
-		$s = trim($_zp_comment_error);
+		$s = trim($_comment_error);
 	}
 	if ($s) {
 		$lines = explode('.', $s);
@@ -200,15 +301,15 @@ define('COMMENT_SEND_EMAIL', 32);
  * @param string $code_ok CAPTCHA hash expected
  * @param string $type 'albums' if it is an album or 'images' if it is an image comment
  * @param object $receiver the object (image or album) to which to post the comment
- * @param string $ip the IP address of the comment poster
+ * @param string $id the IP address of the comment poster
  * @param bool $private set to true if the comment is for the admin only
  * @param bool $anon set to true if the poster wishes to remain anonymous
  * @param string $customdata
  * @param bit $check bitmask of which fields must be checked. If set overrides the options
  * @return object
  */
-function comment_form_addComment($name, $email, $website, $comment, $code, $code_ok, $receiver, $ip, $private, $anon, $customdata, $check = false) {
-	global $_zp_captcha, $_zp_gallery, $_zp_authority, $_zp_comment_on_hold, $_zp_spamFilter;
+function comment_form_addComment($name, $email, $website, $comment, $code, $code_ok, $receiver, $id, $private, $anon, $customdata, $check = false) {
+	global $_captcha, $_gallery, $_authority, $_comment_on_hold, $_spamFilter;
 	if ($check === false) {
 		$whattocheck = 0;
 		if (getOption('comment_email_required') == 'required')
@@ -221,7 +322,7 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 			case 0:
 				break;
 			case 2:
-				if (zp_loggedin(POST_COMMENT_RIGHTS)) {
+				if (npg_loggedin(POST_COMMENT_RIGHTS)) {
 					break;
 				}
 			default:
@@ -262,13 +363,13 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 	$commentobj->setWebsite($website);
 	$commentobj->setComment($comment);
 	$commentobj->setType($type);
-	$commentobj->setIP($ip);
+	$commentobj->setIP($id);
 	$commentobj->setPrivate($private);
 	$commentobj->setAnon($anon);
 	$commentobj->setInModeration(0);
 	$commentobj->setAddressData($customdata);
 
-	if (($whattocheck & COMMENT_EMAIL_REQUIRED) && (empty($email) || !is_valid_email_zp($email))) {
+	if (($whattocheck & COMMENT_EMAIL_REQUIRED) && (empty($email) || !npgFunctions::is_valid_email($email))) {
 		$commentobj->setInModeration(-2);
 		$commentobj->comment_error_text .= ' ' . gettext("You must supply an e-mail address.");
 		$goodMessage = false;
@@ -284,7 +385,7 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 		$goodMessage = false;
 	}
 	if (($whattocheck & USE_CAPTCHA)) {
-		if (!$_zp_captcha->checkCaptcha($code, $code_ok)) {
+		if (!$_captcha->checkCaptcha($code, $code_ok)) {
 			$commentobj->setInModeration(-5);
 			$commentobj->comment_error_text .= ' ' . gettext("CAPTCHA verification failed.");
 			$goodMessage = false;
@@ -296,17 +397,17 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 		$goodMessage = false;
 	}
 	$moderate = 0;
-	if ($goodMessage && isset($_zp_spamFilter)) {
-		$goodMessage = $_zp_spamFilter->filterMessage($name, $email, $website, $comment, $receiver, $ip);
+	if ($goodMessage && isset($_spamFilter)) {
+		$goodMessage = $_spamFilter->filterMessage($name, $email, $website, $comment, $receiver, $id);
 		switch ($goodMessage) {
 			case 0:
 				$commentobj->setInModeration(2);
-				$commentobj->comment_error_text .= sprintf(gettext('Your comment was rejected by the <em>%s</em> SPAM filter.'), $_zp_spamFilter->name);
+				$commentobj->comment_error_text .= sprintf(gettext('Your comment was rejected by the <em>%s</em> SPAM filter.'), $_spamFilter->name);
 				$goodMessage = false;
 				break;
 			case 1:
-				$_zp_comment_on_hold = sprintf(gettext('Your comment has been marked for moderation by the <em>%s</em> SPAM filter.'), $_zp_spamFilter->name);
-				$commentobj->comment_error_text .= $_zp_comment_on_hold;
+				$_comment_on_hold = sprintf(gettext('Your comment has been marked for moderation by the <em>%s</em> SPAM filter.'), $_spamFilter->name);
+				$commentobj->comment_error_text .= $_comment_on_hold;
 				$commentobj->setInModeration(1);
 				$moderate = 1;
 				break;
@@ -316,7 +417,7 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 		}
 	}
 	$localerrors = $commentobj->getInModeration();
-	zp_apply_filter('comment_post', $commentobj, $receiver);
+	npgFilters::apply('comment_post', $commentobj, $receiver);
 	if ($check === false) {
 		// ignore filter provided errors if caller is supplying the fields to check
 		$localerrors = $commentobj->getInModeration();
@@ -375,9 +476,9 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 			$message = $action . "\n\n" .
 							sprintf(gettext('Author: %1$s' . "\n" . 'Email: %2$s' . "\n" . 'Website: %3$s' . "\n" . 'Comment:' . "\n\n" . '%4$s'), $commentobj->getname(), $commentobj->getEmail(), $commentobj->getWebsite(), $commentobj->getComment()) . "\n\n" .
 							sprintf(gettext('You can view all comments about this item here:' . "\n" . '%1$s'), 'http://' . $_SERVER['SERVER_NAME'] . WEBPATH . '/index.php?' . $url) . "\n\n" .
-							sprintf(gettext('You can edit the comment here:' . "\n" . '%1$s'), 'http://' . $_SERVER['SERVER_NAME'] . WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form/admin-comments.php?page=editcomment&id=' . $commentobj->getID());
+							sprintf(gettext('You can edit the comment here:' . "\n" . '%1$s'), 'http://' . $_SERVER['SERVER_NAME'] . getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php') . '?page=editcomment&id=' . $commentobj->getID());
 			$emails = array();
-			$admin_users = $_zp_authority->getAdministrators();
+			$admin_users = $_authority->getAdministrators();
 			foreach ($admin_users as $admin) {
 				// mail anyone with full rights
 				if (!empty($admin['email']) && (($admin['rights'] & ADMIN_RIGHTS) ||
@@ -405,7 +506,7 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 				}
 			}
 			$on = gettext('Comment posted');
-			$result = zp_mail("[" . $_zp_gallery->getTitle() . "] $on", $message, $emails);
+			$result = npgFunctions::mail("[" . $_gallery->getTitle() . "] $on", $message, $emails);
 			if ($result) {
 				$commentobj->setInModeration(-12);
 				$commentobj->comment_error_text = $result;
@@ -424,7 +525,7 @@ function commentFormUseCaptcha() {
 		case 0:
 			return false;
 		case 2:
-			return !zp_loggedin(POST_COMMENT_RIGHTS);
+			return !npg_loggedin(POST_COMMENT_RIGHTS);
 		default:
 			return true;
 	}
@@ -436,11 +537,11 @@ function commentFormUseCaptcha() {
  * @param string $error
  */
 function comment_form_postcomment($error) {
-	global $_zp_current_album, $_zp_current_image, $_zp_current_article, $_zp_current_page;
-	if (( (commentsAllowed('comment_form_albums') && in_context(ZP_ALBUM) && !in_context(ZP_IMAGE) && $_zp_current_album->getCommentsAllowed()) ||
-					(commentsAllowed('comment_form_images') && in_context(ZP_IMAGE) && $_zp_current_image->getCommentsAllowed()) ||
-					(commentsAllowed('comment_form_articles') && in_context(ZP_ZENPAGE_NEWS_ARTICLE) && $_zp_current_article->getCommentsAllowed()) ||
-					(commentsAllowed('comment_form_pages') && in_context(ZP_ZENPAGE_PAGE) && $_zp_current_page->getCommentsAllowed()))
+	global $_current_album, $_current_image, $_CMS_current_article, $_CMS_current_page;
+	if (( (commentsAllowed('comment_form_albums') && in_context(NPG_ALBUM) && !in_context(NPG_IMAGE) && $_current_album->getCommentsAllowed()) ||
+					(commentsAllowed('comment_form_images') && in_context(NPG_IMAGE) && $_current_image->getCommentsAllowed()) ||
+					(commentsAllowed('comment_form_articles') && in_context(ZENPAGE_NEWS_ARTICLE) && $_CMS_current_article->getCommentsAllowed()) ||
+					(commentsAllowed('comment_form_pages') && in_context(ZENPAGE_PAGE) && $_CMS_current_page->getCommentsAllowed()))
 	) {
 		$error = comment_form_handle_comment();
 	}
@@ -453,28 +554,28 @@ function comment_form_postcomment($error) {
  * @return NULL|boolean
  */
 function comment_form_handle_comment() {
-	global $_zp_current_image, $_zp_current_album, $_zp_comment_stored, $_zp_current_article, $_zp_current_page, $_zp_HTML_cache;
+	global $_current_image, $_current_album, $_comment_stored, $_CMS_current_article, $_CMS_current_page, $_HTML_cache;
 	$comment_error = 0;
-	$cookie = zp_getCookie('zenphoto_comment');
+	$cookie = getNPGCookie('comment_data');
 	if (isset($_POST['comment']) && (!isset($_POST['username']) || empty($_POST['username']))) { // 'username' is a honey-pot trap
 		/*
 		 * do not save the post page in the cache
 		 * Also the cache should be cleared so that a new page is saved at the first non-comment posting viewing.
 		 * But this has to wait until processing is finished to avoid race conditions.
 		 */
-		$_zp_HTML_cache->disable();
-		if (in_context(ZP_IMAGE)) {
-			$commentobject = $_zp_current_image;
-			$redirectTo = $_zp_current_image->getLink();
-		} else if (in_context(ZP_ALBUM)) {
-			$commentobject = $_zp_current_album;
-			$redirectTo = $_zp_current_album->getLink();
-		} else if (in_context(ZP_ZENPAGE_NEWS_ARTICLE)) {
-			$commentobject = $_zp_current_article;
-			$redirectTo = FULLWEBPATH . '/index.php?p=news&title=' . $_zp_current_article->getTitlelink();
-		} else if (in_context(ZP_ZENPAGE_PAGE)) {
-			$commentobject = $_zp_current_page;
-			$redirectTo = FULLWEBPATH . '/index.php?p=pages&title=' . $_zp_current_page->getTitlelink();
+		$_HTML_cache->disable();
+		if (in_context(NPG_IMAGE)) {
+			$commentobject = $_current_image;
+			$redirectTo = $_current_image->getLink();
+		} else if (in_context(NPG_ALBUM)) {
+			$commentobject = $_current_album;
+			$redirectTo = $_current_album->getLink();
+		} else if (in_context(ZENPAGE_NEWS_ARTICLE)) {
+			$commentobject = $_CMS_current_article;
+			$redirectTo = FULLWEBPATH . '/index.php?p=news&title=' . $_CMS_current_article->getTitlelink();
+		} else if (in_context(ZENPAGE_PAGE)) {
+			$commentobject = $_CMS_current_page;
+			$redirectTo = FULLWEBPATH . '/index.php?p=pages&title=' . $_CMS_current_page->getTitlelink();
 		} else {
 			$commentobject = NULL;
 			$error = gettext('Comment posted on unknown page!');
@@ -487,7 +588,7 @@ function comment_form_handle_comment() {
 			}
 			if (isset($_POST['email'])) {
 				$p_email = sanitize($_POST['email'], 3);
-				if (!is_valid_email_zp($p_email)) {
+				if (!npgFunctions::is_valid_email($p_email)) {
 					$p_email = NULL;
 				}
 			} else {
@@ -509,7 +610,7 @@ function comment_form_handle_comment() {
 			} else {
 				$p_comment = '';
 			}
-			$p_server = getUserIP();
+			$p_server = getUserID();
 			if (isset($_POST['code'])) {
 				$code1 = sanitize($_POST['code'], 3);
 				$code2 = sanitize($_POST['code_h'], 3);
@@ -523,7 +624,7 @@ function comment_form_handle_comment() {
 			$commentadded = $commentobject->addComment($p_name, $p_email, $p_website, $p_comment, $code1, $code2, $p_server, $p_private, $p_anon, serialize(getCommentAddress(0)));
 
 			$comment_error = $commentadded->getInModeration();
-			$_zp_comment_stored = array(
+			$_comment_stored = array(
 					'name' => $commentadded->getName(),
 					'email' => $commentadded->getEmail(),
 					'website' => $commentadded->getWebsite(),
@@ -538,20 +639,20 @@ function comment_form_handle_comment() {
 				$error = $commentadded->comment_error_text;
 				$comment_error++;
 			} else {
-				$_zp_HTML_cache->clearHtmlCache();
+				$_HTML_cache->clearHtmlCache();
 				$error = NULL;
 				if (isset($_POST['remember'])) {
 					// Should always re-cookie to update info in case it's changed...
-					$_zp_comment_stored['comment'] = ''; // clear the comment itself
-					zp_setCookie('zenphoto_comment', serialize($_zp_comment_stored), false);
+					$_comment_stored['comment'] = ''; // clear the comment itself
+					setNPGCookie('comment_data', serialize($_comment_stored), false);
 				} else {
-					zp_clearCookie('zenphoto_comment');
+					clearNPGCookie('comment_data');
 				}
 				//use $redirectTo to send users back to where they came from instead of booting them back to the gallery index. (default behaviour)
 				if (!isset($_SERVER['SERVER_SOFTWARE']) || strpos(strtolower($_SERVER['SERVER_SOFTWARE']), 'microsoft-iis') === false) {
 					// but not for Microsoft IIS because that server fails if we redirect!
-					header('Location: ' . $redirectTo . '#zp_comment_id_' . $commentadded->getId());
-					exitZP();
+					header('Location: ' . $redirectTo . '#_comment_id_' . $commentadded->getId());
+					exit();
 				}
 			}
 		}
@@ -560,7 +661,7 @@ function comment_form_handle_comment() {
 		if (!empty($cookie)) {
 			$cookiedata = getSerializedArray($cookie);
 			if (count($cookiedata) > 1) {
-				$_zp_comment_stored = $cookiedata;
+				$_comment_stored = $cookiedata;
 			}
 		}
 	}
@@ -573,8 +674,8 @@ function comment_form_handle_comment() {
  * @return string
  */
 function getCommentAuthorName() {
-	global $_zp_current_comment;
-	return $_zp_current_comment['name'];
+	global $_current_comment;
+	return $_current_comment['name'];
 }
 
 /**
@@ -583,8 +684,8 @@ function getCommentAuthorName() {
  * @return string
  */
 function getCommentAuthorEmail() {
-	global $_zp_current_comment;
-	return $_zp_current_comment['email'];
+	global $_current_comment;
+	return $_current_comment['email'];
 }
 
 /**
@@ -593,8 +694,8 @@ function getCommentAuthorEmail() {
  * @return string
  */
 function getCommentAuthorSite() {
-	global $_zp_current_comment;
-	return $_zp_current_comment['website'];
+	global $_current_comment;
+	return $_current_comment['website'];
 }
 
 /**
@@ -605,20 +706,24 @@ function getCommentAuthorSite() {
  * @param string $id optional id tag
  */
 function getCommentAuthorLink($title = NULL, $class = NULL, $id = NULL) {
-	global $_zp_current_comment;
-	$name = $_zp_current_comment['name'];
-	if ($_zp_current_comment['anon']) {
+	global $_current_comment;
+	if ($_current_comment['anon']) {
+		$name = gettext('anonymous ');
 		$site = NULL;
 	} else {
-		$site = $_zp_current_comment['website'];
+		$name = $_current_comment['name'];
+		if (empty($name)) {
+			$name = $_current_comment['email'];
+		}
+		$site = $_current_comment['website'];
 	}
 	if (empty($site)) {
-		return html_encode($_zp_current_comment['name']);
+		return html_encode($name);
 	} else {
 		if (is_null($title)) {
 			$title = "Visit " . $name;
 		}
-		return getLinkHTML($site, $_zp_current_comment['name'], $title, $class, $id);
+		return getLinkHTML($site, $name, $title, $class, $id);
 	}
 }
 
@@ -634,29 +739,13 @@ function printCommentAuthorLink($title = NULL, $class = NULL, $id = NULL) {
 }
 
 /**
- * Returns a formatted date and time for the comment.
- * Uses the "date_format" option for the formatting unless
- * a format string is passed.
- *
- * @param string $format 'strftime' date/time format
- * @return string
- */
-function getCommentDateTime($format = NULL) {
-	if (is_null($format)) {
-		$format = DATE_FORMAT;
-	}
-	global $_zp_current_comment;
-	return myts_date($format, $_zp_current_comment['date']);
-}
-
-/**
  * Returns the body of the current comment
  *
  * @return string
  */
 function getCommentBody() {
-	global $_zp_current_comment;
-	return str_replace("\n", "<br />", stripslashes($_zp_current_comment['comment']));
+	global $_current_comment;
+	return str_replace("\n", "<br />", stripslashes($_current_comment['comment']));
 }
 
 /**
@@ -670,12 +759,12 @@ function getCommentBody() {
  * @param string $id optional css id
  */
 function printEditCommentLink($text, $before = '', $after = '', $title = NULL, $class = NULL, $id = NULL) {
-	global $_zp_current_comment;
-	if (zp_loggedin(COMMENT_RIGHTS)) {
+	global $_current_comment;
+	if (npg_loggedin(COMMENT_RIGHTS)) {
 		if ($before) {
 			echo '<span class="beforetext">' . html_encode($before) . '</span>';
 		}
-		printLinkHTML(WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/comment_form//admin-comments.php?page=editcomment&id=' . $_zp_current_comment['id'], $text, $title, $class, $id);
+		printLinkHTML(getAdminLink(PLUGIN_FOLDER . '/comment_form/admin-comments.php') . '?page=editcomment&id=' . $_current_comment['id'], $text, $title, $class, $id);
 		if ($after) {
 			echo '<span class="aftertext">' . html_encode($after) . '</span>';
 		}
@@ -695,7 +784,7 @@ function printEditCommentLink($text, $before = '', $after = '', $title = NULL, $
  * @param int $id the record id of element to get the comments for if $type != "all"
  */
 function getLatestComments($number, $type = "all", $id = NULL) {
-	global $_zp_gallery;
+	global $_gallery;
 	$albumcomment = $imagecomment = NULL;
 	$comments = array();
 	$whereclause = '';
@@ -741,8 +830,10 @@ function getLatestComments($number, $type = "all", $id = NULL) {
 				foreach ($comments as $key => $comment) {
 					$comment['pubdate'] = $comment['date'];
 					$alb = getItemByID('albums', $comment['ownerid']);
-					$comment['folder'] = $alb->name;
-					$comment['albumtitle'] = $item->getTitle('all');
+					if ($alb) {
+						$comment['folder'] = $alb->name;
+						$comment['albumtitle'] = $item->getTitle('all');
+					}
 					$comments[$key] = $comment;
 				}
 				return $comments;
@@ -756,10 +847,12 @@ function getLatestComments($number, $type = "all", $id = NULL) {
 				foreach ($comments as $key => $comment) {
 					$comment['pubdate'] = $comment['date'];
 					$img = getItemByID('images', $comment['ownerid']);
-					$comment['folder'] = $img->album->name;
-					$comment['filename'] = $img->filename;
-					$comment['title'] = $item->getTitle('all');
-					$comment['albumtitle'] = $img->album->getTitle('all');
+					if ($img) {
+						$comment['folder'] = $img->album->name;
+						$comment['filename'] = $img->filename;
+						$comment['title'] = $item->getTitle('all');
+						$comment['albumtitle'] = $img->album->getTitle('all');
+					}
 					$comments[$key] = $comment;
 				}
 				return $comments;
@@ -865,66 +958,66 @@ function printLatestComments($number, $shorten = '123', $type = "all", $item = N
  * @return int
  */
 function getCommentCount() {
-	global $_zp_current_image, $_zp_current_album, $_zp_current_page, $_zp_current_article;
-	if (in_context(ZP_IMAGE) && in_context(ZP_ALBUM)) {
-		if (is_null($_zp_current_image))
+	global $_current_image, $_current_album, $_CMS_current_page, $_CMS_current_article;
+	if (in_context(NPG_IMAGE) && in_context(NPG_ALBUM)) {
+		if (is_null($_current_image))
 			return false;
-		return $_zp_current_image->getCommentCount();
-	} else if (!in_context(ZP_IMAGE) && in_context(ZP_ALBUM)) {
-		if (is_null($_zp_current_album))
+		return $_current_image->getCommentCount();
+	} else if (!in_context(NPG_IMAGE) && in_context(NPG_ALBUM)) {
+		if (is_null($_current_album))
 			return false;
-		return $_zp_current_album->getCommentCount();
+		return $_current_album->getCommentCount();
 	}
 	if (function_exists('is_News')) {
 		if (is_News()) {
-			return $_zp_current_article->getCommentCount();
+			return $_CMS_current_article->getCommentCount();
 		}
 		if (is_Pages()) {
-			return $_zp_current_page->getCommentCount();
+			return $_CMS_current_page->getCommentCount();
 		}
 	}
 }
 
 /**
- * Iterate through comments; use the ZP_COMMENT context.
+ * Iterate through comments; use the NPG_COMMENT context.
  * Return true if there are more comments
  * @param  bool $desc set true for desecnding order
  *
  * @return bool
  */
 function next_comment($desc = false) {
-	global $_zp_current_image, $_zp_current_album, $_zp_current_comment, $_zp_comments, $_zp_current_page, $_zp_current_article;
+	global $_current_image, $_current_album, $_current_comment, $_comments, $_CMS_current_page, $_CMS_current_article;
 	//ZENPAGE: comments support
-	if (is_null($_zp_current_comment)) {
-		if (in_context(ZP_IMAGE) AND in_context(ZP_ALBUM)) {
-			if (is_null($_zp_current_image))
+	if (is_null($_current_comment)) {
+		if (in_context(NPG_IMAGE) AND in_context(NPG_ALBUM)) {
+			if (is_null($_current_image))
 				return false;
-			$_zp_comments = $_zp_current_image->getComments(false, false, $desc);
-		} else if (!in_context(ZP_IMAGE) AND in_context(ZP_ALBUM)) {
-			$_zp_comments = $_zp_current_album->getComments(false, false, $desc);
+			$_comments = $_current_image->getComments(false, false, $desc);
+		} else if (!in_context(NPG_IMAGE) AND in_context(NPG_ALBUM)) {
+			$_comments = $_current_album->getComments(false, false, $desc);
 		}
 		if (function_exists('is_NewsArticle')) {
 			if (is_NewsArticle()) {
-				$_zp_comments = $_zp_current_article->getComments(false, false, $desc);
+				$_comments = $_CMS_current_article->getComments(false, false, $desc);
 			}
 			if (is_Pages()) {
-				$_zp_comments = $_zp_current_page->getComments(false, false, $desc);
+				$_comments = $_CMS_current_page->getComments(false, false, $desc);
 			}
 		}
-		if (empty($_zp_comments)) {
+		if (empty($_comments)) {
 			return false;
 		}
-	} else if (empty($_zp_comments)) {
-		$_zp_comments = NULL;
-		$_zp_current_comment = NULL;
-		rem_context(ZP_COMMENT);
+	} else if (empty($_comments)) {
+		$_comments = NULL;
+		$_current_comment = NULL;
+		rem_context(NPG_COMMENT);
 		return false;
 	}
-	$_zp_current_comment = array_shift($_zp_comments);
-	if ($_zp_current_comment['anon']) {
-		$_zp_current_comment['email'] = $_zp_current_comment['name'] = '<' . gettext("Anonymous") . '>';
+	$_current_comment = array_shift($_comments);
+	if ($_current_comment['anon']) {
+		$_current_comment['email'] = $_current_comment['name'] = '<' . gettext("Anonymous") . '>';
 	}
-	add_context(ZP_COMMENT);
+	add_context(NPG_COMMENT);
 	return true;
 }
 
@@ -935,10 +1028,10 @@ function next_comment($desc = false) {
  * @return array
  */
 function getCommentStored($numeric = false) {
-	global $_zp_comment_stored;
+	global $_comment_stored;
 	if ($numeric) {
-		return array_merge($_zp_comment_stored);
+		return array_merge($_comment_stored);
 	}
-	return $_zp_comment_stored;
+	return $_comment_stored;
 }
 ?>
